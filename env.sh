@@ -69,13 +69,6 @@ runnetron() {
   netron --host 0.0.0.0 -p 6006 "$@"
 }
 
-conftf() {(
-  set -e -x
-  cd $STAGEDML_ROOT/3rdparty/tensorflow
-  export TF_NCCL_VERSION="$NCCL_VERSION"   # <-- Required for TF2.0 + CUDA
-  ./configure
-)}
-
 buildtf() {(
   set -e -x
   cd $STAGEDML_ROOT/3rdparty/tensorflow
@@ -108,7 +101,7 @@ installtf() {
   sudo -H pip uninstall -y tb-nightly tensorboard tensorflow \
                            tensorflow-estimator tensorflow-estimator-2.0-preview \
                            tf-nightly-gpu-2.0-preview
-  # Install custom TF2.1. See `conftf`/`buildtf`.
+  # Install custom TF2.1. See `buildtf`.
   sudo -H pip3 install --force $STAGEDML_ROOT/_tf/*whl tensorflow-hub
 }
 

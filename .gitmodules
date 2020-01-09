@@ -1,0 +1,9 @@
+[submodule "3rdparty/tensorflow"]
+	path = 3rdparty/tensorflow
+	url = https://github.com/stagedml/tensorflow
+[submodule "3rdparty/tensorflow_models"]
+	path = 3rdparty/tensorflow_models
+	url = https://github.com/tensorflow/models
+[submodule "3rdparty/pylightnix"]
+	path = 3rdparty/pylightnix
+	url = https://github.com/stagedml/pylightnix
