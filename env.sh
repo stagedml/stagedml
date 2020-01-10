@@ -9,7 +9,7 @@ export PYTHONPATH=""
 export MYPYPATH=""
 for p in \
   $STAGEDML_ROOT/3rdparty/tensorflow-models \
-  $STAGEDML_ROOT/3rdparty/modelcap \
+  $STAGEDML_ROOT/3rdparty/pylightnix \
   $STAGEDML_ROOT/ \
   ; do
   if test -d "$p" ; then
