@@ -1,7 +1,8 @@
 build/
 dist/
 .*
-_*
+_*egg-info
+*
 *\.log
 *\.pyc
 tags
