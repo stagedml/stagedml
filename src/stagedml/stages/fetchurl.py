@@ -7,8 +7,9 @@ from hashlib import sha256
 
 from pylightnix import ( Model, Config, State, Hash, Ref, model_save,
                          protocol_add, model_config_ro, model_outpath,
-                         state_add, search, state, only )
+                         state_add, search, state )
 from stagedml.utils.files import get_executable
+from stagedml.utils.instantiate import Options, instantiate
 
 
 WGET=get_executable('wget', 'Please install `wget` command')
@@ -58,13 +59,10 @@ def download(m:Model)->Model:
   return m
 
 
-def fetchurl(*args, **kwargs)->Ref:
-  # FIXME: use instantiate
+def fetchurl(o:Options, *args, **kwargs)->Ref:
   c=config(*args, **kwargs)
-  refs=search(downloaded(state(c)))
-  if len(refs)>0:
-    return only(refs)
-  else:
+  def _search():
+    return search(downloaded(state(c)))
+  def _build():
     return model_save(download(Model(c)))
-
-
+  return instantiate(o, _search, _build)

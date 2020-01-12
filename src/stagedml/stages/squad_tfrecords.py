@@ -6,7 +6,7 @@ from typing import Optional,Any,List,Tuple,Union
 from pylightnix import ( Model, Config, State, Hash, model_save,
                          protocol_add, model_config_ro, model_outpath,
                          state_add, search, state, Ref, store_refpath as refpath,
-                         store_systempath, only, config_deref_ro )
+                         store_systempath, config_deref_ro )
 
 from stagedml.utils.files import json_read
 from stagedml.utils.tf import best, memlimit

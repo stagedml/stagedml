@@ -15,3 +15,5 @@ class GlueTFR(Ref):
 class Squad11TFR(Ref):
   pass
 
+class BertGlue(Ref):
+  pass

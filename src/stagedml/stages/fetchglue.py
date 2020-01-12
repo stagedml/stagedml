@@ -7,7 +7,7 @@ from hashlib import sha256
 
 from pylightnix import ( Model, Config, State, Hash, Ref, model_save,
                          protocol_add, model_config_ro, model_outpath,
-                         state_add, search, state, only )
+                         state_add, search, state )
 
 from stagedml.utils.instantiate import Options, instantiate
 from stagedml.utils.refs import Glue
@@ -38,5 +38,5 @@ def fetchglue(o:Options)->Glue:
     return search(downloaded(state(c)))
   def _build():
     return model_save(download(Model(c)))
-  return GlueRef(instantiate(o, _search, _build))
+  return Glue(instantiate(o, _search, _build))
 

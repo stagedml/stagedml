@@ -15,7 +15,7 @@ common_fetchglue = fetchglue
 common_fetchsquad11 = fetchsquad11
 
 def common_fetchbert(o:Options)->BertCP:
-  return BertCP(fetchurl(
+  return BertCP(fetchurl(o,
     name='uncased-bert',
     url='https://storage.googleapis.com/cloud-tpu-checkpoints/bert/tf_20/uncased_L-12_H-768_A-12.tar.gz',
     sha256='018ef0ac65fc371f97c1e2b1ede59b5afb2d9e1da0217eb5072888940fb51978'))
@@ -28,7 +28,7 @@ def common_glue_tfrecords(o:Options)->GlueTFR:
 def common_squad11_tfrecords(o:Options)->Squad11TFR:
   bertref=common_fetchbert(o)
   squadref=common_fetchsquad11(o)
-  return squad11_tfrecords(o,bertref,squadref)
+  return squad11_tfrecords(o, bertref, squadref)
 
 # def common_bert_finetune_glue(o:Options, task_name:str)->Ref:
 #   glueref=common_glue_tfrecords(o)

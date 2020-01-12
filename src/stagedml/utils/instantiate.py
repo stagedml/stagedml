@@ -9,7 +9,7 @@ class InstantiateMode(Enum):
   SEARCH_OR_REBUILD=2
 
 class Options:
-  def __init__(self, mode:InstantiateMode)->None:
+  def __init__(self, mode:InstantiateMode=InstantiateMode.SEARCH_OR_REBUILD)->None:
     self.mode=mode
 
 

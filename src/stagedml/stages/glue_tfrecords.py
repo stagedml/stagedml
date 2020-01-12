@@ -2,9 +2,10 @@ from os import environ, makedirs
 from os.path import join
 from typing import Optional,Any,List,Tuple,Union
 
-from pylightnix import ( Model, Config, State, Hash, model_save, protocol_add,
-                         model_config_ro, model_outpath, state_add, search,
-                         state, Ref, store_refpath, store_systempath, only )
+from pylightnix import ( Model, Config, State, Hash, RefPath, model_save,
+                         protocol_add, model_config_ro, model_outpath,
+                         state_add, search, state, Ref, store_refpath,
+                         store_systempath )
 
 from stagedml.utils.files import json_read
 from stagedml.utils.tf import best, memlimit
@@ -27,11 +28,10 @@ def config(dataset_name:str, refbert:BertCP, refdataset:Glue)->Config:
     raise ValueError('Unsupported dataset name {dataset_name}')
   bert_refpath = refpath(refbert, ['uncased_L-12_H-768_A-12'])
   bert_ckpt_refpath = bert_refpath+['bert_model.ckpt']
-  # FIXME: fix type error
-  # bert_config = json_read(store_systempath(bert_refpath+['bert_config.json']))
+  bert_config = json_read(store_systempath(RefPath(bert_refpath+['bert_config.json'])))
   bert_vocab_refpath = bert_refpath+['vocab.txt']
   max_seq_length = 128
-  return Config({k:v for k,v in locals().items() if k[0]!='_'})
+  return Config(locals())
 
 
 def processed(s:State)->State:
