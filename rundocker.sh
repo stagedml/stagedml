@@ -4,7 +4,7 @@ CWD=$(cd `dirname $0`; pwd;)
 
 GITHACK=n
 MAPSOCKETS=y
-DOCKERFILE=$CWD/docker/stagedml.docker
+DOCKERFILE=$CWD/docker/stagedml_dev.docker
 
 while test -n "$1" ; do
   case "$1" in

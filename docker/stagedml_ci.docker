@@ -1,0 +1,23 @@
+# Continuous integration docker installs packages using pip.
+
+FROM ufoym/deepo:all-jupyter
+COPY with_the_same_user.sh /install/with_the_same_user.sh
+
+COPY install_huawei_certificates.sh /install/install_huawei_certificates.sh
+RUN /bin/sh /install/install_huawei_certificates.sh
+
+COPY install_system_deps.sh /install/install_system_deps.sh
+RUN /bin/sh /install/install_system_deps.sh
+
+RUN apt-get install -y openjdk-8-jdk
+COPY set_java_home.sh /install/set_java_home.sh
+RUN /bin/sh /install/set_java_home.sh
+
+COPY install_proxy_environment.sh /install/install_proxy_environment.sh
+RUN /bin/sh /install/install_proxy_environment.sh
+
+COPY install_python_deps.sh /install/install_python_deps.sh
+RUN /bin/sh /install/install_python_deps.sh
+
+COPY install_wheels.sh /install/install_wheels.sh
+RUN /bin/sh /install/install_wheels.sh

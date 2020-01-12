@@ -1,6 +1,6 @@
 # This expression defines author's personal development tools and depends on
-# some custom Nix packages. It is not important for the project and may be
-# safely removed.
+# custom Nix packages. It is not an important part of the project and may be
+# safely ignored.
 
 { me
 , localpkgs ?  import <nixcfg/src/pkgs/localpkgs.nix> {inherit me;}

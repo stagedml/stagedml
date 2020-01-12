@@ -3,14 +3,14 @@ if test -z "$STAGEDML_ROOT" ; then
 fi
 
 export CWD="$STAGEDML_ROOT"
-export TERM=xterm-256color
+export TERM=xterm-256color # TODO: check and document
 export PATH="$STAGEDML_ROOT/.nix_docker_inject.env/bin:$PATH"
 export PYTHONPATH=""
 export MYPYPATH=""
 for p in \
-  $STAGEDML_ROOT/3rdparty/tensorflow-models \
-  $STAGEDML_ROOT/3rdparty/pylightnix \
-  $STAGEDML_ROOT/ \
+  $STAGEDML_ROOT/3rdparty/tensorflow_models \
+  $STAGEDML_ROOT/3rdparty/pylightnix/src \
+  $STAGEDML_ROOT/src \
   ; do
   if test -d "$p" ; then
     export PYTHONPATH="$p:$PYTHONPATH"
