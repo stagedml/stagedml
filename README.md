@@ -12,9 +12,10 @@ Install
 
 The project is in its early stages, so we mainly focus on Docker-driven
 environment for development and evaluation. We provide 2 docker containers, one
-is defined by [./docker/stagedml_dev.docker](./docker/stagedml_dev.docker) and describes development
-environment, another one is defined by [./docker/stagedml_ci.docker](./docker/stagedml_ci.docker).
-We plan to use it for continuous integration tests.
+is defined by [./docker/stagedml_dev.docker](./docker/stagedml_dev.docker) and
+describes development environment, another one is defined by
+[./docker/stagedml_ci.docker](./docker/stagedml_ci.docker).  We plan to use it
+for continuous integration tests.
 
 ### System requirements
 
@@ -44,9 +45,9 @@ We show how to run the project in development docker
    [several helper functions](./env.sh) are defined.
 
 3. Now, we have to make sure we are using a compatible version of TensorFlow.
-   At the time of this writing, the default TF from Deepo was a bit old, so we provide our favorite version
-   as  `./3rdparty/tensorflow` submodule. In order to use it, we have to build it first.
-   Consider using our helper function
+   At the time of this writing, the default TF from Deepo was a bit old, so we
+   provide our favorite version as  `./3rdparty/tensorflow` submodule. In order
+   to use it, we have to build it first.  Consider using our helper function
 
    ```
    $ buildtf
