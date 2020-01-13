@@ -12,9 +12,9 @@ Install
 
 The project is in its early stages, so we mainly focus on Docker-driven
 environment for development and evaluation. We provide 2 docker containers, one
-is defined by [./docker/stagedml_dev.docker] and describes development
-environment, another is defined by [./docker/stagedml_ci.docker] and will be
-used for continuous integration tests.
+is defined by [./docker/stagedml_dev.docker](./docker/stagedml_dev.docker) and describes development
+environment, another one is defined by [./docker/stagedml_ci.docker](./docker/stagedml_ci.docker).
+We plan to use it for continuous integration tests.
 
 ### System requirements
 
@@ -43,10 +43,10 @@ We show how to run the project in development docker
    open Bash shell where PYTHONPATH points to local sources and
    [several helper functions](./env.sh) are defined.
 
-3. Now, we have to install correct version of TensorFlow. At the time of this
-   writing, the default TF from Deepo is a bit old. Our favorite version
-   is pinned as  `./3rdparty/tensorflow` submodule, so we have to build it
-   first. Consider using our helper shell-function:
+3. Now, we have to make sure we are using a compatible version of TensorFlow.
+   At the time of this writing, the default TF from Deepo was a bit old, so we provide our favorite version
+   as  `./3rdparty/tensorflow` submodule. In order to use it, we have to build it first.
+   Consider using our helper function
 
    ```
    $ buildtf
@@ -62,7 +62,7 @@ We show how to run the project in development docker
    `installtf` at every start of the container for now.
 
 4. Alternatively, you are free to experiment with any `tensorflow-2.1`
-   package from elsewhere.
+   package from elsewhere. Just install it using `sudo -H pip3 install` or `sudo apt-get install`.
 
 5. That is all. Now you could run `ipython` to call functions directly or run
    scripts from `./run` folder.
