@@ -17,14 +17,13 @@ from pylightnix import ( Config, State, protocol_add, search, model_config,
                          config_deref, state, state_add, store_readjson,
                          store_systempath, model_outpath )
 
-from stagedml.utils.instantiate import Options, instantiate
-from stagedml.dataset.glue.tfdataset import dataset, dataset_eval, dataset_train
-from stagedml.model.tiny_bert import ( TeacherBertModel as TeacherBert,
-                                       classification_logits )
+from stagedml.utils.instantiate import ( Options, instantiate )
+from stagedml.datasets.glue.tfdataset import ( dataset, dataset_eval, dataset_train )
+from stagedml.models.bert import ( BertLayer, classification_logits )
 from stagedml.utils.tf import ( runtb, runtensorboard, thash, save, KerasModel,
                                 protocol_add_hist, protocol_add_eval, best,
                                 dpurge, best )
-from stagedml.utils.refs import GlueTFR, BertGlue
+from stagedml.utils.refs import ( GlueTFR, BertGlue )
 
 refpath = store_refpath
 
@@ -79,7 +78,7 @@ def build(m:Model, clear_session:bool=True):
           'input_type_ids': input_type_ids
         }
 
-    teacher = TeacherBert(config=bert_config, float_type=tf.float32, name='teacher')
+    teacher = BertLayer(config=bert_config, float_type=tf.float32, name='bert')
     teacher_outs = teacher(input_word_ids, input_mask, input_type_ids)
     teacher_model = tf.keras.Model(inputs=inputs, outputs=teacher_outs)
     teacher_model.summary()
@@ -225,7 +224,7 @@ def evaluate(m:Model)->Model:
   return m
 
 
-def bert_finetune(o:Options, task_name:str, tfrecs:GlueTFR)->BertGlue:
+def bert_finetune_glue(o:Options, task_name:str, tfrecs:GlueTFR)->BertGlue:
   c=config(task_name, tfrecs)
   def _search():
     return search(evaluated(ctrained(cploaded(state(c)))))
