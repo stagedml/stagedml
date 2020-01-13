@@ -43,12 +43,12 @@ def download(m:Model)->Model:
     rename(partpath, fullpath)
 
     if 'unpack' in c.mode:
-      print("Unpacking {fullpath}..")
+      print(f"Unpacking {fullpath}..")
       p=Popen([AUNPACK, fullpath], cwd=o)
       p.wait()
       assert p.returncode == 0, f"Unpack failed, errcode '{p.returncode}'"
       if 'remove' in c.mode:
-        print("Removing {fullpath}..")
+        print(f"Removing {fullpath}..")
         remove(fullpath)
 
     protocol_add(m, 'download')

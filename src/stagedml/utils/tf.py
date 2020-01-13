@@ -103,9 +103,6 @@ def runtb(arg:Union[Model,str])->None:
     pid=runtensorboard(path)
     print('Tensorboard is running at', path, 'pid', pid)
 
-def listloggers():
-  return [logging.getLogger(name) for name in logging.root.manager.loggerDict]
-
 def protocol_deref(ref:Ref)->Protocol:
   assert_valid_ref(ref)
   return list(store_readjson(store_refpath(ref, ['protocol.json'])))

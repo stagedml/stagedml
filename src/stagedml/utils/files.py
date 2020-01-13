@@ -1,6 +1,13 @@
+import logging
+
 from os.path import islink
 from json import load as json_load
 from distutils.spawn import find_executable
+from typing import List,Any
+
+def listloggers()->List[Any]:
+  l=logging.root.manager.loggerDict # type:ignore
+  return [logging.getLogger(name) for name in l]
 
 def json_read(filename:str)->dict:
   with open(filename,"r") as f:
