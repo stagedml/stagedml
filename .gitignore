@@ -2,6 +2,7 @@ build/
 dist/
 .*
 _*
+!__*
 _*egg-info
 *\.log
 *\.pyc
