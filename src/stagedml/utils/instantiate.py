@@ -16,7 +16,7 @@ class Options:
 def instantiate(o:Options,
                 fsearch:Callable[[],List[Ref]],
                 fbuild:Callable[[],Ref]) -> Ref:
-  """ Instantiate helper and a pure man's Maybe monad """
+  """ Instantiate helper and a poor man's Maybe monad """
 
   def _report_search_failure():
     assert False, "Search didn't find anything"
