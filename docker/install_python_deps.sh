@@ -7,5 +7,6 @@ pip3 install seaborn PyQT5 PySide2 \
              jsonpickle overrides \
              ipdb netron \
              pyls pyls-mypy mypy \
-             pytest-mypy
+             pytest-mypy \
+             git+https://github.com/stagedml/pydoc-markdown.git@develop
 
