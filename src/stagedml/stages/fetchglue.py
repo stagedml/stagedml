@@ -14,11 +14,10 @@ from stagedml.utils.refs import Glue
 from stagedml.datasets.glue.download_glue_data import main as glue_main
 
 
-
 def config()->Config:
   name='glue-data'
   version='2'
-  return Config({k:v for k,v in locals().items() if k[0]!='_'})
+  return Config(locals())
 
 
 def downloaded(s:State)->State:
@@ -31,6 +30,7 @@ def download(m:Model)->Model:
   glue_main(['--data_dir', o, '--tasks','all'])
   protocol_add(m, 'download')
   return m
+
 
 def fetchglue(o:Options)->Glue:
   c=config()
