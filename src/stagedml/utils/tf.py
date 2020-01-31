@@ -11,10 +11,10 @@ from os.path import join
 from tensorflow.keras.callbacks import History
 from hashlib import md5
 from subprocess import run as os_run, Popen
-from pylightnix import (
-    Model, Hash, Ref, Protocol, protocol_add, model_outpath, model_save,
-    assert_valid_ref, store_readjson, store_refpath, PYLIGHTNIX_TMP)
-from typing import Union,List,Any,Optional,Tuple
+from pylightnix import ( Build, Hash, DRef, assert_valid_rref,
+    assert_serializable, PYLIGHTNIX_TMP, Realizer, build_outpath, mkbuild,
+    RRef, rref2path, readjson, store_rrefs )
+from typing import ( Union, List, Any, Optional, Tuple, Callable )
 
 
 #  _   _ _   _ _
@@ -60,30 +60,84 @@ def dpurge(dir, pattern, debug=True):
 
 
 
-class KerasModel(Model):
-  model:tf.keras.Model
+Protocol=List[Tuple[str,Hash,Any]]
 
-  def get_whash(self)->Hash:
+
+class KerasBuild(Build):
+  model:tf.keras.Model
+  protocol:Protocol
+
+  def __init__(self, b:Build)->None:
+    super().__init__(b.dref, b.context, b.timeprefix, b.outpath)
+    self.protocol=[]
+
+  def get_data_hash(self)->Hash:
     return Hash(ndhashl(self.model.get_weights()))
 
+def keras_realizer(f:Callable[[KerasBuild],None], buildtime:bool=True)->Realizer:
+  def _wrapper(dref,context):
+    kb=KerasBuild(mkbuild(dref,context,buildtime)); f(kb); return build_outpath(kb)
+  return _wrapper
 
-def save(m:KerasModel)->Ref:
-  assert all(m.model._get_trainable_state().values())
-  o = model_outpath(m)
-  m.model.save_weights(join(o, 'weights.h5'), save_format='h5')
-  r = model_save(m)
-  return r
+#  ____            _                  _
+# |  _ \ _ __ ___ | |_ ___   ___ ___ | |
+# | |_) | '__/ _ \| __/ _ \ / __/ _ \| |
+# |  __/| | | (_) | || (_) | (_| (_) | |
+# |_|   |_|  \___/ \__\___/ \___\___/|_|
 
-def protocol_add_hist(m:Model, name:str, h:History)->None:
-  hd=h.__dict__
+
+def protocol_laststate(b:KerasBuild)->Optional[Hash]:
+  if len(b.protocol) == 0:
+    return None
+  else:
+    return b.protocol[-1][1]
+
+def protocol_add(build:KerasBuild, name:str, arg:Any=[], result:Any=[], expect_wchange:bool=True)->None:
+  assert_serializable(name,'name')
+  assert_serializable(arg,'arg')
+  assert_serializable(result,'result')
+  new_whash=build.get_data_hash()
+  old_whash=protocol_laststate(build)
+  if expect_wchange:
+    assert new_whash != old_whash, \
+        (f"Protocol sanity check: Operation was marked as parameter-changing,"
+         f"but Model parameters didn't change their hashes as expected."
+         f"Both hashes are {new_whash}.")
+  else:
+    assert new_whash == old_whash or (old_whash is None), \
+        (f"Protocol sanity check: Operation was marked as"
+         f"non-paramerer-changing, but Model parameters were in fact changed by"
+         f"something. Expected {old_whash}, got {new_whash}.")
+  build.protocol.append((name, new_whash, result))
+
+def protocol_add_hist(build:KerasBuild, name:str, hist:History)->None:
+  hd=hist.__dict__
   h2={'epoch':hd['epoch'],
       'history':{k:[float(f) for f in v] for k,v in hd['history'].items()}}
-  protocol_add(m, name, result=h2)
+  protocol_add(build, name, result=h2)
 
-def protocol_add_eval(m:Model, name:str, metric_names:List[str], result:List[float])->None:
+def protocol_add_eval(build:KerasBuild, name:str, metric_names:List[str], result:List[float])->None:
   result=[float(x) for x in result]
   rec=[[a,b] for a,b in zip(metric_names,result)]
-  protocol_add(m, name, result=rec, expect_wchange=False)
+  protocol_add(build, name, result=rec, expect_wchange=False)
+
+
+
+
+
+
+
+
+
+
+
+
+# def save(m:KerasBuild)->Ref:
+#   assert all(m.model._get_trainable_state().values())
+#   o = model_outpath(m)
+#   m.model.save_weights(join(o, 'weights.h5'), save_format='h5')
+#   r = model_save(m)
+#   return r
 
 def runtensorboard(path:str, kill_existing:bool=True)->int:
   if kill_existing:
@@ -93,19 +147,19 @@ def runtensorboard(path:str, kill_existing:bool=True)->int:
                 stdout=f, stderr=f).pid
   return pid
 
-def runtb(arg:Union[Model,str])->None:
+def runtb(arg:Union[Build,str])->None:
   if isinstance(arg,str):
     path=arg
     pid=runtensorboard(path)
     print('Tensorboard is running at', path, 'pid', pid)
   else:
-    path=model_outpath(arg)
+    path=build_outpath(arg)
     pid=runtensorboard(path)
     print('Tensorboard is running at', path, 'pid', pid)
 
-def protocol_deref(ref:Ref)->Protocol:
-  assert_valid_ref(ref)
-  return list(store_readjson(store_refpath(ref, ['protocol.json'])))
+def store_protocol(rref:RRef)->Protocol:
+  assert_valid_rref(rref)
+  return list(readjson(join(rref2path(rref), 'protocol.json')))
 
 def protocol_metric(p:Protocol, op_name:str, metric_name:str)->Optional[float]:
   found_ops=0
@@ -129,14 +183,14 @@ def protocol_metric(p:Protocol, op_name:str, metric_name:str)->Optional[float]:
     print(f"Warning: '{op_name}' operation was found in protocol")
   return metric_val
 
-def best(op_name:str, metric_name:str, refs:List[Ref])->Ref:
+def best_(op_name:str, metric_name:str, refs:List[RRef])->RRef:
   """ Return best model in terms of a metric, received by the given operation.
   Example: `best('evaluate','eval_accuracy', search(...)) ` """
   assert len(refs)>0, "Empty input list of refs"
   metric_val=None
   best_ref=None
   for ref in refs:
-    p=protocol_deref(ref)
+    p=store_protocol(ref)
     found_ops=0
     mv=protocol_metric(p, op_name, metric_name)
     if mv is not None:
@@ -152,5 +206,9 @@ def best(op_name:str, metric_name:str, refs:List[Ref])->Ref:
      f"among '{op_name}' operations")
   return best_ref
 
+def bestmatch(op_name:str, metric_name:str):
+  def _matcher(dref:DRef, context:Context)->Optional[RRef]:
+    return best_(op_name, metric_name, list(store_rrefs(dref)))
+  return _matcher
 
 
