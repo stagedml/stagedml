@@ -6,7 +6,7 @@ from pylightnix import ( Manager, Build, Config, Hash, DRef, build_cattrs,
     build_outpath, build_path, mkdrv, only )
 
 from stagedml.utils.files import json_read
-from stagedml.utils.tf import ( KerasBuild, protocol_add, memlimit, keras_realizer )
+from stagedml.utils.tf import ( ProtocolBuild, protocol_add, memlimit, protocolled )
 # from stagedml.utils.instantiate import Options, instantiate
 from stagedml.utils.refs import Glue,GlueTFR,BertCP
 from stagedml.datasets.glue.create_tfrecord import create_tfrecord_data
@@ -31,7 +31,7 @@ def config(dataset_name:str, refbert:BertCP, refdataset:Glue)->Config:
   return Config(locals())
 
 
-def process(b:KerasBuild)->None:
+def process(b:ProtocolBuild)->None:
   c=build_cattrs(b)
   o=build_outpath(b)
   if c.dataset_name=='glue':
@@ -60,6 +60,6 @@ def glue_tfrecords(m:Manager, dataset_name:str, refbert:BertCP, refdataset:Glue)
   c=config(dataset_name, refbert, refdataset)
   def _instantiate():
     return config(dataset_name, refbert, refdataset)
-  return GlueTFR(mkdrv(m, _instantiate, only(), keras_realizer(process)))
+  return GlueTFR(mkdrv(m, _instantiate, only(), protocolled(process)))
 
 

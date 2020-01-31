@@ -13,7 +13,7 @@ from hashlib import md5
 from subprocess import run as os_run, Popen
 from pylightnix import ( Build, Hash, DRef, assert_valid_rref,
     assert_serializable, PYLIGHTNIX_TMP, Realizer, build_outpath, mkbuild,
-    RRef, rref2path, readjson, store_rrefs )
+    RRef, rref2path, readjson, store_rrefs, dirhash, Context )
 from typing import ( Union, List, Any, Optional, Tuple, Callable )
 
 
@@ -59,19 +59,30 @@ def dpurge(dir, pattern, debug=True):
       remove(join(dir, f))
 
 
-
 Protocol=List[Tuple[str,Hash,Any]]
 
 
-class KerasBuild(Build):
-  model:tf.keras.Model
+class ProtocolBuild(Build):
   protocol:Protocol
-
   def __init__(self, b:Build)->None:
     super().__init__(b.dref, b.context, b.timeprefix, b.outpath)
     self.protocol=[]
-
   def get_data_hash(self)->Hash:
+    return dirhash(build_outpath(self))
+
+
+def protocolled(f:Callable[[ProtocolBuild],None], buildtime:bool=True)->Realizer:
+  def _wrapper(dref,context):
+    pb=ProtocolBuild(mkbuild(dref,context,buildtime)); f(pb); return build_outpath(pb)
+  return _wrapper
+
+
+class KerasBuild(ProtocolBuild):
+  model:tf.keras.Model
+  def __init__(self, b:Build)->None:
+    super().__init__(b)
+  def get_data_hash(self)->Hash:
+    assert self.model is not None, "Keras model should be initialized by the user"
     return Hash(ndhashl(self.model.get_weights()))
 
 def keras_realizer(f:Callable[[KerasBuild],None], buildtime:bool=True)->Realizer:
@@ -86,13 +97,13 @@ def keras_realizer(f:Callable[[KerasBuild],None], buildtime:bool=True)->Realizer
 # |_|   |_|  \___/ \__\___/ \___\___/|_|
 
 
-def protocol_laststate(b:KerasBuild)->Optional[Hash]:
+def protocol_laststate(b:ProtocolBuild)->Optional[Hash]:
   if len(b.protocol) == 0:
     return None
   else:
     return b.protocol[-1][1]
 
-def protocol_add(build:KerasBuild, name:str, arg:Any=[], result:Any=[], expect_wchange:bool=True)->None:
+def protocol_add(build:ProtocolBuild, name:str, arg:Any=[], result:Any=[], expect_wchange:bool=True)->None:
   assert_serializable(name,'name')
   assert_serializable(arg,'arg')
   assert_serializable(result,'result')
@@ -110,13 +121,13 @@ def protocol_add(build:KerasBuild, name:str, arg:Any=[], result:Any=[], expect_w
          f"something. Expected {old_whash}, got {new_whash}.")
   build.protocol.append((name, new_whash, result))
 
-def protocol_add_hist(build:KerasBuild, name:str, hist:History)->None:
+def protocol_add_hist(build:ProtocolBuild, name:str, hist:History)->None:
   hd=hist.__dict__
   h2={'epoch':hd['epoch'],
       'history':{k:[float(f) for f in v] for k,v in hd['history'].items()}}
   protocol_add(build, name, result=h2)
 
-def protocol_add_eval(build:KerasBuild, name:str, metric_names:List[str], result:List[float])->None:
+def protocol_add_eval(build:ProtocolBuild, name:str, metric_names:List[str], result:List[float])->None:
   result=[float(x) for x in result]
   rec=[[a,b] for a,b in zip(metric_names,result)]
   protocol_add(build, name, result=rec, expect_wchange=False)
@@ -208,7 +219,7 @@ def best_(op_name:str, metric_name:str, refs:List[RRef])->RRef:
 
 def bestmatch(op_name:str, metric_name:str):
   def _matcher(dref:DRef, context:Context)->Optional[RRef]:
-    return best_(op_name, metric_name, list(store_rrefs(dref)))
+    return best_(op_name, metric_name, list(store_rrefs(dref, context)))
   return _matcher
 
 
