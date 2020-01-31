@@ -8,5 +8,7 @@ pip3 install seaborn PyQT5 PySide2 \
              ipdb netron \
              pyls pyls-mypy mypy \
              pytest-mypy \
-             git+https://github.com/stagedml/pydoc-markdown.git@develop
+             git+https://github.com/stagedml/pydoc-markdown.git@develop \
+             codecov coverage \
+             pweave
 
