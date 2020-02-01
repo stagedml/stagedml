@@ -13,7 +13,7 @@ from hashlib import md5
 from subprocess import run as os_run, Popen
 from pylightnix import ( Build, Hash, DRef, assert_valid_rref,
     assert_serializable, PYLIGHTNIX_TMP, Realizer, build_outpath, mkbuild,
-    RRef, rref2path, readjson, store_rrefs, dirhash, Context )
+    RRef, rref2path, readjson, json_dumps, store_rrefs, dirhash, Context )
 from typing import ( Union, List, Any, Optional, Tuple, Callable, TypeVar )
 
 
@@ -76,6 +76,10 @@ def protocolled(f:Callable[[ProtocolBuild],None], buildtime:bool=True)->Realizer
     pb=ProtocolBuild(mkbuild(dref,context,buildtime)); f(pb); return build_outpath(pb)
   return _wrapper
 
+def protocol_save(b:ProtocolBuild)->None:
+  o = build_outpath(b)
+  with open(join(o,'protocol.json'),'w') as f:
+    f.write(json_dumps(b.protocol))
 
 class KerasBuild(ProtocolBuild):
   model:tf.keras.Model
@@ -90,6 +94,14 @@ class KerasBuild(ProtocolBuild):
 #   def _wrapper(dref,context):
 #     b=ctr(mkbuild(dref,context,buildtime)); f(b); return build_outpath(b)
 #   return _wrapper
+
+def keras_save(b:KerasBuild)->None:
+  assert b.model is not None
+  assert all(b.model._get_trainable_state().values())
+  o = build_outpath(b)
+  b.model.save_weights(join(o, 'weights.h5'), save_format='h5')
+  protocol_save(b)
+
 
 #  ____            _                  _
 # |  _ \ _ __ ___ | |_ ___   ___ ___ | |
@@ -142,14 +154,6 @@ def protocol_add_eval(build:ProtocolBuild, name:str, metric_names:List[str], res
 
 
 
-
-
-# def save(m:KerasBuild)->Ref:
-#   assert all(m.model._get_trainable_state().values())
-#   o = model_outpath(m)
-#   m.model.save_weights(join(o, 'weights.h5'), save_format='h5')
-#   r = model_save(m)
-#   return r
 
 def runtensorboard(path:str, kill_existing:bool=True)->int:
   if kill_existing:

@@ -23,7 +23,8 @@ from pylightnix import ( Config, Manager, RRef, DRef, store_cattrs, build_path,
 from stagedml.datasets.glue.tfdataset import ( dataset, dataset_eval, dataset_train )
 from stagedml.models.bert import ( BertLayer, classification_logits )
 from stagedml.utils.tf import ( runtb, runtensorboard, thash, KerasBuild,
-    protocol_add, protocol_add_hist, protocol_add_eval, bestmatch, dpurge )
+    protocol_add, protocol_add_hist, protocol_add_eval, bestmatch, dpurge,
+    keras_save )
 from stagedml.utils.refs import ( GlueTFR, BertGlue )
 
 
@@ -33,7 +34,6 @@ def config(task_name:str, tfrecs:GlueTFR)->Config:
   task_train_refpath = [tfrecs, task_name,'train.tfrecord']
   task_eval_refpath = [tfrecs, task_name, 'dev.tfrecord']
   task_config_refpath = [tfrecs, task_name, 'meta.json']
-  num_labels = 2
 
   bert_config_refpath = store_cattrs(tfrecs).bert_config_refpath
   bert_ckpt_refpath = store_cattrs(tfrecs).bert_ckpt_refpath
@@ -234,26 +234,12 @@ def evaluate(b:ModelBuild):
   return
 
 
-# def bert_finetune_glue(o:Options, task_name:str, tfrecs:GlueTFR)->BertGlue:
-#   c=config(task_name, tfrecs)
-#   # def _search():
-#   #   return search(evaluated(ctrained(cploaded(state(c)))))
-#   def _build():
-#     m=Model(c)
-#     build(m)
-#     cpload(m)
-#     ctrain(m)
-#     evaluate(m)
-#     return save(m)
-#   return BertGlue(instantiate(o, _search, _build))
-
-
 def bert_finetune_glue(m:Manager, task_name:str, tfrecs:GlueTFR)->BertGlue:
   def _instantiate():
     return config(task_name, tfrecs)
   def _realize(dref,context):
     b=ModelBuild(mkbuild(dref,context));
-    build(b); train(b); evaluate(b)
+    build(b); train(b); evaluate(b); keras_save(b)
     return build_outpath(b)
   return BertGlue(mkdrv(m, _instantiate, bestmatch('evaluate', 'eval_accuracy'), _realize))
 
