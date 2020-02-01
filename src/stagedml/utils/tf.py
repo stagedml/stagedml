@@ -14,7 +14,7 @@ from subprocess import run as os_run, Popen
 from pylightnix import ( Build, Hash, DRef, assert_valid_rref,
     assert_serializable, PYLIGHTNIX_TMP, Realizer, build_outpath, mkbuild,
     RRef, rref2path, readjson, store_rrefs, dirhash, Context )
-from typing import ( Union, List, Any, Optional, Tuple, Callable )
+from typing import ( Union, List, Any, Optional, Tuple, Callable, TypeVar )
 
 
 #  _   _ _   _ _
@@ -65,7 +65,7 @@ Protocol=List[Tuple[str,Hash,Any]]
 class ProtocolBuild(Build):
   protocol:Protocol
   def __init__(self, b:Build)->None:
-    super().__init__(b.dref, b.context, b.timeprefix, b.outpath)
+    super().__init__(b.dref, b.cattrs, b.context, b.timeprefix, b.outpath)
     self.protocol=[]
   def get_data_hash(self)->Hash:
     return dirhash(build_outpath(self))
@@ -85,10 +85,11 @@ class KerasBuild(ProtocolBuild):
     assert self.model is not None, "Keras model should be initialized by the user"
     return Hash(ndhashl(self.model.get_weights()))
 
-def keras_realizer(f:Callable[[KerasBuild],None], buildtime:bool=True)->Realizer:
-  def _wrapper(dref,context):
-    kb=KerasBuild(mkbuild(dref,context,buildtime)); f(kb); return build_outpath(kb)
-  return _wrapper
+# T = TypeVar('T')
+# def model_wrapper(ctr:T, f:Callable[[T],None], buildtime:bool=True)->Realizer:
+#   def _wrapper(dref,context):
+#     b=ctr(mkbuild(dref,context,buildtime)); f(b); return build_outpath(b)
+#   return _wrapper
 
 #  ____            _                  _
 # |  _ \ _ __ ___ | |_ ___   ___ ___ | |
@@ -219,7 +220,10 @@ def best_(op_name:str, metric_name:str, refs:List[RRef])->RRef:
 
 def bestmatch(op_name:str, metric_name:str):
   def _matcher(dref:DRef, context:Context)->Optional[RRef]:
-    return best_(op_name, metric_name, list(store_rrefs(dref, context)))
+    rrefs=list(store_rrefs(dref, context))
+    if len(rrefs)==0:
+      return None
+    return best_(op_name, metric_name, rrefs)
   return _matcher
 
 

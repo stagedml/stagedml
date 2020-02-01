@@ -2,10 +2,10 @@
 from pylightnix import (
     Manager, mknode, fetchurl, instantiate, realize )
 from stagedml.stages.fetchglue import fetchglue
-# from stagedml.stages.fetchsquad import fetchsquad11
 from stagedml.stages.glue_tfrecords import glue_tfrecords
+from stagedml.stages.bert_finetune_glue import bert_finetune_glue
+# from stagedml.stages.fetchsquad import fetchsquad11
 # from stagedml.stages.squad_tfrecords import squad11_tfrecords
-# from stagedml.stages.bert_finetune_glue import bert_finetune_glue
 # from stagedml.stages.bert_finetune_squad import bert_finetune_squad11
 
 from stagedml.utils.refs import (
@@ -30,9 +30,9 @@ def common_glue_tfrecords(m:Manager)->GlueTFR:
 #   squadref=common_fetchsquad11(o)
 #   return squad11_tfrecords(o, bertref, squadref)
 
-# def common_bert_finetune_glue(o:Options, task_name:str)->BertGlue:
-#   glueref=common_glue_tfrecords(o)
-#   return bert_finetune_glue(o,task_name,glueref)
+def common_bert_finetune_glue(m:Manager, task_name:str)->BertGlue:
+  glueref=common_glue_tfrecords(m)
+  return bert_finetune_glue(m,task_name,glueref)
 
 # def common_bert_finetune_squad11(o:Options)->Ref:
 #   squadref=common_squad11_tfrecords(o)

@@ -22,10 +22,10 @@ def config(dataset_name:str, refbert:BertCP, refdataset:Glue)->Config:
   if dataset_name == 'glue':
     tasks=glue_tasks()
   else:
-    raise ValueError('Unsupported dataset name {dataset_name}')
+    raise ValueError(f"Unsupported dataset name {dataset_name}")
   bert_refpath = [refbert, 'uncased_L-12_H-768_A-12']
   bert_ckpt_refpath = bert_refpath+['bert_model.ckpt']
-  bert_config = bert_refpath+['bert_config.json']
+  bert_config_refpath = bert_refpath+['bert_config.json']
   bert_vocab_refpath = bert_refpath+['vocab.txt']
   max_seq_length = 128
   return Config(locals())
@@ -36,7 +36,7 @@ def process(b:ProtocolBuild)->None:
   o=build_outpath(b)
   if c.dataset_name=='glue':
     def _run(task_name:str, task_dir:str):
-      print(f'Processing {task_name}..')
+      print(f"Processing {task_name}..")
       task_out_dir=join(o,task_name)
       makedirs(task_out_dir)
       create_tfrecord_data(task_name=task_name,
@@ -52,7 +52,7 @@ def process(b:ProtocolBuild)->None:
       else:
         _run(task_name,task_name)
   else:
-    raise ValueError('Unsupported dataset name {c.dataset_name}')
+    raise ValueError(f"Unsupported dataset name {c.dataset_name}")
   protocol_add(b, 'process')
 
 
