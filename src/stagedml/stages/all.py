@@ -4,7 +4,7 @@ from pylightnix import (
 from stagedml.stages.fetchglue import fetchglue
 from stagedml.stages.glue_tfrecords import glue_tfrecords
 from stagedml.stages.bert_finetune_glue import bert_finetune_glue
-# from stagedml.stages.fetchsquad import fetchsquad11
+from stagedml.stages.fetchsquad import fetchsquad11
 # from stagedml.stages.squad_tfrecords import squad11_tfrecords
 # from stagedml.stages.bert_finetune_squad import bert_finetune_squad11
 
@@ -12,7 +12,7 @@ from stagedml.utils.refs import (
     DRef, Glue, Squad11, GlueTFR, Squad11TFR, BertCP, BertGlue )
 
 common_fetchglue = fetchglue
-# common_fetchsquad11 = fetchsquad11
+common_fetchsquad11 = fetchsquad11
 
 def common_fetchbert(m:Manager)->BertCP:
   return BertCP(fetchurl(m,
