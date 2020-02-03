@@ -15,10 +15,6 @@ from typing import Optional,Any,List,Tuple,Union
 from pylightnix import ( Config, Manager, RRef, DRef, store_cattrs, build_path,
     build_outpath, build_cattrs, mkdrv, rref2path, json_load, build_config,
     mkbuild )
-# from pylightnix import ( Config, State, protocol_add, search, model_config,
-#                          config_ro, model_config_ro, Ref, store_refpath,
-#                          config_deref, state, state_add, store_readjson,
-#                          store_systempath, model_outpath )
 
 from stagedml.datasets.glue.tfdataset import ( dataset, dataset_eval, dataset_train )
 from stagedml.models.bert import ( BertLayer, classification_logits )

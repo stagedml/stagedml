@@ -17,3 +17,6 @@ class Squad11TFR(DRef):
 
 class BertGlue(DRef):
   pass
+
+class BertSquad(DRef):
+  pass

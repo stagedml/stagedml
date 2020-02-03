@@ -6,10 +6,10 @@ from stagedml.stages.glue_tfrecords import glue_tfrecords
 from stagedml.stages.bert_finetune_glue import bert_finetune_glue
 from stagedml.stages.fetchsquad import fetchsquad11
 from stagedml.stages.squad_tfrecords import squad11_tfrecords
-# from stagedml.stages.bert_finetune_squad import bert_finetune_squad11
+from stagedml.stages.bert_finetune_squad import bert_finetune_squad11
 
 from stagedml.utils.refs import (
-    DRef, Glue, Squad11, GlueTFR, Squad11TFR, BertCP, BertGlue )
+    DRef, Glue, Squad11, GlueTFR, Squad11TFR, BertCP, BertGlue, BertSquad )
 
 common_fetchglue = fetchglue
 common_fetchsquad11 = fetchsquad11
@@ -34,7 +34,7 @@ def common_bert_finetune_glue(m:Manager, task_name:str)->BertGlue:
   glueref=common_glue_tfrecords(m)
   return bert_finetune_glue(m,task_name,glueref)
 
-# def common_bert_finetune_squad11(m:Manager)->RRef:
-#   squadref=common_squad11_tfrecords(m)
-#   return bert_finetune_squad11(m,squadref)
+def common_bert_finetune_squad11(m:Manager)->BertSquad:
+  squadref=common_squad11_tfrecords(m)
+  return bert_finetune_squad11(m,squadref)
 
