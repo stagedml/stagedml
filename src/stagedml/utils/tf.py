@@ -58,9 +58,32 @@ def dpurge(dir, pattern, debug=True):
         print('Removing', f, 'from', dir)
       remove(join(dir, f))
 
+def runtensorboard(path:str, kill_existing:bool=True)->int:
+  if kill_existing:
+    os_run('ps fax | grep -v grep | grep tensorboard | awk "{print \$1}" | xargs -r kill', shell=True)
+  with open(join(PYLIGHTNIX_TMP,"tensorboard.log"),"w") as f:
+    pid = Popen(["tensorboard", "--host", "0.0.0.0", "--logdir", path],
+                stdout=f, stderr=f).pid
+  return pid
+
+def runtb(arg:Union[Build,str])->None:
+  if isinstance(arg,str):
+    path=arg
+    pid=runtensorboard(path)
+    print('Tensorboard is running at', path, 'pid', pid)
+  else:
+    path=build_outpath(arg)
+    pid=runtensorboard(path)
+    print('Tensorboard is running at', path, 'pid', pid)
+
+#  ____        _ _     _
+# | __ ) _   _(_) | __| | ___ _ __ ___
+# |  _ \| | | | | |/ _` |/ _ \ '__/ __|
+# | |_) | |_| | | | (_| |  __/ |  \__ \
+# |____/ \__,_|_|_|\__,_|\___|_|  |___/
+
 
 Protocol=List[Tuple[str,Hash,Any]]
-
 
 class ProtocolBuild(Build):
   protocol:Protocol
@@ -88,12 +111,6 @@ class KerasBuild(ProtocolBuild):
   def get_data_hash(self)->Hash:
     assert self.model is not None, "Keras model should be initialized by the user"
     return Hash(ndhashl(self.model.get_weights()))
-
-# T = TypeVar('T')
-# def model_wrapper(ctr:T, f:Callable[[T],None], buildtime:bool=True)->Realizer:
-#   def _wrapper(dref,context):
-#     b=ctr(mkbuild(dref,context,buildtime)); f(b); return build_outpath(b)
-#   return _wrapper
 
 def keras_save(b:KerasBuild)->None:
   assert b.model is not None
@@ -144,34 +161,6 @@ def protocol_add_eval(build:ProtocolBuild, name:str, metric_names:List[str], res
   result=[float(x) for x in result]
   rec=[[a,b] for a,b in zip(metric_names,result)]
   protocol_add(build, name, result=rec, expect_wchange=False)
-
-
-
-
-
-
-
-
-
-
-
-def runtensorboard(path:str, kill_existing:bool=True)->int:
-  if kill_existing:
-    os_run('ps fax | grep -v grep | grep tensorboard | awk "{print \$1}" | xargs -r kill', shell=True)
-  with open(join(PYLIGHTNIX_TMP,"tensorboard.log"),"w") as f:
-    pid = Popen(["tensorboard", "--host", "0.0.0.0", "--logdir", path],
-                stdout=f, stderr=f).pid
-  return pid
-
-def runtb(arg:Union[Build,str])->None:
-  if isinstance(arg,str):
-    path=arg
-    pid=runtensorboard(path)
-    print('Tensorboard is running at', path, 'pid', pid)
-  else:
-    path=build_outpath(arg)
-    pid=runtensorboard(path)
-    print('Tensorboard is running at', path, 'pid', pid)
 
 def store_protocol(rref:RRef)->Protocol:
   assert_valid_rref(rref)

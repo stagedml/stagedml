@@ -167,7 +167,7 @@ def ctrain(m:Model)->None:
       run_eagerly=False)
 
   dpurge(o,'ctl_step.*ckpt', debug=True)
-  with open(join(o,'/summaries/training_summary.txt'), 'r') as f:
+  with open(join(o,'summaries/training_summary.txt'), 'r') as f:
     s=json_load(f)
   protocol_add(m, 'ctrain', result=s)
   return
@@ -189,22 +189,9 @@ def bert_finetune_squad11(m:Manager, *args, **kwargs)->BertSquad:
     return bestmatch('evaluate', 'eval_accuracy')
   def _realize(dref,context):
     b=Model(mkbuild(dref,context));
-    build(b); cpload(b); ctrain(b); evaluate(b); keras_save(b)
+    build(b); cpload(b); ctrain(b);
+    # FIXME: evaluate(b);
+    keras_save(b)
     return build_outpath(b)
   return BertSquad(mkdrv(m, _config, _matcher(), _realize))
-
-
-  # c=config(*args,**kwargs)
-  # refs=search(evaluated(ctrained(cploaded(state(c)))))
-  # if len(refs)>0 and not force_rebuild:
-  #   ref=best("evaluate", "eval_accuracy", refs)
-  # else:
-  #   m=Model(c)
-  #   build(m)
-  #   cpload(m)
-  #   ctrain(m)
-  #   evaluate(m)
-  #   ref=save(m)
-  # return ref
-
 

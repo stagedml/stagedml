@@ -37,7 +37,7 @@ def config(task_name:str, tfrecs:GlueTFR)->Config:
   lr = 2e-5
   batch_size = 8
   train_epoches = 3
-  version=2
+  version = 3
   return Config(locals())
 
 
@@ -107,8 +107,6 @@ def build(b:ModelBuild, clear_session:bool=True):
   return
 
 
-# def cploaded(s:State)->State:
-#   return state_add(s,'cpload')
 def cpload(b:ModelBuild)->None:
   """ Load checkpoint into model """
   c = build_cattrs(b)
@@ -118,8 +116,6 @@ def cpload(b:ModelBuild)->None:
   return
 
 
-# def trained(s:State)->State:
-#   return state_add(s, 'train')
 def train(b:ModelBuild, **kwargs)->None:
   """ Train the model by using `fit` method of Keras.model """
   assert b.model is not None
@@ -145,8 +141,6 @@ def train(b:ModelBuild, **kwargs)->None:
   return
 
 
-# def ctrained(s:State)->State:
-#   return state_add(s, 'ctrain')
 # def ctrain(m:Model)->Model:
 #   """ Train the model by using Custom training loop from TF Official models """
 #   assert m.model is not None
@@ -206,9 +200,6 @@ def train(b:ModelBuild, **kwargs)->None:
 #   return m
 
 
-
-# def evaluated(s:State)->State:
-#   return state_add(s, 'evaluate')
 def evaluate(b:ModelBuild):
   c = build_cattrs(b)
   o = build_outpath(b)
@@ -235,7 +226,7 @@ def bert_finetune_glue(m:Manager, task_name:str, tfrecs:GlueTFR)->BertGlue:
     return config(task_name, tfrecs)
   def _realize(dref,context):
     b=ModelBuild(mkbuild(dref,context));
-    build(b); train(b); evaluate(b); keras_save(b)
+    build(b); cpload(b); train(b); evaluate(b); keras_save(b)
     return build_outpath(b)
   return BertGlue(mkdrv(m, _instantiate, bestmatch('evaluate', 'eval_accuracy'), _realize))
 
