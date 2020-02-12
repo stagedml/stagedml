@@ -10,8 +10,9 @@ from official.nlp.bert_modeling import BertConfig
 from official.nlp.optimization import create_optimizer
 from official.modeling.model_training_utils import run_customized_training_loop
 
-from pylightnix import ( Manager, mkdrv, Config, match_only, store_cattrs,
-    build_cattrs, build_path, build_outpath, json_load, mkbuild )
+from pylightnix import ( Path, Manager, Config, DRef, RRef, Context, match_only,
+    store_cattrs, build_cattrs, build_path, build_outpath, json_load, mkbuild,
+    mkdrv, match_latest )
 
 from stagedml.datasets.glue.tfdataset import dataset, dataset_eval, dataset_train
 from stagedml.datasets.squad.tf import squad11_train_dataset
@@ -59,7 +60,7 @@ def build(m:Model, clear_session:bool=True)->None:
   with open(build_path(m, c.task_config_refpath), "r") as f:
     task_config = json_load(f)
 
-  c.train_data_size = 80 # task_config['train_data_size']
+  c.train_data_size = task_config['train_data_size']
   c.eval_data_size = task_config['eval_data_size']
   c.train_steps_per_epoch = int(c.train_data_size / c.train_batch_size)
   c.eval_steps_per_epoch = int(c.eval_data_size / c.eval_batch_size)
@@ -184,14 +185,14 @@ def evaluate(m:Model)->Model:
 
 
 def bert_finetune_squad11(m:Manager, *args, **kwargs)->BertSquad:
-  def _realize(dref,context):
+  def _realize(dref:DRef,context:Context)->List[Path]:
     b=Model(mkbuild(dref,context));
     build(b); cpload(b); ctrain(b);
     # FIXME: evaluate(b);
     keras_save(b)
-    return build_outpath(b)
+    return [build_outpath(b)]
   return BertSquad(mkdrv(m,
     config=config(*args, **kwargs),
-    matcher=match_metric('evaluate', 'eval_accuracy'),
+    matcher=match_latest(), #match_metric('evaluate', 'eval_accuracy'),
     realizer=_realize))
 

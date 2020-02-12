@@ -11,10 +11,11 @@ from os.path import join
 from tensorflow.keras.callbacks import History
 from hashlib import md5
 from subprocess import run as os_run, Popen
-from pylightnix import ( Build, Hash, DRef, assert_valid_rref,
-    assert_serializable, PYLIGHTNIX_TMP, Realizer, build_outpath, mkbuild,
-    RRef, rref2path, readjson, json_dumps, store_rrefs, dirhash, Context )
 from typing import ( Union, List, Any, Optional, Tuple, Callable, TypeVar )
+
+from pylightnix import ( Path, Build, Hash, DRef, assert_valid_rref,
+    assert_serializable, PYLIGHTNIX_TMP, Realizer, build_outpath, mkbuild, RRef,
+    rref2path, readjson, json_dumps, store_rrefs, dirhash, Context )
 
 
 #  _   _ _   _ _
@@ -93,9 +94,8 @@ class ProtocolBuild(Build):
   def get_data_hash(self)->Hash:
     return dirhash(build_outpath(self))
 
-
 def protocolled(f:Callable[[ProtocolBuild],None], buildtime:bool=True)->Realizer:
-  def _wrapper(dref,context):
+  def _wrapper(dref:DRef,context:Context)->List[Path]:
     pb=ProtocolBuild(mkbuild(dref,context,buildtime)); f(pb); return [build_outpath(pb)]
   return _wrapper
 

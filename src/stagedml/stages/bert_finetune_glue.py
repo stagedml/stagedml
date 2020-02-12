@@ -12,9 +12,10 @@ from tensorflow.keras.callbacks import TensorBoard
 from absl import logging
 
 from typing import Optional,Any,List,Tuple,Union
-from pylightnix import ( Config, Manager, RRef, DRef, store_cattrs, build_path,
-    build_outpath, build_cattrs, mkdrv, rref2path, json_load, build_config,
-    mkbuild )
+
+from pylightnix import ( Path, Config, Manager, RRef, DRef, Context,
+    store_cattrs, build_path, build_outpath, build_cattrs, mkdrv, rref2path,
+    json_load, build_config, mkbuild )
 
 from stagedml.datasets.glue.tfdataset import ( dataset, dataset_eval, dataset_train )
 from stagedml.models.bert import ( BertLayer, classification_logits )
@@ -222,10 +223,10 @@ def evaluate(b:ModelBuild):
 
 
 def bert_finetune_glue(m:Manager, task_name:str, tfrecs:GlueTFR)->BertGlue:
-  def _realize(dref,context):
+  def _realize(dref:DRef,context:Context)->List[Path]:
     b=ModelBuild(mkbuild(dref,context));
     build(b); cpload(b); train(b); evaluate(b); keras_save(b)
-    return build_outpath(b)
+    return [build_outpath(b)]
   return BertGlue(mkdrv(m,
     config=config(task_name, tfrecs),
     matcher=match_metric('evaluate', 'eval_accuracy'),

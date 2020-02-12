@@ -37,7 +37,6 @@ def config(bertref:BertCP, squadref:Squad11)->Config:
   config_version = 3
   return Config(locals())
 
-
 def process(b:ProtocolBuild)->None:
   c=build_cattrs(b)
   o=build_outpath(b)
@@ -66,7 +65,7 @@ def process(b:ProtocolBuild)->None:
         version_2_with_negative=c.version_2_with_negative)
 
 
-  with open(join(o,'/meta.json'),'w') as f:
+  with open(join(o,'meta.json'),'w') as f:
     json_dump({
         "task_type": "bert_squad",
         "train_data_size": number_of_train_examples,
