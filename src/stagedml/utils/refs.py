@@ -1,19 +1,22 @@
-from pylightnix import Ref
+from pylightnix import DRef
 
-class BertCP(Ref):
+class BertCP(DRef):
   pass
 
-class Glue(Ref):
+class Glue(DRef):
   pass
 
-class Squad11(Ref):
+class Squad11(DRef):
   pass
 
-class GlueTFR(Ref):
+class GlueTFR(DRef):
   pass
 
-class Squad11TFR(Ref):
+class Squad11TFR(DRef):
   pass
 
-class BertGlue(Ref):
+class BertGlue(DRef):
+  pass
+
+class BertSquad(DRef):
   pass

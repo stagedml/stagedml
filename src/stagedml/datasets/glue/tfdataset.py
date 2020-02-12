@@ -3,11 +3,8 @@ assert tf.version.VERSION.startswith('2.1')
 
 from os import environ
 from official.nlp.bert.input_pipeline import decode_record
-from pylightnix import Config, config_ro
 
-def dataset(data_path:str, config:Config):
-  c=config_ro(config)
-  max_seq_length = c.task_config['max_seq_length']
+def dataset(data_path:str, max_seq_length):
   d = tf.data.TFRecordDataset(data_path)
   name_to_features = {
     'input_ids': tf.io.FixedLenFeature([max_seq_length], tf.int64),
@@ -30,24 +27,22 @@ def dataset(data_path:str, config:Config):
   d = d.map(_select_data_from_record)
   return d
 
-def dataset_train(path:str, config:Config):
-  c = config_ro(config)
-  d = dataset(path, config)
+def dataset_train(path:str, train_data_size, train_batch_size, max_seq_length):
+  d = dataset(path, max_seq_length)
   d = d.shuffle(100)
 
-  dtrain=d.take(c.train_data_size)
+  dtrain=d.take(train_data_size)
   dtrain=dtrain.repeat()
-  dtrain=dtrain.batch(c.train_batch_size, drop_remainder=True)
+  dtrain=dtrain.batch(train_batch_size, drop_remainder=True)
   dtrain=dtrain.prefetch(1024)
 
-  dvalid=d.skip(c.train_data_size)
-  dvalid=dvalid.batch(c.train_batch_size, drop_remainder=False)
+  dvalid=d.skip(train_data_size)
+  dvalid=dvalid.batch(train_batch_size, drop_remainder=False)
   return dtrain,dvalid
 
-def dataset_eval(path:str, config:Config):
-  c = config_ro(config)
-  d = dataset(path, config)
-  d = d.batch(c.eval_batch_size, drop_remainder=False)
+def dataset_eval(path:str, eval_batch_size, max_seq_length):
+  d = dataset(path, max_seq_length)
+  d = d.batch(eval_batch_size, drop_remainder=False)
   d = d.prefetch(1024)
   return d
 
