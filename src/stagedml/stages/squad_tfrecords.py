@@ -4,7 +4,7 @@ from json import dump as json_dump
 from typing import Optional,Any,List,Tuple,Union
 
 from pylightnix import ( Manager, Config, build_cattrs, build_outpath,
-    build_path, mkdrv, only, store_cattrs )
+    build_path, mkdrv, match_only, store_cattrs )
 
 from stagedml.utils.files import json_read
 from stagedml.utils.tf import ( ProtocolBuild, protocol_add, protocolled )
@@ -38,8 +38,6 @@ def config(bertref:BertCP, squadref:Squad11)->Config:
   return Config(locals())
 
 
-# def processed(s:State)->State:
-#   return state_add(s, 'process')
 def process(b:ProtocolBuild)->None:
   c=build_cattrs(b)
   o=build_outpath(b)
@@ -84,8 +82,10 @@ def process(b:ProtocolBuild)->None:
 
 
 def squad11_tfrecords(m:Manager, bertref:BertCP, squadref:Squad11)->Squad11TFR:
-  def _instantiate():
-    return config(bertref, squadref)
-  return Squad11TFR(mkdrv(m, _instantiate, only(), protocolled(process)))
+  return Squad11TFR(
+    mkdrv(m,
+      config=config(bertref, squadref),
+      matcher=match_only(),
+      realizer=protocolled(process)))
 
 

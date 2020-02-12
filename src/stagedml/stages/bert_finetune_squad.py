@@ -10,7 +10,7 @@ from official.nlp.bert_modeling import BertConfig
 from official.nlp.optimization import create_optimizer
 from official.modeling.model_training_utils import run_customized_training_loop
 
-from pylightnix import ( Manager, mkdrv, Config, only, store_cattrs,
+from pylightnix import ( Manager, mkdrv, Config, match_only, store_cattrs,
     build_cattrs, build_path, build_outpath, json_load, mkbuild )
 
 from stagedml.datasets.glue.tfdataset import dataset, dataset_eval, dataset_train
@@ -18,7 +18,8 @@ from stagedml.datasets.squad.tf import squad11_train_dataset
 from stagedml.models.bert import ( BertLayer )
 from stagedml.models.bert_squad import BertSquadLogitsLayer
 from stagedml.utils.refs import ( Squad11TFR, BertSquad )
-from stagedml.utils.tf import ( KerasBuild, protocol_add, dpurge, keras_save, bestmatch )
+from stagedml.utils.tf import ( KerasBuild, protocol_add, dpurge, keras_save,
+    match_metric )
 
 from typing import Optional,Any,List,Tuple,Union
 
@@ -58,7 +59,7 @@ def build(m:Model, clear_session:bool=True)->None:
   with open(build_path(m, c.task_config_refpath), "r") as f:
     task_config = json_load(f)
 
-  c.train_data_size = task_config['train_data_size']
+  c.train_data_size = 80 # task_config['train_data_size']
   c.eval_data_size = task_config['eval_data_size']
   c.train_steps_per_epoch = int(c.train_data_size / c.train_batch_size)
   c.eval_steps_per_epoch = int(c.eval_data_size / c.eval_batch_size)
@@ -183,15 +184,14 @@ def evaluate(m:Model)->Model:
 
 
 def bert_finetune_squad11(m:Manager, *args, **kwargs)->BertSquad:
-  def _config():
-    return config(*args, **kwargs)
-  def _matcher():
-    return bestmatch('evaluate', 'eval_accuracy')
   def _realize(dref,context):
     b=Model(mkbuild(dref,context));
     build(b); cpload(b); ctrain(b);
     # FIXME: evaluate(b);
     keras_save(b)
     return build_outpath(b)
-  return BertSquad(mkdrv(m, _config, _matcher(), _realize))
+  return BertSquad(mkdrv(m,
+    config=config(*args, **kwargs),
+    matcher=match_metric('evaluate', 'eval_accuracy'),
+    realizer=_realize))
 

@@ -6,7 +6,7 @@ from urllib.parse import urlparse
 from hashlib import sha256
 
 from pylightnix import ( Config, Hash, DRef, build_cattrs, build_outpath,
-    Manager, only, mkdrv, build_wrapper, Build )
+    Manager, match_only, mkdrv, build_wrapper, Build )
 
 from stagedml.utils.refs import Glue
 from stagedml.datasets.glue.download_glue_data import main as glue_main
@@ -23,11 +23,5 @@ def download(b:Build)->None:
 
 
 def fetchglue(m:Manager)->Glue:
-  def _instantiate():
-    return config()
-  def _match():
-    return only()
-  def _realize():
-    return build_wrapper(download)
-  return Glue(mkdrv(m, _instantiate, _match(), _realize()))
+  return Glue(mkdrv(m, config(), match_only(), build_wrapper(download)))
 

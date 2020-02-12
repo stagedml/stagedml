@@ -88,7 +88,7 @@ Protocol=List[Tuple[str,Hash,Any]]
 class ProtocolBuild(Build):
   protocol:Protocol
   def __init__(self, b:Build)->None:
-    super().__init__(b.dref, b.cattrs, b.context, b.timeprefix, b.outpath)
+    super().__init__(b.dref, b.cattrs, b.context, b.timeprefix, b.buildtime)
     self.protocol=[]
   def get_data_hash(self)->Hash:
     return dirhash(build_outpath(self))
@@ -96,11 +96,11 @@ class ProtocolBuild(Build):
 
 def protocolled(f:Callable[[ProtocolBuild],None], buildtime:bool=True)->Realizer:
   def _wrapper(dref,context):
-    pb=ProtocolBuild(mkbuild(dref,context,buildtime)); f(pb); return build_outpath(pb)
+    pb=ProtocolBuild(mkbuild(dref,context,buildtime)); f(pb); return [build_outpath(pb)]
   return _wrapper
 
 def protocol_save(b:ProtocolBuild)->None:
-  o = build_outpath(b)
+  o=build_outpath(b)
   with open(join(o,'protocol.json'),'w') as f:
     f.write(json_dumps(b.protocol))
 
@@ -211,12 +211,12 @@ def best_(op_name:str, metric_name:str, refs:List[RRef])->RRef:
      f"among '{op_name}' operations")
   return best_ref
 
-def bestmatch(op_name:str, metric_name:str):
-  def _matcher(dref:DRef, context:Context)->Optional[RRef]:
+def match_metric(op_name:str, metric_name:str):
+  def _matcher(dref:DRef, context:Context)->Optional[List[RRef]]:
     rrefs=list(store_rrefs(dref, context))
     if len(rrefs)==0:
       return None
-    return best_(op_name, metric_name, rrefs)
+    return [best_(op_name, metric_name, rrefs)]
   return _matcher
 
 

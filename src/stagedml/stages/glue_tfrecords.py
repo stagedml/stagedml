@@ -3,17 +3,18 @@ from os.path import join
 from typing import Optional,Any,List,Tuple,Union
 
 from pylightnix import ( Manager, Build, Config, Hash, DRef, build_cattrs,
-    build_outpath, build_path, mkdrv, only )
+    build_outpath, build_path, mkdrv, match_only )
 
 from stagedml.utils.files import json_read
 from stagedml.utils.tf import ( ProtocolBuild, protocol_add, memlimit, protocolled )
-# from stagedml.utils.instantiate import Options, instantiate
 from stagedml.utils.refs import Glue,GlueTFR,BertCP
 from stagedml.datasets.glue.create_tfrecord import create_tfrecord_data
 from stagedml.datasets.glue.download_glue_data import TASKS as GLUE_TASKS
 
 def glue_tasks():
-  return [t for t in GLUE_TASKS if t != 'diagnostic' and t != 'STS' and t != 'MNLI'] + ['MNLI-m','MNLI-mm']
+  return \
+    [t for t in GLUE_TASKS if t != 'diagnostic' and t != 'STS' and t != 'MNLI'] + \
+    ['MNLI-m','MNLI-mm']
 
 
 def config(dataset_name:str, refbert:BertCP, refdataset:Glue)->Config:
@@ -57,9 +58,10 @@ def process(b:ProtocolBuild)->None:
 
 
 def glue_tfrecords(m:Manager, dataset_name:str, refbert:BertCP, refdataset:Glue)->GlueTFR:
-  c=config(dataset_name, refbert, refdataset)
-  def _instantiate():
-    return config(dataset_name, refbert, refdataset)
-  return GlueTFR(mkdrv(m, _instantiate, only(), protocolled(process)))
+  return GlueTFR(
+    mkdrv(m,
+      config=config(dataset_name, refbert, refdataset),
+      matcher=match_only(),
+      realizer=protocolled(process)))
 
 

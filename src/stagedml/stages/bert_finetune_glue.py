@@ -19,7 +19,7 @@ from pylightnix import ( Config, Manager, RRef, DRef, store_cattrs, build_path,
 from stagedml.datasets.glue.tfdataset import ( dataset, dataset_eval, dataset_train )
 from stagedml.models.bert import ( BertLayer, classification_logits )
 from stagedml.utils.tf import ( runtb, runtensorboard, thash, KerasBuild,
-    protocol_add, protocol_add_hist, protocol_add_eval, bestmatch, dpurge,
+    protocol_add, protocol_add_hist, protocol_add_eval, match_metric, dpurge,
     keras_save )
 from stagedml.utils.refs import ( GlueTFR, BertGlue )
 
@@ -222,13 +222,14 @@ def evaluate(b:ModelBuild):
 
 
 def bert_finetune_glue(m:Manager, task_name:str, tfrecs:GlueTFR)->BertGlue:
-  def _instantiate():
-    return config(task_name, tfrecs)
   def _realize(dref,context):
     b=ModelBuild(mkbuild(dref,context));
     build(b); cpload(b); train(b); evaluate(b); keras_save(b)
     return build_outpath(b)
-  return BertGlue(mkdrv(m, _instantiate, bestmatch('evaluate', 'eval_accuracy'), _realize))
+  return BertGlue(mkdrv(m,
+    config=config(task_name, tfrecs),
+    matcher=match_metric('evaluate', 'eval_accuracy'),
+    realizer=_realize))
 
 
 
