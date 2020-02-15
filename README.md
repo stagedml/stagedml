@@ -3,19 +3,35 @@ Stagedml
 
 Stagedml brings manageability into Deep Learning by applying
 [Nix](https://nixos.org/nix) ideas of software deployment to new domain.
-Currently it is focused on TensorFlow NLP models which requries long multi-staged
-training. Under the hood Stagedml uses minimalistic engine called
-[pylightnix](https://github.com/stagedml/pylightnix) for storage management.
+Currently it is focused on TensorFlow NLP models which often requre long
+multi-staged training. Stagedml uses minimalistic immutable data engine named
+[Pylightnix](https://github.com/stagedml/pylightnix) under the hood.
 
 
 Contents
 --------
 
-1. [Install](#Install)
-   - System requirements
-   - Running the docker container
-2. [Working with Stagedml](#working-with-stagedml)
+1. [Features](#Features)
+2. [Install](#Install)
+   - [System requirements](#system-requirements)
+   - [Running the docker container](#running-docker-containers)
+3. [Working with Stagedml](#working-with-stagedml)
 
+
+Features
+--------
+
+* Stagedml is a library of adopted ML models, focused on the ease of
+  experimenting.
+* Currently, it includes some TensorFlow NLP models from
+  [tensorflow-models](https://github.com/tensorflow/models), other libraries may
+  be supported in future.
+* All addopted models are defined as a linked graph of [Pylightnix
+  stages](https://github.com/stagedml/pylightnix/docs/Reference.md#pylightnix.types.Derivation).
+  Dependency resolution is done automatically.
+* Datasets and Model checkpoints are cached and hashed into the filesystem
+  storage.
+* Check the list of [supported models](./src/stagedml/stages/all.py)
 
 Install
 -------
@@ -88,7 +104,7 @@ Top-level definitions are listed in [all.py](./src/stagedml/stages/all.py) file.
 Each `common_` function defines a *stage*, which is usually a model or a
 dataset. Every stage could be *realized* by calling
 `realize(instantiate(stage))` functions. Stages may depend on each other and
-Pylightnix' core will realize dependencies before realizing the target stage.
+Pylightnix' core will manage dependencies automatically.
 
 So, an example IPython session could look like the following:
 
