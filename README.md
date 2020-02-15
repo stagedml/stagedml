@@ -38,16 +38,16 @@ Install
 
 The project is in its early stages, so we mainly focus on Docker-driven
 environment for development and evaluation. We provide 2 docker containers, one
-is defined by [./docker/stagedml_dev.docker](./docker/stagedml_dev.docker) and
+is defined by **[./docker/stagedml_dev.docker](./docker/stagedml_dev.docker)** and
 describes development environment, another one is defined by
 [./docker/stagedml_ci.docker](./docker/stagedml_ci.docker).  We plan to use it
-for continuous integration tests.
+for continuous integration tests in future.
 
 ### System requirements
 
 * Linux system (other OS may accidently work too)
 * GPU NVidia 1080Ti
-* Docker with `nvidia-docker` runner
+* Docker with `nvidia-docker` runner and internet connection
 
 ### Running docker containers
 
@@ -67,32 +67,37 @@ We show how to run the project in development docker
    The docker builder will download [deepo](https://github.com/ufoym/deepo) base
    image and additional dependencies. After the image is ready, the script will
    bind-mount project root folder as container's `/workspace`. Finally, it will
-   open Bash shell where PYTHONPATH points to local sources and
-   [several helper functions](./env.sh) are defined.
+   open Bash shell with PYTHONPATH pointing to local Python sources, and a
+   collection of [helper shell functions](./env.sh).
 
 3. Now, we have to make sure we are using a compatible version of TensorFlow.
    At the time of this writing, the default TF from Deepo was a bit old, so we
-   provide our favorite version as  `./3rdparty/tensorflow` submodule. In order
-   to use it, we have to build it first.  Consider using our helper function
+   provide our favorite version as  `./3rdparty/tensorflow` Git submodule. We
+   have the following options:
 
-   ```
-   $ buildtf
-   ```
+   * (a) Build our favorite TensorFlow from sources
+     order to use it, we have to build it first.  Consider using some of the
+     helper shell functions:
 
-   The resulting `*wheel` will appear in `./_tf` folder. Once it is ready, call
+     ```
+     $ buildtf
+     ```
 
-   ```
-   $ installtf
-   ```
+     That would take some time. The resulting `*wheel` will appear in `./_tf`
+     folder. Once it is ready, call
 
-   to actually install it into the container. Note, that you need to call
-   `installtf` at every start of the container for now.
+     ```
+     $ installtf
+     ```
 
-4. Alternatively, you are free to experiment with any `tensorflow-2.1`
-   package from elsewhere. Just install it using `sudo -H pip3 install` or `sudo apt-get install`.
+     to actually install the TF wheel into the container. Note, that you need to
+     call `installtf` (but not `buildtf`) at each start of the container for now.
 
-5. That is all. Now you could run `ipython` to call functions directly or run
-   scripts from `./run` folder.
+   * (b) Alternatively, you are free to experiment with any `tensorflow>=2.1`
+     package from elsewhere. Just install it using `sudo -H pip3 install
+     tensorflow-gpu` or `sudo apt-get install tensorflow-gpu`.
+
+4. That is all. Run `ipython` to try StagedML in action.
 
 Working with StagedML
 ---------------------
