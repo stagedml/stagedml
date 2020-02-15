@@ -2,8 +2,10 @@ Stagedml
 ========
 
 Stagedml brings manageability into Deep Learning by applying
-[Nix](https://nixos.org/nix) ideas of software deployment.
-Currently the project is focused on NLP models which often requre
+[Nix](https://nixos.org/nix) ideas of software deployment to the domain
+of ML model libraries.
+
+The project is currenlty focused on NLP models which often requre
 complex pre-processing and long training. Stagedml uses minimalistic
 immutable data engine named
 [Pylightnix](https://github.com/stagedml/pylightnix) under the hood.
