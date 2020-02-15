@@ -1,10 +1,10 @@
 """
 This module describes set of stages required to pre-process NL2BASH dataset
 
-ref https://github.com/TellinaTool/nl2bash/tree/master/bashlint
+ref.  https://github.com/TellinaTool/nl2bash
 
-Currently, it's HEAD commit 6663ca1 appears to be broken, so we extracted some
-code from the earlier versions and tried to apply dome fixes.
+Currently, it's HEAD commit `6663ca1` appears to be broken, so we extracted
+some code from the earlier versions and tried to apply some fixes.
 
 FIXME: Char-encoded data appears to be broker (every ID is '2')
 """
