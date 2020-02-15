@@ -1,3 +1,14 @@
+"""
+This module describes set of stages required to pre-process NL2BASH dataset
+
+ref https://github.com/TellinaTool/nl2bash/tree/master/bashlint
+
+Currently, it's HEAD commit 6663ca1 appears to be broken, so we extracted some
+code from the earlier versions and tried to apply dome fixes.
+
+FIXME: Char-encoded data appears to be broker (every ID is '2')
+"""
+
 import tensorflow as tf
 assert tf.version.VERSION.startswith('2.1')
 
@@ -12,6 +23,8 @@ from stagedml.utils.files import system
 
 from stagedml.imports import ( environ, join, basename, dedent, contextmanager,
     isfile )
+
+from stagedml.utils.refs import NL2Bash
 
 PYTHON=get_executable('python3', 'Python3 interpreter is required')
 NL2BASH_ROOT=environ.get('NL2BASH_ROOT', join('/','workspace','3rdparty','nl2bash_essence'))
@@ -113,9 +126,9 @@ def process_data_realize(b:Build)->None:
       '--data_dir', o])
 
 
-def process_data(m:Manager)->DRef:
-  return mkdrv(m,
+def nl2bash(m:Manager)->NL2Bash:
+  return NL2Bash(mkdrv(m,
     config=process_data_config(split_data(m)),
     matcher=match_only(),
-    realizer=build_wrapper(process_data_realize))
+    realizer=build_wrapper(process_data_realize)))
 

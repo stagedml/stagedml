@@ -31,6 +31,7 @@ Features
   Dependency resolution is done automatically.
 * Datasets and Model checkpoints are cached and hashed into the filesystem
   storage.
+* We extensively use [Mypy](http://mypy-lang.org/)-compatible type annotations.
 * Check the list of [adopted models and datasets](./src/stagedml/stages/all.py)
 
 Install
@@ -105,7 +106,7 @@ Stagedml is desinged as a [Nix](https://nixos.org/nix)-style collection of
 ML models.
 
 Main top-level definitions are collected in a single
-[all.py](./src/stagedml/stages/all.py) file.  In this file, each `common_`
+[all.py](./src/stagedml/stages/all.py) file.  In this file, each `all_`
 function defines a *stage*, which is usually a model or a dataset. Every stage
 could be *realized* by calling `realize(instantiate(stage))` functions. Stages
 may depend on each other and Pylightnix' core will manage dependencies
@@ -115,12 +116,18 @@ So, an example IPython session could look like the following:
 
 ```python
 > from stagedml.stages.all import *
-> # Initialize Pylightnix store
+> # Initialize Pylightnix storage
 > store_initialize()
 > # Train the model of choice. Here - BERT with GLUE/MRPC task
-> realize(instantiate(common_bert_finetune_glue('MRPC')))
-# ... Building logs
-# ...
+> realize(instantiate(all_bert_finetune_glue('MRPC')))
+
+# ..
+# .. Download GLUE Dataset...
+# .. Download pretrained BERT checkpoint
+# .. Convert the Dataset into TFRecord format
+# .. Fine tune the model
+# ..
+
 'rref:eedaa6f13fee251b9451283ef1932ca0-c32bccd3f671d6a3da075cc655ee0a09-bert'
 ```
 
