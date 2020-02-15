@@ -75,8 +75,7 @@ We show how to run the project in development docker
    provide our favorite version as  `./3rdparty/tensorflow` Git submodule. You
    have the following options:
 
-   * (a) Build our favorite TensorFlow from sources
-     order to use it, we have to build it first.  Consider using some of the
+   * (a) Build our favorite TensorFlow from sources. Consider using some of our
      helper shell functions:
 
      ```
