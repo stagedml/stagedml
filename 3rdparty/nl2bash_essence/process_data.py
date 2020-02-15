@@ -19,8 +19,11 @@ import scipy.sparse as ssp
 if sys.version_info > (3, 0):
     from six.moves import xrange
 
-import bashlint
+# import bashlint
 from bashlint import bash, nast, data_tools
+
+from bashlint import (_H_NO_EXPAND, _V_NO_EXPAND, flag_suffix, bash_tokenizer, clean_and_normalize)
+
 from nlp_tools import constants, tokenizer
 
 import tensorflow as tf
@@ -65,8 +68,8 @@ TOKEN_INIT_VOCAB = [
     _ARG_UNK,
     _UTL_UNK,
     _FLAG_UNK,
-    bashlint._H_NO_EXPAND,
-    bashlint._V_NO_EXPAND,
+    _H_NO_EXPAND,
+    _V_NO_EXPAND,
     _GO,
     _ROOT,
     _ARG_START,
@@ -201,9 +204,7 @@ def read_data(FLAGS, split, source, target, use_buckets=True, buckets=None,
     tg_file = open(tg_path, encoding='utf-8')
     sc_token_file = open(sc_token_path, encoding='utf-8')
     tg_token_file = open(tg_token_path, encoding='utf-8')
-    with open(os.path.join(data_dir, '{}.{}.align'.format(split, FLAGS.channel),
-      encoding='utf-8'),
-              'rb') as f:
+    with open(os.path.join(data_dir, '{}.{}.align'.format(split, FLAGS.channel)), 'rb') as f:
         alignments = pickle.load(f)
     for i, sc_txt in enumerate(sc_file.readlines()):
         data_point = DataPoint()
@@ -391,7 +392,7 @@ def initialize_vocabulary(vocab_path, min_frequency=1):
                     else:
                         v, freq = line[:-1].rsplit('\t', 1)
                     if int(freq) >= min_frequency \
-                            or bashlint.flag_suffix in v:
+                            or flag_suffix in v:
                         V.append(v)
                 else:
                     break
@@ -556,19 +557,19 @@ def parallel_data_to_characters(nl_list, cm_list):
 
 def parallel_data_to_partial_tokens(nl_list, cm_list):
     nl_data = [nl_to_partial_tokens(nl, tokenizer.basic_tokenizer) for nl in nl_list]
-    cm_data = [cm_to_partial_tokens(cm, bashlint.bash_tokenizer) for cm in cm_list]
+    cm_data = [cm_to_partial_tokens(cm, bash_tokenizer) for cm in cm_list]
     return nl_data, cm_data
 
 
 def parallel_data_to_tokens(nl_list, cm_list):
     nl_data = [nl_to_tokens(nl, tokenizer.basic_tokenizer) for nl in nl_list]
-    cm_data = [cm_to_tokens(cm, bashlint.bash_tokenizer) for cm in cm_list]
+    cm_data = [cm_to_tokens(cm, bash_tokenizer) for cm in cm_list]
     return nl_data, cm_data
 
 
 def parallel_data_to_normalized_tokens(nl_list, cm_list):
     nl_data = [nl_to_tokens(nl, tokenizer.ner_tokenizer) for nl in nl_list]
-    cm_data = [cm_to_tokens(cm, bashlint.bash_tokenizer, arg_type_only=True)
+    cm_data = [cm_to_tokens(cm, bash_tokenizer, arg_type_only=True)
                for cm in cm_list]
     return nl_data, cm_data
 
@@ -619,7 +620,7 @@ def cm_to_characters(cm, use_preprocessing=False):
             if i < len(cm_tokens) - 1:
                 cm_data_point.append(constants._SPACE)
     else:
-        cm = bashlint.clean_and_normalize(cm)
+        cm = clean_and_normalize(cm)
         cm_data_point = string_to_characters(cm)
     return cm_data_point
 
@@ -631,7 +632,7 @@ def nl_to_partial_tokens(s, tokenizer, to_lower_case=True, lemmatization=True):
 
 
 def cm_to_partial_tokens(s, tokenizer):
-    s = bashlint.clean_and_normalize(s)
+    s = clean_and_normalize(s)
     return string_to_partial_tokens(cm_to_tokens(s, tokenizer))
 
 
@@ -652,7 +653,7 @@ def string_to_partial_tokens(s, use_arg_start_end=True):
         if not token:
             continue
         if token.isalpha() or token.isnumeric() \
-                or bashlint.flag_suffix in token \
+                or flag_suffix in token \
                 or token in bash.binary_logic_operators \
                 or token in bash.left_associate_unary_logic_operators \
                 or token in bash.right_associate_unary_logic_operators:

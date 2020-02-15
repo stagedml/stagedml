@@ -29,25 +29,26 @@ from stagedml.utils.refs import NL2Bash
 PYTHON=get_executable('python3', 'Python3 interpreter is required')
 NL2BASH_ROOT=environ.get('NL2BASH_ROOT', join('/','workspace','3rdparty','nl2bash_essence'))
 
-def run_nl2bash_env(c, cmd)->None:
+def run_nl2bash_env(nl2bash_root, cmd)->None:
   system(cmd,
-    cwd=c.nl2bash_root,
-    env={'PYTHONPATH':f'{c.nl2bash_root}:{environ["PYTHONPATH"]}'})
+    cwd=nl2bash_root,
+    env={'PYTHONPATH':f'{nl2bash_root}:{environ["PYTHONPATH"]}'})
 
 @contextmanager
-def work_files(o:Path, files:List[str]):
+def work_files(o:Path, files:List[str], remove:bool=True):
   for f in files:
     system(['cp', f, o])
     assert isfile(join(o,basename(f)))
   try:
     yield
   finally:
-    for f in files:
-      system(['rm', '-f', join(o,basename(f))])
+    if remove:
+      for f in files:
+        system(['rm', '-f', join(o,basename(f))])
 
 @contextmanager
-def work_refpaths(b:Build, refpaths:List[RefPath]):
-  with work_files(build_outpath(b), [build_path(b,p) for p in refpaths]):
+def work_refpaths(b:Build, refpaths:List[RefPath], remove:bool=True):
+  with work_files(build_outpath(b), [build_path(b,p) for p in refpaths], remove):
     yield
 
 def filter_data_config(nl2bash_root:str=NL2BASH_ROOT)->Config:
@@ -65,7 +66,7 @@ def filter_data_realize(b:Build)->None:
     f'{c.nl2bash_root}/data/{c.dataset}/all.nl',
     f'{c.nl2bash_root}/data/{c.dataset}/vocab.tar.xz']):
 
-    run_nl2bash_env(c, [PYTHON, '-c', dedent(f'''
+    run_nl2bash_env(c.nl2bash_root, [PYTHON, '-c', dedent(f'''
       from filter_data import *;
       filter_by_most_frequent_utilities("{o}", {c.num_utilities});
       ''')])
@@ -85,7 +86,7 @@ def split_data_realize(b:Build)->None:
   o=build_outpath(b)
   c=build_cattrs(b)
   with work_refpaths(b, [c.nl, c.cm]):
-    run_nl2bash_env(c, [PYTHON, '-c', dedent(f'''
+    run_nl2bash_env(c.nl2bash_root, [PYTHON, '-c', dedent(f'''
       from split_data import *;
       split_data("{o}");
       ''')])
@@ -104,13 +105,15 @@ def process_data_config(splitted_data:DRef)->Config:
   train_cm = [splitted_data, 'train.cm.filtered']
   dev_cm = [splitted_data, 'dev.cm.filtered']
   test_cm = [splitted_data, 'test.cm.filtered']
+  version = 2
   return mkconfig(locals())
 
 def process_data_realize(b:Build)->None:
   o=build_outpath(b)
   c=build_cattrs(b)
-  with work_refpaths(b, [c.train_nl, c.dev_nl, c.test_nl, c.train_cm, c.dev_cm, c.test_cm]):
-    run_nl2bash_env(c, [PYTHON,
+  with work_refpaths(b, [c.train_nl, c.dev_nl, c.test_nl, c.train_cm, c.dev_cm, c.test_cm],
+      remove=False):
+    run_nl2bash_env(c.nl2bash_root, [PYTHON,
       '-m', 'process_data',
       '--rnn_cell', 'gru',
       '--encoder_topology', 'birnn',
