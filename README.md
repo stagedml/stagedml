@@ -7,6 +7,16 @@ Currently it is focused on TensorFlow NLP models which requries long multi-stage
 training. Under the hood Stagedml uses minimalistic engine called
 [pylightnix](https://github.com/stagedml/pylightnix) for storage management.
 
+
+Contents
+--------
+
+1. [Install](#Install)
+   - System requirements
+   - Running the docker container
+2. [Working with Stagedml](#working-with-stagedml)
+
+
 Install
 -------
 
@@ -72,13 +82,15 @@ Working with StagedML
 ---------------------
 
 Stagedml is desinged as a [Nix](https://nixos.org/nix)-style collection of
-models using [Pylightnix](https://github.com/stagedml/pylightnix).
+models using [Pylightnix](https://github.com/stagedml/pylightnix) library.
 
-Top-level definitions are contained in [all.py](./src/stagedml/stages/all.py)
-file. Each `common_` function defines a model which could be trained.
+Top-level definitions are listed in [all.py](./src/stagedml/stages/all.py) file.
+Each `common_` function defines a *stage*, which is usually a model or a
+dataset. Every stage could be *realized* by calling
+`realize(instantiate(stage))` functions. Stages may depend on each other and
+Pylightnix' core will realize dependencies before realizing the target stage.
 
-To train the model (or *realize the stage*, in Pylightnix terms), run IPython
-and type the following commands:
+So, an example IPython session could look like the following:
 
 ```python
 > from stagedml.stages.all import *
@@ -99,7 +111,7 @@ be converted into storage folder with `pylightnix.rref2path` function.
 /var/run/pylightnix/store-v0/c32bccd3f671d6a3da075cc655ee0a09/eedaa6f13fee251b9451283ef1932ca0/
 ```
 
-With this link, you could:
+In general, With realization reference in hands, you could:
 
 - Examine training logs and figures by accessing training artifacts located in
   storage folder returned by `rref2path`.
