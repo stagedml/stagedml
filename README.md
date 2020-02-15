@@ -98,13 +98,14 @@ Working with StagedML
 ---------------------
 
 Stagedml is desinged as a [Nix](https://nixos.org/nix)-style collection of
-models using [Pylightnix](https://github.com/stagedml/pylightnix) library.
+ML models.
 
-Top-level definitions are listed in [all.py](./src/stagedml/stages/all.py) file.
-Each `common_` function defines a *stage*, which is usually a model or a
-dataset. Every stage could be *realized* by calling
-`realize(instantiate(stage))` functions. Stages may depend on each other and
-Pylightnix' core will manage dependencies automatically.
+Main top-level definitions are collected in a single
+[all.py](./src/stagedml/stages/all.py) file.  In this file, each `common_`
+function defines a *stage*, which is usually a model or a dataset. Every stage
+could be *realized* by calling `realize(instantiate(stage))` functions. Stages
+may depend on each other and Pylightnix' core will manage dependencies
+automatically.
 
 So, an example IPython session could look like the following:
 
