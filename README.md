@@ -72,7 +72,7 @@ We show how to run the project in development docker
 
 3. Now, we have to make sure we are using a compatible version of TensorFlow.
    At the time of this writing, the default TF from Deepo was a bit old, so we
-   provide our favorite version as  `./3rdparty/tensorflow` Git submodule. We
+   provide our favorite version as  `./3rdparty/tensorflow` Git submodule. You
    have the following options:
 
    * (a) Build our favorite TensorFlow from sources
