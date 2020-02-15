@@ -5,7 +5,7 @@ Example IPython session:
 ```python
 from stagedml.stages.all import *
 store_initialize()
-rref=realize(instantiate(all_stage))
+rref=realize(instantiate(all_bert_finetune_glue, 'MRPC'))
 rref2path(rref)
 ```
 """

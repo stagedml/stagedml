@@ -119,7 +119,7 @@ So, an example IPython session could look like the following:
 > # Initialize Pylightnix storage
 > store_initialize()
 > # Train the model of choice. Here - BERT with GLUE/MRPC task
-> realize(instantiate(all_bert_finetune_glue('MRPC')))
+> realize(instantiate(all_bert_finetune_glue, 'MRPC'))
 
 # ..
 # .. Download GLUE Dataset...
