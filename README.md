@@ -31,7 +31,7 @@ Features
   Dependency resolution is done automatically.
 * Datasets and Model checkpoints are cached and hashed into the filesystem
   storage.
-* Check the list of [supported models](./src/stagedml/stages/all.py)
+* Check the list of [adopted models and datasets](./src/stagedml/stages/all.py)
 
 Install
 -------
