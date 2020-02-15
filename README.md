@@ -27,7 +27,7 @@ for continuous integration tests.
 
 We show how to run the project in development docker
 
-1. Clone the repo recursively
+1. Clone the Stagedml repo recursively
    ```
    $ git clone --recursive https://github.com/stagedml/stagedml
    ```
@@ -67,4 +67,45 @@ We show how to run the project in development docker
 
 5. That is all. Now you could run `ipython` to call functions directly or run
    scripts from `./run` folder.
+
+Working with StagedML
+---------------------
+
+Stagedml is desinged as a [Nix](https://nixos.org/nix)-style collection of
+models using [Pylightnix](https://github.com/stagedml/pylightnix).
+
+Top-level definitions are contained in [all.py](./src/stagedml/stages/all.py)
+file. Each `common_` function defines a model which could be trained.
+
+To train the model (or *realize the stage*, in Pylightnix terms), run IPython
+and type the following commands:
+
+```python
+> from stagedml.stages.all import *
+> # Initialize Pylightnix store
+> store_initialize()
+> # Train the model of choice. Here - BERT with GLUE/MRPC task
+> realize(instantiate(common_bert_finetune_glue('MRPC')))
+# ... Building logs
+# ...
+'rref:eedaa6f13fee251b9451283ef1932ca0-c32bccd3f671d6a3da075cc655ee0a09-bert'
+```
+
+Now, save the *realization reference* by typing `rref=_`. This reference could
+be converted into storage folder with `pylightnix.rref2path` function.
+
+```python
+> print(rref2path(rref))
+/var/run/pylightnix/store-v0/c32bccd3f671d6a3da075cc655ee0a09/eedaa6f13fee251b9451283ef1932ca0/
+```
+
+With this link, you could:
+
+- Examine training logs and figures by accessing training artifacts located in
+  storage folder returned by `rref2path`.
+- Change model parameters and re-train it without loosing previous results
+  (until Pylightnix garbage collection is run).
+- Build new models based on the current model's checkpoints. Stagedml will track
+  stage configurations and prevent you from messing up the data.
+- (TODO) Run Pylightnix garbage collector to remove unused models.
 
