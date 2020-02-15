@@ -27,7 +27,7 @@ Features
   [tensorflow-models](https://github.com/tensorflow/models), other libraries may
   be supported in future.
 * All addopted models are defined as a linked graph of [Pylightnix
-  stages](https://github.com/stagedml/pylightnix/docs/Reference.md#pylightnix.types.Derivation).
+  stages](https://github.com/stagedml/pylightnix/blob/master/docs/Reference.md#pylightnix.types.Derivation).
   Dependency resolution is done automatically.
 * Datasets and Model checkpoints are cached and hashed into the filesystem
   storage.
