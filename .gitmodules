@@ -7,3 +7,6 @@
 [submodule "3rdparty/pylightnix"]
 	path = 3rdparty/pylightnix
 	url = https://github.com/stagedml/pylightnix
+[submodule "3rdparty/nl2bash_essence"]
+	path = 3rdparty/nl2bash_essence
+	url = https://github.com/stagedml/nl2bash_essence
