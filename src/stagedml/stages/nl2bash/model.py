@@ -511,10 +511,7 @@ class EncoderDecoderModel(NNModel):
                             self.tg_output_keep)
 
         # Character Decoder.
-        if self.tg_char:
-            assert False, 'broken'
-            self.define_char_decoder(self.decoder.dim, False,
-                self.tg_char_rnn_input_keep, self.tg_char_rnn_output_keep)
+        assert not self.tg_char
 
         self.define_graph()
 
@@ -529,7 +526,7 @@ class EncoderDecoderModel(NNModel):
         self.decoder_inputs = []        # decoder inputs (always start with "_GO").
         self.targets = []               # decoder targets
         self.target_weights = []        # weights at each position of the target sequence.
-        self.encoder_copy_inputs = []
+        self.encoder_copy_inputs:list = []
 
         for i in xrange(self.max_source_length):
             self.encoder_inputs.append(
@@ -550,15 +547,7 @@ class EncoderDecoderModel(NNModel):
             if j > 0 and not self.copynet:
                 self.targets.append(self.decoder_inputs[j])
 
-        if self.copynet:
-            for i in xrange(self.max_source_length):
-                self.encoder_copy_inputs.append(
-                    tf.compat.v1.placeholder(
-                        tf.int32, shape=[None], name="encoder_copy{0}".format(i)))
-            for j in xrange(self.max_target_length):
-                self.targets.append(
-                    tf.compat.v1.placeholder(
-                        tf.int32, shape=[None], name="copy_target{0}".format(i)))
+        assert not self.copynet
 
         # Compute training outputs and losses in the forward direction.
         if self.buckets:
@@ -568,11 +557,9 @@ class EncoderDecoderModel(NNModel):
             self.attn_alignments = []
             self.encoder_hidden_states = []
             self.decoder_hidden_states = []
-            if self.tg_char:
-                self.char_output_symbols = []
-                self.char_sequence_logits = []
-            if self.use_copy:
-                self.pointers = []
+            assert not self.tg_char
+            assert not self.use_copy
+
             for bucket_id, bucket in enumerate(self.buckets):
                 with tf.compat.v1.variable_scope(tf.compat.v1.get_variable_scope(),
                                        reuse=True if bucket_id > 0 else None):
@@ -595,22 +582,8 @@ class EncoderDecoderModel(NNModel):
                         encode_decode_outputs['encoder_hidden_states'])
                     self.decoder_hidden_states.append(
                         encode_decode_outputs['decoder_hidden_states'])
-                    if self.forward_only and self.tg_char:
-                         bucket_char_output_symbols = \
-                             encode_decode_outputs['char_output_symbols']
-                         bucket_char_sequence_logits =  \
-                             encode_decode_outputs['char_sequence_logits']
-                         self.char_output_symbols.append(
-                             tf.reshape(bucket_char_output_symbols,
-                                        [self.max_target_length,
-                                         self.batch_size, self.beam_size,
-                                         self.max_target_token_size + 1]))
-                         self.char_sequence_logits.append(
-                             tf.reshape(bucket_char_sequence_logits,
-                                        [self.max_target_length,
-                                        self.batch_size, self.beam_size]))
-                    if self.use_copy:
-                        self.pointers.append(encode_decode_outputs['pointers'])
+                    assert not self.forward_only
+                    assert not self.use_copy
         else:
             encode_decode_outputs = self.encode_decode(
                 [self.encoder_inputs],
@@ -626,47 +599,37 @@ class EncoderDecoderModel(NNModel):
             self.attn_alignments = encode_decode_outputs['attn_alignments']
             self.encoder_hidden_states = encode_decode_outputs['encoder_hidden_states']
             self.decoder_hidden_states = encode_decode_outputs['decoder_hidden_states']
-            if self.tg_char:
-                char_output_symbols = encode_decode_outputs['char_output_symbols']
-                char_sequence_logits = encode_decode_outputs['char_sequence_logits']
-                self.char_output_symbols = tf.reshape(char_output_symbols,
-                                   [self.batch_size, self.beam_size,
-                                    self.max_target_length,
-                                    self.max_target_token_size])
-                self.char_sequence_logits = tf.reshape(char_sequence_logits,
-                                   [self.batch_size, self.beam_size,
-                                    self.max_target_length])
-            if self.use_copy:
-                self.pointers = encode_decode_outputs['pointers']
+            assert not self.tg_char
+            assert not self.use_copy
 
         # Gradients and SGD updates in the backward direction.
-        if not self.forward_only:
-            params = tf.compat.v1.trainable_variables()
-            if self.optimizer == "sgd":
-                opt = tf.compat.v1.train.GradientDescentOptimizer(self.learning_rate)
-            elif self.optimizer == "adam":
-                opt = tf.compat.v1.train.AdamOptimizer(
-                    self.learning_rate, beta1=0.9, beta2=0.999,
-                    epsilon=self.adam_epsilon, )
-            else:
-                raise ValueError("Unrecognized optimizer type.")
+        assert not self.forward_only
+        params = tf.compat.v1.trainable_variables()
+        if self.optimizer == "sgd":
+            opt = tf.compat.v1.train.GradientDescentOptimizer(self.learning_rate)
+        elif self.optimizer == "adam":
+            opt = tf.compat.v1.train.AdamOptimizer(
+                self.learning_rate, beta1=0.9, beta2=0.999,
+                epsilon=self.adam_epsilon, )
+        else:
+            raise ValueError("Unrecognized optimizer type.")
 
-            if self.buckets:
-                self.gradient_norms = []
-                self.updates = []
-                for bucket_id, _ in enumerate(self.buckets):
-                    gradients = tf.gradients(ys=self.losses[bucket_id], xs=params)
-                    clipped_gradients, norm = tf.clip_by_global_norm(
-                        gradients, self.max_gradient_norm)
-                    self.gradient_norms.append(norm)
-                    self.updates.append(opt.apply_gradients(
-                        zip(clipped_gradients, params)))
-            else:
-                gradients = tf.gradients(ys=self.losses, xs=params)
+        if self.buckets:
+            self.gradient_norms = []
+            self.updates = []
+            for bucket_id, _ in enumerate(self.buckets):
+                gradients = tf.gradients(ys=self.losses[bucket_id], xs=params)
                 clipped_gradients, norm = tf.clip_by_global_norm(
                     gradients, self.max_gradient_norm)
-                self.gradient_norms = norm
-                self.updates = opt.apply_gradients(zip(clipped_gradients, params))
+                self.gradient_norms.append(norm)
+                self.updates.append(opt.apply_gradients(
+                    zip(clipped_gradients, params)))
+        else:
+            gradients = tf.gradients(ys=self.losses, xs=params)
+            clipped_gradients, norm = tf.clip_by_global_norm(
+                gradients, self.max_gradient_norm)
+            self.gradient_norms = norm
+            self.updates = opt.apply_gradients(zip(clipped_gradients, params))
 
         self.saver = tf.compat.v1.train.Saver(tf.compat.v1.global_variables())
 
@@ -676,23 +639,15 @@ class EncoderDecoderModel(NNModel):
                       encoder_copy_inputs=None)->dict:
         bs_decoding = self.token_decoding_algorithm == 'beam_search' \
             and self.forward_only
+        assert not bs_decoding
 
         # --- Encode Step --- #
-        if bs_decoding:
-            targets = wrap_inputs(
-                self.decoder.beam_decoder, targets)
-            encoder_copy_inputs = wrap_inputs(
-                self.decoder.beam_decoder, encoder_copy_inputs)
         encoder_outputs, encoder_states = \
             self.encoder.define_graph(encoder_channel_inputs)
 
         # --- Decode Step --- #
-        if self.tg_token_use_attention:
-            attention_states = tf.concat(
-                [tf.reshape(m, [-1, 1, self.encoder.output_dim])
-                 for m in encoder_outputs], axis=1)
-        else:
-            attention_states = None
+        assert not self.tg_token_use_attention
+        attention_states = None
         num_heads = 2 if (self.tg_token_use_attention and self.copynet) else 1
 
         output_symbols, sequence_logits, output_logits, states, attn_alignments, \
@@ -704,64 +659,19 @@ class EncoderDecoderModel(NNModel):
                         encoder_copy_inputs=encoder_copy_inputs)
 
         # --- Compute Losses --- #
-        if not self.forward_only:
-            # A. Sequence Loss
-            if self.training_algorithm == "standard":
-                encoder_decoder_token_loss = self.sequence_loss(
-                    output_logits, targets, target_weights,
-                    sparse_cross_entropy)
-            elif self.training_algorithm == 'beam_search_opt':
-                pass
-            else:
-                raise AttributeError("Unrecognized training algorithm.")
+        assert not self.forward_only
+        # A. Sequence Loss
+        assert self.training_algorithm == "standard"
+        encoder_decoder_token_loss = self.sequence_loss(
+            output_logits, targets, target_weights,
+            sparse_cross_entropy)
 
-            # B. Attention Regularization
-            attention_reg = self.attention_regularization(attn_alignments) \
-                if self.tg_token_use_attention else 0
+        # B. Attention Regularization
+        attention_reg = 0
 
-            # C. Character Sequence Loss
-            if self.tg_char:
-                # re-arrange character inputs
-                char_decoder_inputs = [
-                    tf.squeeze(x, 1) for x in tf.split(
-                        axis=1, num_or_size_splits=self.max_target_token_size + 2,
-                        value=tf.concat(axis=0, values=self.char_decoder_inputs))]
-                char_targets = [
-                    tf.squeeze(x, 1) for x in tf.split(
-                        axis=1, num_or_size_splits=self.max_target_token_size + 1,
-                        value=tf.concat(axis=0, values=self.char_targets))]
-                char_target_weights = [
-                    tf.squeeze(x, 1) for x in tf.split(
-                        axis=1, num_or_size_splits=self.max_target_token_size + 1,
-                        value=tf.concat(axis=0, values=self.char_target_weights))]
-                if bs_decoding:
-                    char_decoder_inputs = wrap_inputs(
-                        self.decoder.beam_decoder, char_decoder_inputs)
-                    char_targets = graph_utils.wrap_inputs(
-                        self.decoder.beam_decoder, char_targets)
-                    char_target_weights = graph_utils.wrap_inputs(
-                        self.decoder.beam_decoder, char_target_weights)
-                # get initial state from decoder output
-                char_decoder_init_state = \
-                    tf.concat(axis=0, values=[tf.reshape(d_o, [-1, self.decoder.dim])
-                                              for d_o in states])
-                char_output_symbols, char_sequence_logits, char_output_logits, _, _ = \
-                    self.char_decoder.define_graph(
-                        char_decoder_init_state, char_decoder_inputs)
-                encoder_decoder_char_loss = self.sequence_loss(
-                    char_output_logits, char_targets, char_target_weights,
-                    softmax_loss(
-                        self.char_decoder.output_project,
-                        self.tg_char_vocab_size / 2,
-                        self.tg_char_vocab_size))
-            else:
-                encoder_decoder_char_loss = 0
-
-            losses = encoder_decoder_token_loss + \
-                     self.gamma * encoder_decoder_char_loss + \
-                     self.beta * attention_reg
-        else:
-            losses = tf.zeros_like(decoder_inputs[0])
+        # C. (No) Character Sequence Loss
+        assert not self.tg_char
+        losses = tf.zeros_like(decoder_inputs[0])
 
         # --- Store encoder/decoder output states --- #
         encoder_hidden_states = tf.concat(
@@ -789,11 +699,11 @@ class EncoderDecoderModel(NNModel):
         O['attn_alignments'] = attn_alignments
         O['encoder_hidden_states'] = encoder_hidden_states
         O['decoder_hidden_states'] = decoder_hidden_states
-        if self.tg_char:
-            O['char_output_symbols'] = char_output_symbols
-            O['char_sequence_logits'] = char_sequence_logits
-        if self.use_copy:
-            O['pointers'] = pointers
+        assert not self.tg_char
+            # O['char_output_symbols'] = char_output_symbols
+            # O['char_sequence_logits'] = char_sequence_logits
+        assert not self.use_copy
+            # O['pointers'] = pointers
         return O
 
 
@@ -811,17 +721,6 @@ class EncoderDecoderModel(NNModel):
         avg_log_perps = tf.reduce_mean(input_tensor=log_perps)
 
         return avg_log_perps
-
-
-    def attention_regularization(self, attn_alignments):
-        """
-        Entropy regularization term.
-        :param attn_alignments: [batch_size, decoder_size, encoder_size]
-        """
-        P = tf.reduce_sum(input_tensor=attn_alignments, axis=1)
-        P_exp = tf.exp(P)
-        Z = tf.reduce_sum(input_tensor=P_exp, axis=1, keepdims=True)
-        return tf.reduce_mean(input_tensor=tf.reduce_sum(input_tensor=P_exp / Z * (P - tf.math.log(Z)), axis=1))
 
 
     def define_encoder(self, input_keep, output_keep):
@@ -891,11 +790,7 @@ class EncoderDecoderModel(NNModel):
             encoder_input_channels[0], encoder_size, reversed_output=True)
         batch_decoder_inputs = load_channel(
             decoder_input_channels[0], decoder_size, reversed_output=False)
-        if self.copynet:
-            batch_encoder_copy_inputs = load_channel(
-                encoder_input_channels[1], encoder_size, reversed_output=True)
-            batch_copy_targets = load_channel(
-                decoder_input_channels[1], decoder_size, reversed_output=False)
+        assert not self.copynet
 
         batch_encoder_input_masks = []
         batch_decoder_input_masks = []
@@ -924,9 +819,7 @@ class EncoderDecoderModel(NNModel):
         E.encoder_attn_masks = batch_encoder_input_masks
         E.decoder_inputs = batch_decoder_inputs
         E.target_weights = batch_decoder_input_masks
-        if self.use_copy:
-            E.encoder_copy_inputs = batch_encoder_copy_inputs
-            E.copy_targets = batch_copy_targets
+        assert not self.use_copy
 
         return E
 
@@ -938,8 +831,7 @@ class EncoderDecoderModel(NNModel):
         network.
         """
         encoder_inputs, decoder_inputs = [], []
-        if self.copynet:
-            encoder_copy_inputs, copy_targets = [], []
+        assert not self.copynet
 
         if bucket_id == -1:
             sample_pool = data
@@ -954,15 +846,11 @@ class EncoderDecoderModel(NNModel):
             example = sample_pool[i]
             encoder_inputs.append(example.sc_ids)
             decoder_inputs.append(example.tg_ids)
-            if self.copynet:
-                encoder_copy_inputs.append(example.csc_ids)
-                copy_targets.append(example.ctg_ids)
+            assert not self.copynet
 
         encoder_input_channels = [encoder_inputs]
         decoder_input_channels = [decoder_inputs]
-        if self.copynet:
-            encoder_input_channels.append(encoder_copy_inputs)
-            decoder_input_channels.append(copy_targets)
+        assert not self.copynet
 
         return self.format_batch(
             encoder_input_channels, decoder_input_channels, bucket_id=bucket_id)
@@ -980,12 +868,7 @@ class EncoderDecoderModel(NNModel):
         for l in xrange(decoder_size):
             input_feed[self.decoder_inputs[l].name] = E.decoder_inputs[l]
             input_feed[self.target_weights[l].name] = E.target_weights[l]
-        if self.copynet:
-            for l in xrange(encoder_size):
-                input_feed[self.encoder_copy_inputs[l].name] = \
-                    E.encoder_copy_inputs[l]
-            for l in xrange(decoder_size-1):
-                input_feed[self.targets[l].name] = E.copy_targets[l]
+        assert not self.copynet
 
         # Apply dummy values to encoder and decoder inputs
         for l in xrange(encoder_size, self.max_source_length):
@@ -993,17 +876,11 @@ class EncoderDecoderModel(NNModel):
                 E.encoder_inputs[-1].shape, dtype=np.int32)
             input_feed[self.encoder_attn_masks[l].name] = np.zeros(
                 E.encoder_attn_masks[-1].shape, dtype=np.int32)
-            if self.copynet:
-                input_feed[self.encoder_copy_inputs[l].name] = \
-                    np.zeros(E.encoder_copy_inputs[-1].shape, dtype=np.int32)
         for l in xrange(decoder_size, self.max_target_length + 1):
             input_feed[self.decoder_inputs[l].name] = np.zeros(
                 E.decoder_inputs[-1].shape, dtype=np.int32)
             input_feed[self.target_weights[l].name] = np.zeros(
                 E.target_weights[-1].shape, dtype=np.int32)
-            if self.copynet:
-                input_feed[self.targets[l-1].name] = np.zeros(
-                    E.copy_targets[-1].shape, dtype=np.int32)
 
         return input_feed
 
@@ -1027,34 +904,19 @@ class EncoderDecoderModel(NNModel):
         input_feed = self.feed_input(formatted_example)
 
         # Output feed: depends on whether we do a backward step or not.
-        if not forward_only:
-            if bucket_id == -1:
-                output_feed = {
-                    'updates': self.updates,                    # Update Op that does SGD.
-                    'gradient_norms': self.gradient_norms,      # Gradient norm.
-                    'losses': self.losses}                      # Loss for this batch.
-            else:
-                output_feed = {
-                    'updates': self.updates[bucket_id],         # Update Op that does SGD.
-                    'gradient_norms': self.gradient_norms[bucket_id],  # Gradient norm.
-                    'losses': self.losses[bucket_id]}           # Loss for this batch.
+        assert not forward_only
+        if bucket_id == -1:
+            output_feed = {
+                'updates': self.updates,                    # Update Op that does SGD.
+                'gradient_norms': self.gradient_norms,      # Gradient norm.
+                'losses': self.losses}                      # Loss for this batch.
         else:
-            if bucket_id == -1:
-                output_feed = {
-                    'output_symbols': self.output_symbols,      # Loss for this batch.
-                    'sequence_logits': self.sequence_logits,        # Batch output sequence
-                    'losses': self.losses}                      # Batch output scores
-            else:
-                output_feed = {
-                    'output_symbols': self.output_symbols[bucket_id], # Loss for this batch.
-                    'sequence_logits': self.sequence_logits[bucket_id],   # Batch output sequence
-                    'losses': self.losses[bucket_id]}           # Batch output logits
+            output_feed = {
+                'updates': self.updates[bucket_id],         # Update Op that does SGD.
+                'gradient_norms': self.gradient_norms[bucket_id],  # Gradient norm.
+                'losses': self.losses[bucket_id]}           # Loss for this batch.
 
-        if self.tg_token_use_attention:
-            if bucket_id == -1:
-                output_feed['attn_alignments'] = self.attn_alignments
-            else:
-                output_feed['attn_alignments'] = self.attn_alignments[bucket_id]
+        assert not self.tg_token_use_attention
 
         if bucket_id != -1:
             assert(isinstance(self.encoder_hidden_states, list))
@@ -1067,10 +929,10 @@ class EncoderDecoderModel(NNModel):
             output_feed['encoder_hidden_states'] = self.encoder_hidden_states
             output_feed['decoder_hidden_states'] = self.decoder_hidden_states
 
-        if self.use_copy:
-            output_feed['pointers'] = self.pointers
+        assert not self.use_copy
 
         extra_update_ops = tf.compat.v1.get_collection(tf.compat.v1.GraphKeys.UPDATE_OPS)
+        assert not extra_update_ops
         if extra_update_ops and not forward_only:
             outputs, extra_updates = session.run(
                 [output_feed, extra_update_ops], input_feed)
@@ -1078,15 +940,10 @@ class EncoderDecoderModel(NNModel):
             outputs = session.run(output_feed, input_feed)
 
         O = Output()
-        if not forward_only:
-            # Gradient norm, loss, no outputs
-            O.gradient_norms = outputs['gradient_norms']
-            O.losses = outputs['losses']
-        else:
-            # No gradient loss, output_symbols, sequence_logits
-            O.output_symbols = outputs['output_symbols']
-            O.sequence_logits = outputs['sequence_logits']
-            O.losses = outputs['losses']
+        assert not forward_only
+        # Gradient norm, loss, no outputs
+        O.gradient_norms = outputs['gradient_norms']
+        O.losses = outputs['losses']
         # [attention_masks]
         if self.tg_token_use_attention:
             O.attn_alignments = outputs['attn_alignments']
@@ -1094,9 +951,7 @@ class EncoderDecoderModel(NNModel):
         O.encoder_hidden_states = outputs['encoder_hidden_states']
         O.decoder_hidden_states = outputs['decoder_hidden_states']
 
-        if self.use_copy:
-            O.pointers = outputs['pointers']
-
+        assert not self.use_copy
         return O
 
 
@@ -1272,25 +1127,15 @@ class Decoder(NNModel):
         self.decoding_algorithm = decoding_algorithm
 
         self.vocab_size = self.target_vocab_size
-        
+
         # variable sharing
         self.embedding_vars = False
         self.output_project_vars = False
 
-        self.beam_decoder = beam_search.BeamDecoder(
-                self.num_layers,
-                data_utils.ROOT_ID,
-                data_utils.EOS_ID,
-                self.batch_size,
-                self.beam_size,
-                self.use_attention,
-                self.use_copy,
-                self.copy_fun,
-                self.alpha,
-                locally_normalized=(self.training_algorithm != "bso")
-            ) if self.decoding_algorithm == "beam_search" else None
+        assert self.decoding_algorithm != "beam_search"
+        self.beam_decoder = None
 
-        self.output_project = self.output_project()
+        self.output_project = self.output_project_()
 
     def embeddings(self):
         with tf.variable_scope(self.scope + "_embeddings", reuse=self.embedding_vars):
@@ -1306,7 +1151,7 @@ class Decoder(NNModel):
     def token_features(self):
         return np.load(self.tg_token_features_path)
 
-    def output_project(self):
+    def output_project_(self)->Tuple[Any,Any]:
         with tf.variable_scope(self.scope + "_output_project",
                                reuse=self.output_project_vars):
             w = tf.get_variable("proj_w", [self.dim, self.vocab_size])
@@ -1357,12 +1202,12 @@ class RNNDecoder(Decoder):
         :return states: (batched) hidden states for all steps
         :return attn_alignments: (batched) attention masks (if attention is used)
         """
-        if self.use_attention:
-            assert(attention_states.get_shape()[1:2].is_fully_defined())
+        assert not self.use_attention
         if encoder_copy_inputs:
             assert(attention_states.get_shape()[1] == len(encoder_copy_inputs))
         bs_decoding = self.forward_only and \
                       self.decoding_algorithm == "beam_search"
+        assert not bs_decoding
 
         if input_embeddings is None:
             input_embeddings = self.embeddings()
@@ -1373,230 +1218,61 @@ class RNNDecoder(Decoder):
         with tf.variable_scope(self.scope + "_decoder_rnn") as scope:
             decoder_cell = self.decoder_cell()
             states = []
-            alignments_list = []
+            alignments_list:list = []
             pointers = None
 
             # Cell Wrappers -- 'Attention', 'CopyNet', 'BeamSearch'
-            if bs_decoding:
-                beam_decoder = self.beam_decoder
-                state = beam_decoder.wrap_state(encoder_state, self.output_project)
-            else:
-                state = encoder_state
-                past_output_symbols = []
-                past_output_logits = []
+            state = encoder_state
+            past_output_symbols = []
+            past_output_logits = []
 
-            if self.use_attention:
-                if bs_decoding:
-                    encoder_attn_masks = graph_utils.wrap_inputs(
-                        beam_decoder, encoder_attn_masks)
-                    attention_states = beam_decoder.wrap_input(attention_states)
-                encoder_attn_masks = [tf.expand_dims(encoder_attn_mask, 1)
-                    for encoder_attn_mask in encoder_attn_masks]
-                encoder_attn_masks = tf.concat(axis=1, values=encoder_attn_masks)
-                decoder_cell = decoder.AttentionCellWrapper(
-                    decoder_cell,
-                    attention_states,
-                    encoder_attn_masks,
-                    self.attention_function,
-                    self.attention_input_keep,
-                    self.attention_output_keep,
-                    num_heads,
-                    self.dim,
-                    self.num_layers,
-                    self.use_copy,
-                    self.vocab_size
-                )
+            assert not self.use_attention
 
-            if self.use_copy and self.copy_fun == 'copynet':
-                decoder_cell = decoder.CopyCellWrapper(
-                    decoder_cell,
-                    self.output_project,
-                    self.num_layers,
-                    encoder_copy_inputs,
-                    self.vocab_size)
+            assert not (self.use_copy and self.copy_fun == 'copynet')
 
-            if bs_decoding:
-                decoder_cell = beam_decoder.wrap_cell(
-                    decoder_cell, self.output_project)
 
             def step_output_symbol_and_logit(output):
                 epsilon = tf.constant(1e-12)
-                if self.copynet:
-                    output_logits = tf.log(output + epsilon)
-                else:
-                    W, b = self.output_project
-                    output_logits = tf.log(
-                        tf.nn.softmax(tf.matmul(output, W) + b) + epsilon)
+                W, b = self.output_project
+                output_logits = tf.log(
+                    tf.nn.softmax(tf.matmul(output, W) + b) + epsilon)
                 output_symbol = tf.argmax(output_logits, 1)
                 past_output_symbols.append(output_symbol)
                 past_output_logits.append(output_logits)
                 return output_symbol, output_logits
 
             for i, input in enumerate(decoder_inputs):
-                if bs_decoding:
-                    input = beam_decoder.wrap_input(input)
-
                 if i > 0:
                     scope.reuse_variables()
-                    if self.forward_only:
-                        if self.decoding_algorithm == "beam_search":
-                            (
-                                past_beam_symbols,  # [batch_size*self.beam_size, max_len], right-aligned!!!
-                                past_beam_logprobs, # [batch_size*self.beam_size]
-                                past_cell_states,   # [batch_size*self.beam_size, max_len, dim]
-                            ) = state
-                            input = past_beam_symbols[:, -1]
-                        elif self.decoding_algorithm == "greedy":
-                            output_symbol, _ = step_output_symbol_and_logit(output)
-                            if not self.force_reading_input:
-                                input = tf.cast(output_symbol, dtype=tf.int32)
-                    else:
-                        step_output_symbol_and_logit(output)
-                    if self.copynet:
-                        decoder_input = input
-                        input = tf.where(input >= self.target_vocab_size,
-                                         tf.ones_like(input)*data_utils.UNK_ID, input)
+                    step_output_symbol_and_logit(output)
 
                 input_embedding = tf.nn.embedding_lookup(input_embeddings, input)
 
                 # Appending selective read information for CopyNet
-                if self.copynet:
-                    attn_length = attention_states.get_shape()[1]
-                    attn_dim = attention_states.get_shape()[2]
-                    if i == 0:
-                        # Append dummy zero vector to the <START> token
-                        selective_reads = tf.zeros([self.batch_size, attn_dim])
-                        if bs_decoding:
-                            selective_reads = beam_decoder.wrap_input(selective_reads)
-                    else:
-                        encoder_copy_inputs_2d = tf.concat(
-                            [tf.expand_dims(x, 1) for x in encoder_copy_inputs], axis=1)
-                        if self.forward_only:
-                            copy_input = tf.where(decoder_input >= self.target_vocab_size,
-                                                  tf.reduce_sum(
-                                                    tf.one_hot(input-self.target_vocab_size, 
-                                                               depth=attn_length, dtype=tf.int32)
-                                                    * encoder_copy_inputs_2d,
-                                                    axis=1),
-                                                  decoder_input)
-                        else:
-                            copy_input = decoder_input
-                        tiled_copy_input = tf.tile(input=tf.reshape(copy_input, [-1, 1]),
-                                                   multiples=np.array([1, attn_length]))
-                        # [batch_size(*self.beam_size), max_source_length]
-                        selective_mask = tf.cast(tf.equal(tiled_copy_input, encoder_copy_inputs_2d),
-                                                 dtype=tf.float32)
-                        # [batch_size(*self.beam_size), max_source_length]
-                        weighted_selective_mask = tf.nn.softmax(selective_mask * alignments[1])
-                        # [batch_size(*self.beam_size), max_source_length, attn_dim]
-                        weighted_selective_mask_3d = tf.tile(input=tf.expand_dims(weighted_selective_mask, 2),
-                                                             multiples=np.array([1, 1, attn_dim]))
-                        # [batch_size(*self.beam_size), attn_dim]
-                        selective_reads = tf.reduce_sum(weighted_selective_mask_3d * attention_states, axis=1)
-                    input_embedding = tf.concat([input_embedding, selective_reads], axis=1)
-
-                if self.copynet:
-                    output, state, alignments, attns = \
-                        decoder_cell(input_embedding, state)
-                    alignments_list.append(alignments)
-                elif self.use_attention:
-                    output, state, alignments, attns = \
-                        decoder_cell(input_embedding, state)
-                    alignments_list.append(alignments)
-                else:
-                    output, state = decoder_cell(input_embedding, state)
+                assert not self.use_attention
+                output, state = decoder_cell(input_embedding, state)
 
                 # save output states
-                if not bs_decoding:
-                    # when doing beam search decoding, the output state of each
-                    # step cannot simply be gathered step-wise outside the decoder
-                    # (speical case: beam_size = 1)
-                    states.append(state)
+                # when doing beam search decoding, the output state of each
+                # step cannot simply be gathered step-wise outside the decoder
+                # (speical case: beam_size = 1)
+                states.append(state)
 
-            if self.use_attention:
-                # Tensor list --> tenosr
-                attn_alignments = tf.concat(axis=1,
-                    values=[tf.expand_dims(x[0], 1) for x in alignments_list])
-            if self.copynet:
-                pointers = tf.concat(axis=1,
-                    values=[tf.expand_dims(x[1], 1) for x in alignments_list])
+            assert not self.use_attention
 
-            if bs_decoding:
-                # Beam-search output
-                (
-                    past_beam_symbols,  # [batch_size*self.beam_size, max_len], right-aligned!!!
-                    past_beam_logprobs, # [batch_size*self.beam_size]
-                    past_cell_states,
-                ) = state
-                # [self.batch_size, self.beam_size, max_len]
-                top_k_osbs = tf.reshape(past_beam_symbols[:, 1:],
-                                        [self.batch_size, self.beam_size, -1])
-                top_k_osbs = tf.split(axis=0, num_or_size_splits=self.batch_size,
-                                      value=top_k_osbs)
-                top_k_osbs = [tf.split(axis=0, num_or_size_splits=self.beam_size,
-                                       value=tf.squeeze(top_k_output, axis=[0]))
-                              for top_k_output in top_k_osbs]
-                top_k_osbs = [[tf.squeeze(output, axis=[0]) for output in top_k_output]
-                              for top_k_output in top_k_osbs]
-                # [self.batch_size, self.beam_size]
-                top_k_seq_logits = tf.reshape(past_beam_logprobs,
-                                              [self.batch_size, self.beam_size])
-                top_k_seq_logits = tf.split(axis=0, num_or_size_splits=self.batch_size,
-                                            value=top_k_seq_logits)
-                top_k_seq_logits = [tf.squeeze(top_k_logit, axis=[0])
-                                    for top_k_logit in top_k_seq_logits]
-                if self.use_attention:
-                    attn_alignments = tf.reshape(attn_alignments,
-                            [self.batch_size, self.beam_size, len(decoder_inputs),
-                             attention_states.get_shape()[1].value])
-                # LSTM: ([batch_size*self.beam_size, :, dim],
-                #        [batch_size*self.beam_size, :, dim])
-                # GRU: [batch_size*self.beam_size, :, dim]
-                if self.rnn_cell == 'lstm':
-                    if self.num_layers == 1:
-                        c_states, h_states = past_cell_states
-                        states = list(zip(
-                            [tf.squeeze(x, axis=[1])
-                                for x in tf.split(c_states, c_states.get_shape()[1],
-                                                  axis=1)],
-                            [tf.squeeze(x, axis=[1])
-                                for x in tf.split(h_states, h_states.get_shape()[1],
-                                                  axis=1)]))
-                    else:
-                        layered_states = [list(zip(
-                                [tf.squeeze(x, axis=[1]) 
-                                    for x in tf.split(c_states, c_states.get_shape()[1],
-                                                      axis=1)[1:]],
-                                [tf.squeeze(x, axis=[1])
-                                    for x in tf.split(h_states, h_states.get_shape()[1],
-                                                      axis=1)[1:]]))
-                            for c_states, h_states in past_cell_states]
-                        states = list(zip(layered_states))
-                elif self.rnn_cell in ['gru', 'ran']:
-                    states = [tf.squeeze(x, axis=[1]) for x in \
-                        tf.split(num_or_size_splits=past_cell_states.get_shape()[1],
-                                 axis=1, value=past_cell_states)][1:]
-                else:
-                    raise AttributeError(
-                        "Unrecognized rnn cell type: {}".format(self.rnn_cell))
-                return top_k_osbs, top_k_seq_logits, states, \
-                       states, attn_alignments, pointers
-            else:
-                # Greedy output
-                step_output_symbol_and_logit(output)
-                output_symbols = tf.concat(
-                    [tf.expand_dims(x, 1) for x in past_output_symbols], axis=1)
-                sequence_logits = tf.add_n([tf.reduce_max(x, axis=1) 
-                                            for x in past_output_logits])
-                return output_symbols, sequence_logits, past_output_logits, \
-                       states, attn_alignments, pointers
+            # Greedy output
+            step_output_symbol_and_logit(output)
+            output_symbols = tf.concat(
+                [tf.expand_dims(x, 1) for x in past_output_symbols], axis=1)
+            sequence_logits = tf.add_n([tf.reduce_max(x, axis=1)
+                                          for x in past_output_logits])
+            attn_alignments = None
+            return output_symbols, sequence_logits, past_output_logits, \
+                   states, attn_alignments, pointers
 
 
     def decoder_cell(self):
-        if self.copynet:
-            input_size = self.dim * 2
-        else:
-            input_size = self.dim
+        input_size = self.dim
         with tf.variable_scope(self.scope + "_decoder_cell") as scope:
             cell = create_multilayer_cell(
                 self.rnn_cell, scope, self.dim, self.num_layers,
@@ -1644,13 +1320,10 @@ class Encoder(NNModel):
 
         self.channels = []
         self.dim = 0
-        if self.sc_token:
-            self.channels.append('token')
-            self.dim += self.sc_token_dim
-        if self.sc_char:
-            assert False, 'broken'
-            self.channels.append('char')
-            self.dim += self.sc_char_dim
+        assert self.sc_token
+        self.channels.append('token')
+        self.dim += self.sc_token_dim
+        assert not self.sc_char
 
         assert(len(self.channels) > 0)
 
@@ -1663,18 +1336,14 @@ class Encoder(NNModel):
             2. batch char indices
         """
         channel_embeddings = []
-        if self.sc_token:
-            token_embeddings = self.token_embeddings()
-            token_channel_embeddings = \
-                [tf.nn.embedding_lookup(params=token_embeddings, ids=encoder_input)
-                 for encoder_input in channel_inputs[0]]
-            channel_embeddings.append(token_channel_embeddings)
+        assert self.sc_token
+        token_embeddings = self.token_embeddings()
+        token_channel_embeddings = \
+            [tf.nn.embedding_lookup(params=token_embeddings, ids=encoder_input)
+             for encoder_input in channel_inputs[0]]
+        channel_embeddings.append(token_channel_embeddings)
 
-        if self.sc_char:
-            assert False, 'char channel is broken'
-            char_channel_embeddings = \
-                self.char_channel_embeddings(channel_inputs[1])
-            channel_embeddings.append(char_channel_embeddings)
+        assert not self.sc_char
 
         if len(channel_embeddings) == 1:
             input_embeddings = channel_embeddings[0]
@@ -1704,53 +1373,11 @@ class Encoder(NNModel):
             return embeddings
 
 
-    def char_embeddings(self):
-        with tf.compat.v1.variable_scope("encoder_char_embeddings",
-                               reuse=self.char_embedding_vars):
-            sqrt3 = math.sqrt(3)
-            initializer = tf.compat.v1.random_uniform_initializer(-sqrt3, sqrt3)
-            embeddings = tf.compat.v1.get_variable(
-                "embedding", [self.source_char_vocab_size, self.sc_char_dim],
-                initializer=initializer)
-            self.char_embedding_vars = True
-            return embeddings
-
 
     def token_channel_embeddings(self):
         input = self.token_features()
         return tf.nn.embedding_lookup(params=self.token_embeddings(), ids=input)
 
-    def char_channel_embeddings(self, channel_inputs):
-        """
-        Generate token representations by character composition.
-
-        :param channel_inputs: batch input char indices
-                [[batch, token_size], [batch, token_size], ...]
-        :return: embeddings_char [source_vocab_size, char_channel_dim]
-        """
-        inputs = [tf.squeeze(x, 1) for x in tf.split(axis=1,
-                  num_or_size_splits=self.max_source_token_size,
-                  value=tf.concat(axis=0, values=channel_inputs))]
-        input_embeddings = [tf.nn.embedding_lookup(params=self.char_embeddings(), ids=input) 
-                            for input in inputs]
-
-        if self.sc_char_composition == 'rnn':
-            with tf.compat.v1.variable_scope("encoder_char_rnn",
-                                   reuse=self.char_rnn_vars) as scope:
-                cell = create_multilayer_cell(
-                    self.sc_char_rnn_cell, scope,
-                    self.sc_char_dim, self.sc_char_rnn_num_layers,
-                    variational_recurrent=self.variational_recurrent_dropout)
-                rnn_outputs, rnn_states = RNNModel(cell, input_embeddings,
-                                                               dtype=tf.float32)
-                self.char_rnn_vars = True
-        else:
-            raise NotImplementedError
-
-        return [tf.squeeze(x, 0) for x in
-                tf.split(axis=0, num_or_size_splits=len(channel_inputs),
-                    value=tf.reshape(rnn_states[-1],
-                        [len(channel_inputs), -1, self.sc_char_dim]))]
 
     def token_features(self):
         return np.load(self.sc_token_features_path)
