@@ -550,57 +550,22 @@ class EncoderDecoderModel(NNModel):
         assert not self.copynet
 
         # Compute training outputs and losses in the forward direction.
-        if self.buckets:
-            self.output_symbols = []
-            self.sequence_logits = []
-            self.losses = []
-            self.attn_alignments = []
-            self.encoder_hidden_states = []
-            self.decoder_hidden_states = []
-            assert not self.tg_char
-            assert not self.use_copy
-
-            for bucket_id, bucket in enumerate(self.buckets):
-                with tf.compat.v1.variable_scope(tf.compat.v1.get_variable_scope(),
-                                       reuse=True if bucket_id > 0 else None):
-                    print("creating bucket {} ({}, {})...".format(
-                            bucket_id, bucket[0], bucket[1]))
-                    encode_decode_outputs = \
-                        self.encode_decode(
-                            [self.encoder_inputs[:bucket[0]]],
-                            self.encoder_attn_masks[:bucket[0]],
-                            self.decoder_inputs[:bucket[1]],
-                            self.targets[:bucket[1]],
-                            self.target_weights[:bucket[1]],
-                            encoder_copy_inputs=self.encoder_copy_inputs[:bucket[0]]
-                        )
-                    self.output_symbols.append(encode_decode_outputs['output_symbols'])
-                    self.sequence_logits.append(encode_decode_outputs['sequence_logits'])
-                    self.losses.append(encode_decode_outputs['losses'])
-                    self.attn_alignments.append(encode_decode_outputs['attn_alignments'])
-                    self.encoder_hidden_states.append(
-                        encode_decode_outputs['encoder_hidden_states'])
-                    self.decoder_hidden_states.append(
-                        encode_decode_outputs['decoder_hidden_states'])
-                    assert not self.forward_only
-                    assert not self.use_copy
-        else:
-            encode_decode_outputs = self.encode_decode(
-                [self.encoder_inputs],
-                self.encoder_attn_masks,
-                self.decoder_inputs,
-                self.targets,
-                self.target_weights,
-                encoder_copy_inputs=self.encoder_copy_inputs
-            )
-            self.output_symbols = encode_decode_outputs['output_symbols']
-            self.sequence_logits = encode_decode_outputs['sequence_logits']
-            self.losses = encode_decode_outputs['losses']
-            self.attn_alignments = encode_decode_outputs['attn_alignments']
-            self.encoder_hidden_states = encode_decode_outputs['encoder_hidden_states']
-            self.decoder_hidden_states = encode_decode_outputs['decoder_hidden_states']
-            assert not self.tg_char
-            assert not self.use_copy
+        encode_decode_outputs = self.encode_decode(
+            [self.encoder_inputs],
+            self.encoder_attn_masks,
+            self.decoder_inputs,
+            self.targets,
+            self.target_weights,
+            encoder_copy_inputs=self.encoder_copy_inputs
+        )
+        self.output_symbols = encode_decode_outputs['output_symbols']
+        self.sequence_logits = encode_decode_outputs['sequence_logits']
+        self.losses = encode_decode_outputs['losses']
+        self.attn_alignments = encode_decode_outputs['attn_alignments']
+        self.encoder_hidden_states = encode_decode_outputs['encoder_hidden_states']
+        self.decoder_hidden_states = encode_decode_outputs['decoder_hidden_states']
+        assert not self.tg_char
+        assert not self.use_copy
 
         # Gradients and SGD updates in the backward direction.
         assert not self.forward_only
@@ -1460,11 +1425,10 @@ class Seq2SeqModel(EncoderDecoderModel):
         )
 
 
+def define_model(FLAGS, session, model_constructor):
+    buckets = None
+    forward_only = False
 
-
-
-
-def define_model(FLAGS, session, model_constructor, buckets, forward_only):
     params = collections.defaultdict()
 
     params["source_vocab_size"] = FLAGS.sc_vocab_size

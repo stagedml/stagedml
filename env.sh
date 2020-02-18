@@ -10,6 +10,7 @@ export MYPYPATH=""
 for p in \
   $STAGEDML_ROOT/3rdparty/tensorflow_models \
   $STAGEDML_ROOT/3rdparty/pylightnix/src \
+  $STAGEDML_ROOT/3rdparty/nl2bash_essence/src \
   $STAGEDML_ROOT/src \
   ; do
   if test -d "$p" ; then
