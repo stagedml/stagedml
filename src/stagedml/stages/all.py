@@ -20,6 +20,7 @@ from stagedml.stages.fetchsquad import fetchsquad11
 from stagedml.stages.squad_tfrecords import squad11_tfrecords
 from stagedml.stages.bert_finetune_squad import bert_finetune_squad11
 from stagedml.stages.nl2bash.all import nl2bash
+from stagedml.stages.wmt3k import wmt3kende
 
 from stagedml.utils.refs import ( DRef, Glue, Squad11, GlueTFR, Squad11TFR,
     BertCP, BertGlue, BertSquad, NL2Bash )
@@ -53,3 +54,8 @@ def all_bert_finetune_squad11(m:Manager)->BertSquad:
 
 def all_nl2bash(m:Manager)->NL2Bash:
   return nl2bash(m)
+
+def all_wmt3kende(m:Manager)->DRef:
+  return wmt3kende(m)
+
+
