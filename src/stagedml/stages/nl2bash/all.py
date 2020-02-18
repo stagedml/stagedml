@@ -9,9 +9,6 @@ some code from the earlier versions and tried to apply some fixes.
 FIXME: Char-encoded data appears to be broker (every ID is '2')
 """
 
-import tensorflow as tf
-assert tf.version.VERSION.startswith('2.1')
-
 from typing import ( Optional,Any,List,Tuple,Union )
 
 from pylightnix import ( RefPath, Build, Path, Config, Manager, RRef, DRef,
