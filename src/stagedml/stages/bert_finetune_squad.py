@@ -14,15 +14,14 @@ from pylightnix import ( Path, Manager, Config, DRef, RRef, Context, match_only,
     store_cattrs, build_cattrs, build_path, build_outpath, json_load, mkbuild,
     mkdrv, match_latest )
 
-from stagedml.datasets.glue.tfdataset import dataset, dataset_eval, dataset_train
-from stagedml.datasets.squad.tf import squad11_train_dataset
+from stagedml.datasets.squad.tfrecord import tf_record_dataset
 from stagedml.models.bert import ( BertLayer )
 from stagedml.models.bert_squad import BertSquadLogitsLayer
 from stagedml.utils.refs import ( Squad11TFR, BertSquad )
 from stagedml.utils.tf import ( KerasBuild, protocol_add, dpurge, keras_save,
     match_metric )
 
-from typing import Optional,Any,List,Tuple,Union
+from typing import ( Optional, Any, List, Tuple, Union )
 
 
 def config(tfrecs:Squad11TFR)->Config:
@@ -140,7 +139,7 @@ def ctrain(m:Model)->None:
     return m.model,None
 
   def _train_input_fn()->Any:
-    return squad11_train_dataset(
+    return tf_record_dataset(
       input_file=build_path(m, c.train_tfrecord_refpath),
       max_seq_length=c.max_seq_length,
       train_batch_size=c.train_batch_size)

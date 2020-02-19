@@ -1,4 +1,6 @@
 import tensorflow as tf
+
+from tensorflow.data import TFRecordDataset
 from official.nlp.bert.tokenization import FullTokenizer
 from official.nlp.bert.squad_lib import (
     read_squad_examples, convert_examples_to_features, write_predictions,
@@ -33,6 +35,7 @@ def generate_tf_record_from_json_file(input_file_path:str,
   train_writer.close()
 
   return number_of_examples
+
 
 
 
@@ -76,28 +79,44 @@ def predict_squad(input_file_path, output_file, vocab_file,
 
   return number_of_examples
 
-  # logging.info('***** Running predictions *****')
-  # logging.info('  Num orig examples = %d', len(eval_examples))
-  # logging.info('  Num split examples = %d', len(eval_features))
-  # logging.info('  Batch size = %d', predict_batch_size)
 
-  # num_steps = int(dataset_size / predict_batch_size)
-  # all_results = predict_squad_customized(strategy, input_meta_data, bert_config,
-  #                                        eval_writer.filename, num_steps)
+def tf_record_dataset(input_file:str, max_seq_length:int, train_batch_size:int)->TFRecordDataset:
 
-  # output_prediction_file = os.path.join(FLAGS.model_dir, 'predictions.json')
-  # output_nbest_file = os.path.join(FLAGS.model_dir, 'nbest_predictions.json')
-  # output_null_log_odds_file = os.path.join(FLAGS.model_dir, 'null_odds.json')
+  name_to_features = {
+      'input_ids': tf.io.FixedLenFeature([max_seq_length], tf.int64),
+      'input_mask': tf.io.FixedLenFeature([max_seq_length], tf.int64),
+      'segment_ids': tf.io.FixedLenFeature([max_seq_length], tf.int64),
+      'start_positions': tf.io.FixedLenFeature([], tf.int64),
+      'end_positions': tf.io.FixedLenFeature([], tf.int64),
+  }
 
-  # write_predictions(
-  #     eval_examples,
-  #     eval_features,
-  #     all_results,
-  #     FLAGS.n_best_size,
-  #     FLAGS.max_answer_length,
-  #     FLAGS.do_lower_case,
-  #     output_prediction_file,
-  #     output_nbest_file,
-  #     output_null_log_odds_file,
-  #     verbose=FLAGS.verbose_logging)
+  d = TFRecordDataset(input_file)
+  d = d.map(lambda record: decode_record(record, name_to_features))
+
+  options = tf.data.Options()
+  options.experimental_distribute.auto_shard_policy = (
+      tf.data.experimental.AutoShardPolicy.OFF)
+  d = d.with_options(options)
+
+  def _select_data_from_record(record):
+    x, y = {}, {}
+    for name, tensor in record.items():
+      if name in ('start_positions', 'end_positions'):
+        y[name] = tensor
+      elif name == 'input_ids':
+        x['input_word_ids'] = tensor
+      elif name == 'segment_ids':
+        x['input_type_ids'] = tensor
+      else:
+        x[name] = tensor
+    return (x, y)
+
+  d = d.map(_select_data_from_record)
+  d = d.shuffle(100)
+  d = d.repeat()
+  d = d.batch(train_batch_size, drop_remainder=True)
+  d = d.prefetch(1024)
+  return d
+
+
 

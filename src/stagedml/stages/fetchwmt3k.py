@@ -6,10 +6,12 @@ from pylightnix import ( RefPath, Build, Path, Config, Manager, RRef, DRef,
     rref2path, mkbuild, mkconfig, match_only, instantiate, realize, lsref,
     catref, store_cattrs, get_executable )
 
-from stagedml.utils.files import system
-
 from stagedml.imports import ( environ, join, basename, dedent, contextmanager,
     isfile )
+
+from stagedml.utils.files import system
+from stagedml.utils.refs import Wmt3kEnDe
+
 
 PYTHON=get_executable('python3', 'Python3 interpreter is required')
 TFM_ROOT=environ.get('TFM_ROOT', join('/','workspace','3rdparty','tensorflow_models'))
@@ -30,5 +32,7 @@ def wmt3kende_realize(b:Build)->None:
     join(TFM_ROOT,'official','transformer', 'data_download.py'),
     '--data_dir', o])
 
-def wmt3kende(m:Manager)->DRef:
-  return mkdrv(m, wmt3kende_config(), match_only(), build_wrapper(wmt3kende_realize))
+def wmt3kende(m:Manager)->Wmt3kEnDe:
+  return Wmt3kEnDe(mkdrv(m, wmt3kende_config(),
+                            match_only(),
+                            build_wrapper(wmt3kende_realize)))

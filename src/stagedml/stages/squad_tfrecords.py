@@ -9,7 +9,8 @@ from pylightnix import ( Manager, Config, build_cattrs, build_outpath,
 from stagedml.utils.files import json_read
 from stagedml.utils.tf import ( ProtocolBuild, protocol_add, protocolled )
 from stagedml.utils.refs import BertCP, Squad11, Squad11TFR
-from stagedml.datasets.squad.create_tfrecord import ( predict_squad,
+
+from stagedml.datasets.squad.tfrecord import ( predict_squad,
     generate_tf_record_from_json_file )
 
 def config(bertref:BertCP, squadref:Squad11)->Config:

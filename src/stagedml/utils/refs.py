@@ -28,3 +28,6 @@ class BertSquad(DRef):
 
 class NL2Bash(DRef):
   pass
+
+class Wmt3kEnDe(DRef):
+  pass
