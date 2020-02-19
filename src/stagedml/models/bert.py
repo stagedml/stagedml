@@ -5,11 +5,11 @@ import six
 import copy
 import math
 
-from official.nlp.bert_modeling import ( BertConfig, EmbeddingLookup,
+from official.nlp.bert.configs import BertConfig
+from official.nlp.bert_modeling import ( EmbeddingLookup,
     EmbeddingPostprocessor, Dense3D, Dense2DProjection )
 from official.nlp.bert_modeling import ( get_initializer,
     create_attention_mask_from_input_mask )
-from official.nlp.bert_models import gather_indexes
 from official.modeling import tf_utils
 
 
@@ -55,7 +55,9 @@ class CustomAttention(tf.keras.layers.Layer):
     return super(CustomAttention, self).__call__(inputs, **kwargs)
 
   def call(self, inputs):
-    """Implements call() for the layer."""
+    """Implements call() for the layer.
+    FIXME: Disable the dropouts in non-training mode
+    """
     (from_tensor, to_tensor, attention_mask) = tf_utils.unpack_inputs(inputs)
 
     # Scalar dimensions referenced here:

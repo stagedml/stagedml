@@ -15,7 +15,8 @@ from typing import ( Union, List, Any, Optional, Tuple, Callable, TypeVar )
 
 from pylightnix import ( Path, Build, Hash, DRef, assert_valid_rref,
     assert_serializable, PYLIGHTNIX_TMP, Realizer, build_outpath, mkbuild, RRef,
-    rref2path, readjson, json_dumps, store_rrefs, dirhash, Context )
+    rref2path, readjson, json_dumps, store_rrefs, dirhash, Context,
+    build_wrapper_ )
 
 
 #  _   _ _   _ _
@@ -111,6 +112,13 @@ class KerasBuild(ProtocolBuild):
   def get_data_hash(self)->Hash:
     assert self.model is not None, "Keras model should be initialized by the user"
     return Hash(ndhashl(self.model.get_weights()))
+
+def keras_wrapper(
+    f:Callable[[KerasBuild],None],
+    buildtime:bool=True):
+  return build_wrapper_(f,buildtime,
+                        lambda *args: KerasBuild(mkbuild(*args)),
+                        lambda b: b.outpaths)
 
 def keras_save(b:KerasBuild)->None:
   assert b.model is not None
