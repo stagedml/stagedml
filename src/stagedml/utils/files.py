@@ -3,7 +3,7 @@ import logging
 from os.path import islink
 from json import load as json_load
 from distutils.spawn import find_executable
-from typing import List, Any, Optional
+from typing import List, Any, Optional, Dict
 from subprocess import Popen
 
 def listloggers()->List[Any]:
@@ -24,7 +24,7 @@ def assert_link(name:str, not_found_message:str)->None:
     assert False, not_found_message
 
 def system(cmd:List[str], cwd:Optional[str]=None, env:Optional[dict]=None, check_retcode:bool=True)->None:
-  args={}
+  args:Dict[str,Any]={}
   if cwd is not None:
     args.update({'cwd':cwd})
   if env is not None:

@@ -1,10 +1,10 @@
 import tensorflow as tf
 
-from tensorflow.data import TFRecordDataset
 from official.nlp.bert.tokenization import FullTokenizer
 from official.nlp.bert.squad_lib import (
     read_squad_examples, convert_examples_to_features, write_predictions,
     FeatureWriter )
+from official.nlp.bert.input_pipeline import decode_record
 
 
 def generate_tf_record_from_json_file(input_file_path:str,
@@ -80,7 +80,9 @@ def predict_squad(input_file_path, output_file, vocab_file,
   return number_of_examples
 
 
-def tf_record_dataset(input_file:str, max_seq_length:int, train_batch_size:int)->TFRecordDataset:
+def tf_record_dataset(input_file:str,
+                      max_seq_length:int,
+                      train_batch_size:int)->tf.data.TFRecordDataset:
 
   name_to_features = {
       'input_ids': tf.io.FixedLenFeature([max_seq_length], tf.int64),
@@ -90,7 +92,7 @@ def tf_record_dataset(input_file:str, max_seq_length:int, train_batch_size:int)-
       'end_positions': tf.io.FixedLenFeature([], tf.int64),
   }
 
-  d = TFRecordDataset(input_file)
+  d = tf.data.TFRecordDataset(input_file)
   d = d.map(lambda record: decode_record(record, name_to_features))
 
   options = tf.data.Options()
