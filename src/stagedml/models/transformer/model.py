@@ -60,150 +60,6 @@ def train_ds(params):
   return train_ds
 
 
-class PrePostProcessingWrapper:
-  """Wrapper class that applies layer pre-processing and post-processing."""
-
-  def __init__(self, layer, params)->None:
-    super(PrePostProcessingWrapper, self).__init__()
-    self.layer = layer
-    self.params = params
-    self.postprocess_dropout = params["layer_postprocess_dropout"]
-    # Create normalization layer
-    self.layer_norm = LayerNormalization(epsilon=1e-6, dtype="float32")
-
-  def __call__(self, x:Tensor, *args, **kwargs)->Tensor:
-    """Calls wrapped layer with same parameters."""
-    # Preprocessing: apply layer normalization
-    training = kwargs["training"]
-
-    y = self.layer_norm(x)
-
-    # Get layer output
-    y = self.layer(y, *args, **kwargs)
-
-    # Postprocessing: apply dropout and residual connection
-    if training:
-      y = tf.nn.dropout(y, rate=self.postprocess_dropout)
-    return x + y
-
-
-
-
-class EncoderStack:
-
-  def __init__(self, params:dict)->None:
-    self.params = params
-    self.layers = []
-    params = self.params
-    for _ in range(params["num_hidden_layers"]):
-      # Create sublayers for each layer.
-      self_attention_layer = SelfAttention(
-          hidden_size=params["hidden_size"],
-          num_heads=params["num_heads"],
-          attention_dropout=params["attention_dropout"])
-
-      feed_forward_network = FeedForwardNetwork(
-          params["hidden_size"], params["filter_size"], params["relu_dropout"])
-
-      self.layers.append([
-          PrePostProcessingWrapper(self_attention_layer, params),
-          PrePostProcessingWrapper(feed_forward_network, params)
-      ])
-
-    # Create final layer normalization layer.
-    self.output_normalization = LayerNormalization(epsilon=1e-6, dtype="float32")
-
-
-  def __call__(self, encoder_inputs:List[Tensor],
-                     attention_bias,
-                     inputs_padding,
-                     training:bool)->Tensor:
-
-    for n, layer in enumerate(self.layers):
-      # Run inputs through the sublayers.
-      self_attention_layer = layer[0]
-      feed_forward_network = layer[1]
-
-      with tf.name_scope("layer_%d" % n):
-        with tf.name_scope("self_attention"):
-          encoder_inputs = self_attention_layer(
-              encoder_inputs, attention_bias, training=training)
-        with tf.name_scope("ffn"):
-          encoder_inputs = feed_forward_network(
-              encoder_inputs, training=training)
-
-    return self.output_normalization(encoder_inputs)
-
-
-
-
-class DecoderStack:
-
-  def __init__(self, params:dict)->None:
-    self.params = params
-    self.layers = []
-
-    """Builds the decoder stack."""
-    params = self.params
-    for _ in range(params["num_hidden_layers"]):
-      self_attention_layer = SelfAttention(
-          hidden_size=params["hidden_size"],
-          num_heads=params["num_heads"],
-          attention_dropout=params["attention_dropout"])
-      enc_dec_attention_layer = Attention(
-          params["hidden_size"], params["num_heads"],
-          params["attention_dropout"])
-      feed_forward_network = FeedForwardNetwork(
-          params["hidden_size"], params["filter_size"], params["relu_dropout"])
-
-      self.layers.append([
-          PrePostProcessingWrapper(self_attention_layer, params),
-          PrePostProcessingWrapper(enc_dec_attention_layer, params),
-          PrePostProcessingWrapper(feed_forward_network, params)
-      ])
-    self.output_normalization = tf.keras.layers.LayerNormalization(
-        epsilon=1e-6, dtype="float32")
-
-  def __call__(self,
-      decoder_inputs:List[Tensor],
-      encoder_outputs:List[Tensor],
-      decoder_self_attention_bias,
-      attention_bias,
-      training,
-      cache=None,
-      decode_loop_step=None)->Tensor:
-
-    for n, layer in enumerate(self.layers):
-      self_attention_layer = layer[0]
-      enc_dec_attention_layer = layer[1]
-      feed_forward_network = layer[2]
-
-      # Run inputs through the sublayers.
-      layer_name = "layer_%d" % n
-      layer_cache = cache[layer_name] if cache is not None else None
-      with tf.name_scope(layer_name):
-        with tf.name_scope("self_attention"):
-          decoder_inputs = self_attention_layer(
-              decoder_inputs,
-              decoder_self_attention_bias,
-              training=training,
-              cache=layer_cache,
-              decode_loop_step=decode_loop_step)
-        with tf.name_scope("encdec_attention"):
-          decoder_inputs = enc_dec_attention_layer(
-              decoder_inputs,
-              encoder_outputs,
-              attention_bias,
-              training=training)
-        with tf.name_scope("ffn"):
-          decoder_inputs = feed_forward_network(
-              decoder_inputs, training=training)
-
-    return self.output_normalization(decoder_inputs)
-
-
-
-
 
 class Transformer:
 
@@ -212,8 +68,8 @@ class Transformer:
     self.params = params
     self.embedding_softmax_layer = EmbeddingSharedWeights(
         params["vocab_size"], params["hidden_size"])
-    self.encoder_stack = EncoderStack(params)
-    self.decoder_stack = DecoderStack(params)
+    self.encoder_stack = EncoderStack(name+"/EncoderStack", params)
+    self.decoder_stack = DecoderStack(name+"/DecoderStack", params)
 
   def __call__(self, inputs:Tensor, training)->Tensor:
     if len(inputs) == 2:
@@ -277,6 +133,8 @@ class Transformer:
       if training:
         encoder_inputs = tf.nn.dropout(
             encoder_inputs, rate=self.params["layer_postprocess_dropout"])
+
+      # x = LayerNormalization(epsilon=1e-6, dtype="float32")(encoder_inputs)
 
       return self.encoder_stack(
           encoder_inputs, attention_bias, inputs_padding, training=training)
@@ -452,4 +310,158 @@ class Transformer:
     top_scores = scores[:, 0]
 
     return {"outputs": top_decoded_ids, "scores": top_scores}
+
+
+
+
+class EncoderStack:
+
+  def __init__(self, path, params:dict)->None:
+    self.params = params
+    self.layers = []
+    params = self.params
+    for i in range(params["num_hidden_layers"]):
+      # Create sublayers for each layer.
+      self_attention_layer = SelfAttention(
+          path=path+f"/self_attention_layer_{i}",
+          hidden_size=params["hidden_size"],
+          num_heads=params["num_heads"],
+          attention_dropout=params["attention_dropout"])
+
+      feed_forward_network = FeedForwardNetwork(
+          path=path+f"/feed_forward_network_{i}",
+          hidden_size=params["hidden_size"],
+          filter_size=params["filter_size"],
+          relu_dropout=params["relu_dropout"])
+
+      self.layers.append([
+          PrePostProcessingWrapper(self_attention_layer, params),
+          PrePostProcessingWrapper(feed_forward_network, params)
+      ])
+
+    # Create final layer normalization layer.
+    self.output_normalization = LayerNormalization(epsilon=1e-6, dtype="float32")
+
+
+  def __call__(self, encoder_inputs:Tensor,
+                     attention_bias,
+                     inputs_padding,
+                     training:bool)->Tensor:
+
+    for n, layer in enumerate(self.layers):
+      # Run inputs through the sublayers.
+      self_attention_layer = layer[0]
+      feed_forward_network = layer[1]
+
+      with tf.name_scope("layer_%d" % n):
+        with tf.name_scope("self_attention"):
+          encoder_inputs = self_attention_layer(
+              encoder_inputs, attention_bias, training=training)
+        with tf.name_scope("ffn"):
+          encoder_inputs = feed_forward_network(
+              encoder_inputs, training=training)
+
+    return self.output_normalization(encoder_inputs)
+
+
+
+
+class DecoderStack:
+
+  def __init__(self, path, params:dict)->None:
+    self.params = params
+    self.layers = []
+
+    """Builds the decoder stack."""
+    params = self.params
+    for i in range(params["num_hidden_layers"]):
+      self_attention_layer = SelfAttention(
+          path=path+f"/self_attention_layer_{i}",
+          hidden_size=params["hidden_size"],
+          num_heads=params["num_heads"],
+          attention_dropout=params["attention_dropout"])
+      enc_dec_attention_layer = Attention(
+          path+f"/enc_dec_attention_layer_{i}",
+          params["hidden_size"], params["num_heads"],
+          params["attention_dropout"])
+      feed_forward_network = FeedForwardNetwork(
+          path+f"/feed_forward_network_{i}",
+          params["hidden_size"], params["filter_size"], params["relu_dropout"])
+
+      self.layers.append([
+          PrePostProcessingWrapper(self_attention_layer, params),
+          PrePostProcessingWrapper(enc_dec_attention_layer, params),
+          PrePostProcessingWrapper(feed_forward_network, params)
+      ])
+    self.output_normalization = tf.keras.layers.LayerNormalization(
+        epsilon=1e-6, dtype="float32")
+
+  def __call__(self,
+      decoder_inputs:Tensor,
+      encoder_outputs:Tensor,
+      decoder_self_attention_bias,
+      attention_bias,
+      training,
+      cache=None,
+      decode_loop_step=None)->Tensor:
+
+    for n, layer in enumerate(self.layers):
+      self_attention_layer = layer[0]
+      enc_dec_attention_layer = layer[1]
+      feed_forward_network = layer[2]
+
+      # Run inputs through the sublayers.
+      layer_name = "layer_%d" % n
+      layer_cache = cache[layer_name] if cache is not None else None
+      with tf.name_scope(layer_name):
+        with tf.name_scope("self_attention"):
+          decoder_inputs = self_attention_layer(
+              decoder_inputs,
+              decoder_self_attention_bias,
+              training=training,
+              cache=layer_cache,
+              decode_loop_step=decode_loop_step)
+        with tf.name_scope("encdec_attention"):
+          decoder_inputs = enc_dec_attention_layer(
+              decoder_inputs,
+              encoder_outputs,
+              attention_bias,
+              training=training)
+        with tf.name_scope("ffn"):
+          decoder_inputs = feed_forward_network(
+              decoder_inputs, training=training)
+
+    return self.output_normalization(decoder_inputs)
+
+
+class PrePostProcessingWrapper:
+  """Wrapper class that applies layer pre-processing and post-processing."""
+
+  def __init__(self, layer, params)->None:
+    # super(PrePostProcessingWrapper, self).__init__()
+    self.layer = layer
+    self.params = params
+    self.postprocess_dropout = params["layer_postprocess_dropout"]
+    # Create normalization layer
+    self.layer_norm = LayerNormalization(epsilon=1e-6, dtype="float32")
+
+  def __call__(self, x:Tensor, *args, **kwargs)->Tensor:
+    """Calls wrapped layer with same parameters."""
+    # Preprocessing: apply layer normalization
+    training = kwargs["training"]
+
+    print(type(x), x.dtype)
+    print(x.shape)
+    y = self.layer_norm(x)
+
+    # Get layer output
+    y = self.layer(y, *args, **kwargs)
+
+    # Postprocessing: apply dropout and residual connection
+    if training:
+      y = tf.nn.dropout(y, rate=self.postprocess_dropout)
+    return x + y
+
+
+
 

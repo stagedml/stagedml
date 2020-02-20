@@ -7,7 +7,7 @@ from stagedml.models.transformer.imports import ( Tensor, Model, Dense3D )
 class Attention:
   """Multi-headed attention layer."""
 
-  def __init__(self, hidden_size, num_heads, attention_dropout):
+  def __init__(self, path, hidden_size, num_heads, attention_dropout):
     """Initialize Attention.
 
     Args:
@@ -27,16 +27,16 @@ class Attention:
     size_per_head = self.hidden_size // self.num_heads
     self.query_dense_layer = Dense3D(
         self.num_heads, size_per_head, kernel_initializer="glorot_uniform",
-        use_bias=False, name="query")
+        use_bias=False, name=path+'/'+"query")
     self.key_dense_layer = Dense3D(
         self.num_heads, size_per_head, kernel_initializer="glorot_uniform",
-        use_bias=False, name="key")
+        use_bias=False, name=path+'/'+"key")
     self.value_dense_layer = Dense3D(
         self.num_heads, size_per_head, kernel_initializer="glorot_uniform",
-        use_bias=False, name="value")
+        use_bias=False, name=path+'/'+"value")
     self.output_dense_layer = Dense3D(
         self.num_heads, size_per_head, kernel_initializer="glorot_uniform",
-        use_bias=False, output_projection=True, name="output_transform")
+        use_bias=False, output_projection=True, name=path+'/'+"output_transform")
 
   def __call__(self, query_input:Tensor, source_input:Tensor, bias, training, cache=None,
                decode_loop_step=None)->Tensor:

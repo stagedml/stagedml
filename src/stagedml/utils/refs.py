@@ -30,7 +30,7 @@ class NL2Bash(DRef):
   pass
 
 class Wmt(DRef):
-  """ Dataset Wmt3k En_De """
+  """ Dataset Wmt32k En_De """
   pass
 
 class TransWmt(DRef):

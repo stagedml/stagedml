@@ -17,3 +17,4 @@ from official.nlp.transformer.optimizer import ( LearningRateSchedule,
     LearningRateScheduler, LearningRateFn )
 from official.nlp.transformer.data_pipeline import ( train_input_fn,
     map_data_for_transformer_fn )
+from official.nlp.transformer.model_params import BASE_PARAMS
