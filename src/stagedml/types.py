@@ -40,3 +40,6 @@ class TransWmt(DRef):
 
 class Mnist(DRef):
   pass
+
+class ConvnnMnist(DRef):
+  pass

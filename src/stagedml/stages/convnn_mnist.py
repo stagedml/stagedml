@@ -15,7 +15,8 @@ from stagedml.utils.tf import ( runtb, runtensorboard, thash, KerasBuild,
     protocol_add, protocol_add_hist, protocol_add_eval, match_metric, dpurge,
     keras_save, keras_wrapper )
 
-from stagedml.types import ( Mnist, Optional, Any, List, Tuple, Union )
+from stagedml.types import ( ConvnnMnist, Mnist, Optional, Any, List, Tuple,
+    Union )
 
 
 def fetchmnist(m:Manager)->Mnist:
@@ -72,6 +73,7 @@ def mnist_realize(b:Build)->None:
   with open(join(o,'accuracy.txt'),'w') as f:
     f.write(str(accuracy))
 
-def convnn_mnist(m, mnist:Mnist)->DRef:
-  return mkdrv(m, mnist_config(mnist), mnist_match(), build_wrapper(mnist_realize))
+def convnn_mnist(m, mnist:Mnist)->ConvnnMnist:
+  return ConvnnMnist(mkdrv(m, mnist_config(mnist), mnist_match(),
+    build_wrapper(mnist_realize)))
 

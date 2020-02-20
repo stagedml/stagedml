@@ -24,8 +24,8 @@ from stagedml.stages.fetchwmt32 import wmt32ende
 from stagedml.stages.transformer_wmt32ende import transformer_wmt32ende
 from stagedml.stages.convnn_mnist import fetchmnist, convnn_mnist
 
-from stagedml.types import ( DRef, Glue, Squad11, GlueTFR, Squad11TFR,
-    BertCP, BertGlue, BertSquad, NL2Bash, Wmt, TransWmt )
+from stagedml.types import ( DRef, Glue, Squad11, GlueTFR, Squad11TFR, BertCP,
+    BertGlue, BertSquad, NL2Bash, Wmt, TransWmt, ConvnnMnist )
 
 all_fetchglue = fetchglue
 all_fetchsquad11 = fetchsquad11
@@ -65,6 +65,6 @@ def all_transformer_wmt32ende(m:Manager)->TransWmt:
 
 all_fetchmnist = fetchmnist
 
-def all_convnn_mnist(m:Manager):
+def all_convnn_mnist(m:Manager)->ConvnnMnist:
   return convnn_mnist(m, fetchmnist(m))
 
