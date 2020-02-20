@@ -6,7 +6,7 @@ from absl import logging
 from tensorflow.python.keras.backend import clear_session
 from tensorflow.keras.callbacks import TensorBoard
 
-from official.nlp.bert_modeling import BertConfig
+from official.nlp.bert.configs import BertConfig
 from official.nlp.optimization import create_optimizer
 from official.modeling.model_training_utils import run_customized_training_loop
 

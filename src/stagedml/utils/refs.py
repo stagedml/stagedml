@@ -29,5 +29,9 @@ class BertSquad(DRef):
 class NL2Bash(DRef):
   pass
 
-class Wmt3kEnDe(DRef):
+class Wmt(DRef):
+  """ Dataset Wmt32k En_De """
+  pass
+
+class TransWmt(DRef):
   pass

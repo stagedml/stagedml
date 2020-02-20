@@ -4,7 +4,7 @@ assert tf.version.VERSION.startswith('2.1')
 
 import json
 from official.nlp.bert.run_classifier import get_loss_fn
-from official.nlp.bert_modeling import BertConfig
+from official.nlp.bert.configs import BertConfig
 from official.modeling.model_training_utils import run_customized_training_loop
 from official.nlp.optimization import create_optimizer
 from tensorflow.python.keras.backend import clear_session

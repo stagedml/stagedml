@@ -10,7 +10,7 @@ from stagedml.imports import ( environ, join, basename, dedent, contextmanager,
     isfile )
 
 from stagedml.utils.files import system
-from stagedml.utils.refs import Wmt3kEnDe
+from stagedml.utils.refs import Wmt
 
 
 PYTHON=get_executable('python3', 'Python3 interpreter is required')
@@ -21,18 +21,18 @@ def run_tfm_env(tfm_root, cmd)->None:
     cwd=tfm_root,
     env={'PYTHONPATH':f'{tfm_root}:{environ["PYTHONPATH"]}'})
 
-def wmt3kende_config()->Config:
+def wmt32ende_config()->Config:
   name = 'wmt3k_ende'
   return mkconfig(locals())
 
-def wmt3kende_realize(b:Build)->None:
+def wmt32ende_realize(b:Build)->None:
   o=build_outpath(b)
   c=build_cattrs(b)
   run_tfm_env(TFM_ROOT, [PYTHON,
     join(TFM_ROOT,'official','transformer', 'data_download.py'),
     '--data_dir', o])
 
-def wmt3kende(m:Manager)->Wmt3kEnDe:
-  return Wmt3kEnDe(mkdrv(m, wmt3kende_config(),
-                            match_only(),
-                            build_wrapper(wmt3kende_realize)))
+def wmt32ende(m:Manager)->Wmt:
+  return Wmt(mkdrv(m, wmt32ende_config(),
+                      match_only(),
+                      build_wrapper(wmt32ende_realize)))
