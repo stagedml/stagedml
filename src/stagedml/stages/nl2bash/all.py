@@ -21,7 +21,7 @@ from stagedml.utils.files import system
 from stagedml.imports import ( environ, join, basename, dedent, contextmanager,
     isfile )
 
-from stagedml.utils.refs import NL2Bash
+from stagedml.types import NL2Bash
 
 PYTHON=get_executable('python3', 'Python3 interpreter is required')
 NL2BASH_ROOT=environ.get('NL2BASH_ROOT', join('/','workspace','3rdparty','nl2bash_essence', 'src'))

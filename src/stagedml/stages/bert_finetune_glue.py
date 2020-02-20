@@ -22,7 +22,7 @@ from stagedml.models.bert import ( BertLayer, classification_logits )
 from stagedml.utils.tf import ( runtb, runtensorboard, thash, KerasBuild,
     protocol_add, protocol_add_hist, protocol_add_eval, match_metric, dpurge,
     keras_save )
-from stagedml.utils.refs import ( GlueTFR, BertGlue )
+from stagedml.types import ( GlueTFR, BertGlue )
 
 
 def config(task_name:str, tfrecs:GlueTFR)->Config:

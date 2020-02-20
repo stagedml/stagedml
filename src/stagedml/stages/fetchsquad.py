@@ -1,5 +1,5 @@
 from pylightnix import Manager, mknode, fetchurl
-from stagedml.utils.refs import Squad11
+from stagedml.types import Squad11
 
 def fetchsquad11(m:Manager)->Squad11:
   trainref = fetchurl(m,

@@ -8,7 +8,7 @@ from hashlib import sha256
 from pylightnix import ( Config, Hash, DRef, build_cattrs, build_outpath,
     Manager, match_only, mkdrv, build_wrapper, Build )
 
-from stagedml.utils.refs import Glue
+from stagedml.types import Glue
 from stagedml.datasets.glue.download_glue_data import main as glue_main
 
 

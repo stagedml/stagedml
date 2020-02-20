@@ -6,14 +6,13 @@ from pylightnix import ( Path, Config, Manager, RRef, DRef, Context,
     json_load, build_config, mkconfig, mkbuild, match_only, build_wrapper,
     tryread )
 
-from stagedml.imports import ( join )
-from stagedml.imports_tf import ( clear_session, set_session_config,
+from stagedml.imports import ( join, clear_session, set_session_config,
     TensorBoard, ModelCheckpoint )
 
 from stagedml.utils.tf import ( runtb, runtensorboard, thash, KerasBuild,
     protocol_add, protocol_add_hist, protocol_add_eval, match_metric, dpurge,
     keras_save, keras_wrapper )
-from stagedml.utils.refs import ( Wmt, TransWmt )
+from stagedml.types import ( Wmt, TransWmt )
 from stagedml.models.transformer import ( Transformer, create_train_model,
     create_optimizer, train_ds, LearningRateScheduler, LearningRateFn,
     BASE_PARAMS )

@@ -23,7 +23,7 @@ from stagedml.stages.nl2bash.all import nl2bash
 from stagedml.stages.fetchwmt32 import wmt32ende
 from stagedml.stages.transformer_wmt32ende import transformer_wmt32ende
 
-from stagedml.utils.refs import ( DRef, Glue, Squad11, GlueTFR, Squad11TFR,
+from stagedml.types import ( DRef, Glue, Squad11, GlueTFR, Squad11TFR,
     BertCP, BertGlue, BertSquad, NL2Bash, Wmt, TransWmt )
 
 all_fetchglue = fetchglue

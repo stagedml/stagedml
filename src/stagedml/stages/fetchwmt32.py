@@ -10,7 +10,7 @@ from stagedml.imports import ( environ, join, basename, dedent, contextmanager,
     isfile )
 
 from stagedml.utils.files import system
-from stagedml.utils.refs import Wmt
+from stagedml.types import Wmt
 
 
 PYTHON=get_executable('python3', 'Python3 interpreter is required')

@@ -3,6 +3,8 @@ This file contains a collection of aliases for Derivation references. They help
 Mypy the static typechecker to catch errors early.
 """
 
+from typing import ( Optional, Any, List, Tuple, Union )
+
 from pylightnix import DRef
 
 class BertCP(DRef):
@@ -35,3 +37,4 @@ class Wmt(DRef):
 
 class TransWmt(DRef):
   pass
+
