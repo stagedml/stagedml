@@ -22,6 +22,7 @@ from stagedml.stages.bert_finetune_squad import bert_finetune_squad11
 from stagedml.stages.nl2bash.all import nl2bash
 from stagedml.stages.fetchwmt32 import wmt32ende
 from stagedml.stages.transformer_wmt32ende import transformer_wmt32ende
+from stagedml.stages.convnn_mnist import fetchmnist, convnn_mnist
 
 from stagedml.types import ( DRef, Glue, Squad11, GlueTFR, Squad11TFR,
     BertCP, BertGlue, BertSquad, NL2Bash, Wmt, TransWmt )
@@ -61,4 +62,9 @@ def all_wmt32ende(m:Manager)->Wmt:
 
 def all_transformer_wmt32ende(m:Manager)->TransWmt:
   return transformer_wmt32ende(m, all_wmt32ende(m))
+
+all_fetchmnist = fetchmnist
+
+def all_convnn_mnist(m:Manager):
+  return convnn_mnist(m, fetchmnist(m))
 

@@ -38,3 +38,5 @@ class Wmt(DRef):
 class TransWmt(DRef):
   pass
 
+class Mnist(DRef):
+  pass
