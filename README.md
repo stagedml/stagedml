@@ -16,7 +16,8 @@ Contents
 2. [Install](#Install)
    - [System requirements](#system-requirements)
    - [Running the docker container](#running-docker-containers)
-3. [Working with Stagedml](#working-with-stagedml)
+3. [Documentation](#documentation)
+4. [Quick Start](#quick-start)
 
 
 Features
@@ -24,16 +25,16 @@ Features
 
 * Stagedml is a library of adopted ML models, focused on the ease of
   experimenting.
-* Currently, it includes some TensorFlow NLP models from
+  - All addopted models and datasets are defined as a linked graph of
+    [Pylightnix stages](https://github.com/stagedml/pylightnix/blob/master/docs/Reference.md#pylightnix.types.Derivation).
+    Dependency resolution is done automatically by Pylightnix.
+  - Check the [collection of adopted entities](./src/stagedml/stages/all.py)
+* Currently, we include TensorFlow NLP models from
   [tensorflow-models](https://github.com/tensorflow/models), other libraries may
   be supported in future.
-* All addopted models are defined as a linked graph of [Pylightnix
-  stages](https://github.com/stagedml/pylightnix/blob/master/docs/Reference.md#pylightnix.types.Derivation).
-  Dependency resolution is done automatically.
-* Datasets and Model checkpoints are cached and hashed into the filesystem
-  storage.
+* Instantiated Datasets and Model checkpoints are cached and hashed into the
+  organized filesystem storage.
 * We extensively use [Mypy](http://mypy-lang.org/)-compatible type annotations.
-* Check the list of [adopted models and datasets](./src/stagedml/stages/all.py)
 
 Install
 -------
@@ -100,20 +101,28 @@ We show how to run the project in development docker
 
 4. That is all. Run `ipython` to try StagedML in action.
 
-Working with StagedML
----------------------
 
-Stagedml is desinged as a [Nix](https://nixos.org/nix)-style collection of
-ML models.
+Documentation
+-------------
 
-Main top-level definitions are collected in a single
-[all.py](./src/stagedml/stages/all.py) file.  In this file, each `all_`
-function defines a *stage*, which is usually a model or a dataset. Every stage
-could be *realized* by calling `realize(instantiate(stage))` functions. Stages
-may depend on each other and Pylightnix' core will manage dependencies
-automatically.
+Not much yet:)
 
-So, an example IPython session could look like the following:
+StagedML is designed as a Pylightnix application, so [Pylightnix
+documentation and
+manuals](https://github.com/stagedml/pylightnix/blob/master/README.md#Documentation)
+apply here as well.
+
+
+Quick Start
+-----------
+
+Top-level definitions are listed in a single
+[all.py](./src/stagedml/stages/all.py) file.  There, each `all_` function
+defines a *stage*, which is usually a model or a dataset. Any stage could be
+built (or *realized*) by calling `realize(instantiate(...))` functions. Stages
+may depend on each other and Pylightnix will manage dependencies automatically.
+
+An example IPython session looks like the following:
 
 ```python
 > from stagedml.stages.all import *
