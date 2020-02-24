@@ -11,7 +11,8 @@ rref2path(rref)
 """
 
 from pylightnix import ( Manager, mknode, fetchurl, instantiate, realize,
-    rref2path, store_initialize, lsref, catref )
+    rref2path, store_initialize, lsref, catref, repl_realize,
+    repl_continueBuild, repl_build, repl_rref, repl_cancel )
 
 from stagedml.stages.fetchglue import fetchglue
 from stagedml.stages.glue_tfrecords import glue_tfrecords
@@ -20,12 +21,12 @@ from stagedml.stages.fetchsquad import fetchsquad11
 from stagedml.stages.squad_tfrecords import squad11_tfrecords
 from stagedml.stages.bert_finetune_squad import bert_finetune_squad11
 from stagedml.stages.nl2bash.all import nl2bash
-from stagedml.stages.fetchwmt32 import wmt32ende
-from stagedml.stages.transformer_wmt32ende import transformer_wmt32ende
+from stagedml.stages.fetchwmt import wmttfrecs
+from stagedml.stages.transformer_wmt import transformer_wmt
 from stagedml.stages.convnn_mnist import fetchmnist, convnn_mnist
 
 from stagedml.types import ( DRef, Glue, Squad11, GlueTFR, Squad11TFR, BertCP,
-    BertGlue, BertSquad, NL2Bash, Wmt, TransWmt, ConvnnMnist )
+    BertGlue, BertSquad, NL2Bash, TransWmt, WmtTfrecs, ConvnnMnist )
 
 all_fetchglue = fetchglue
 all_fetchsquad11 = fetchsquad11
@@ -57,11 +58,14 @@ def all_bert_finetune_squad11(m:Manager)->BertSquad:
 def all_nl2bash(m:Manager)->NL2Bash:
   return nl2bash(m)
 
-def all_wmt32ende(m:Manager)->Wmt:
-  return wmt32ende(m)
+def all_wmttfrecs_enru(m:Manager)->WmtTfrecs:
+  return wmttfrecs(m, 'en', 'ru')
 
-def all_transformer_wmt32ende(m:Manager)->TransWmt:
-  return transformer_wmt32ende(m, all_wmt32ende(m))
+def all_wmttfrecs_ende(m:Manager)->WmtTfrecs:
+  return wmttfrecs(m, 'en', 'de')
+
+def all_transformer_wmtenru(m:Manager)->TransWmt:
+  return transformer_wmt(m, all_wmttfrecs_enru(m))
 
 all_fetchmnist = fetchmnist
 

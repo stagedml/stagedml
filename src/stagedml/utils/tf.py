@@ -16,7 +16,7 @@ from typing import ( Union, List, Any, Optional, Tuple, Callable, TypeVar )
 from pylightnix import ( Path, Build, Hash, DRef, assert_valid_rref,
     assert_serializable, PYLIGHTNIX_TMP, Realizer, build_outpath, mkbuild, RRef,
     rref2path, readjson, json_dumps, store_rrefs, dirhash, Context,
-    build_wrapper_ )
+    build_wrapper_, BuildArgs )
 
 
 #  _   _ _   _ _
@@ -89,16 +89,16 @@ Protocol=List[Tuple[str,Hash,Any]]
 
 class ProtocolBuild(Build):
   protocol:Protocol
-  def __init__(self, b:Build)->None:
-    super().__init__(b.dref, b.cattrs, b.context, b.timeprefix, b.buildtime)
+  def __init__(self, ba:BuildArgs)->None:
+    super().__init__(ba)
     self.protocol=[]
   def get_data_hash(self)->Hash:
     return dirhash(build_outpath(self))
 
-def protocolled(f:Callable[[ProtocolBuild],None], buildtime:bool=True)->Realizer:
-  def _wrapper(dref:DRef,context:Context)->List[Path]:
-    pb=ProtocolBuild(mkbuild(dref,context,buildtime)); f(pb); return [build_outpath(pb)]
-  return _wrapper
+# def protocolled(f:Callable[[ProtocolBuild],None], buildtime:bool=True)->Realizer:
+#   def _wrapper(dref:DRef,context:Context)->List[Path]:
+#     pb=ProtocolBuild(mkbuild(dref,context,buildtime)); f(pb); return [build_outpath(pb)]
+#   return _wrapper
 
 def protocol_save(b:ProtocolBuild)->None:
   o=build_outpath(b)
@@ -107,18 +107,11 @@ def protocol_save(b:ProtocolBuild)->None:
 
 class KerasBuild(ProtocolBuild):
   model:tf.keras.Model
-  def __init__(self, b:Build)->None:
-    super().__init__(b)
+  def __init__(self, ba:BuildArgs)->None:
+    super().__init__(ba)
   def get_data_hash(self)->Hash:
     assert self.model is not None, "Keras model should be initialized by the user"
     return Hash(ndhashl(self.model.get_weights()))
-
-def keras_wrapper(
-    f:Callable[[KerasBuild],None],
-    buildtime:bool=True):
-  return build_wrapper_(f,buildtime,
-                        lambda *args: KerasBuild(mkbuild(*args)),
-                        lambda b: b.outpaths)
 
 def keras_save(b:KerasBuild)->None:
   assert b.model is not None
@@ -127,6 +120,12 @@ def keras_save(b:KerasBuild)->None:
   b.model.save_weights(join(o, 'weights.h5'), save_format='h5')
   protocol_save(b)
 
+
+def protocolled(f:Callable[[ProtocolBuild],None], buildtime:bool=True):
+  return build_wrapper_(f,ProtocolBuild,buildtime)
+
+def keras_wrapper(f:Callable[[KerasBuild],None], buildtime:bool=True):
+  return build_wrapper_(f,KerasBuild,buildtime)
 
 #  ____            _                  _
 # |  _ \ _ __ ___ | |_ ___   ___ ___ | |

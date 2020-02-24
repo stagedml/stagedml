@@ -12,9 +12,10 @@ from official.nlp.transformer.metrics import ( padded_accuracy,
     padded_accuracy_topk, padded_accuracy_top5, padded_neg_log_perplexity,
     padded_sequence_accuracy, transformer_loss )
 from official.nlp.transformer.beam_search import sequence_beam_search
-from official.nlp.transformer.utils.tokenizer import EOS_ID
+from official.nlp.transformer.utils.tokenizer import ( EOS_ID, Subtokenizer )
 from official.nlp.transformer.optimizer import ( LearningRateSchedule,
     LearningRateScheduler, LearningRateFn )
 from official.nlp.transformer.data_pipeline import ( train_input_fn,
     map_data_for_transformer_fn )
+from official.nlp.transformer.data_download import ( encode_and_save_files )
 from official.nlp.transformer.model_params import BASE_PARAMS

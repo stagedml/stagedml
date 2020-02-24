@@ -3,7 +3,7 @@ This file contains a collection of aliases for Derivation references. They help
 Mypy the static typechecker to catch errors early.
 """
 
-from typing import ( Optional, Any, List, Tuple, Union )
+from typing import ( Optional, Dict, Any, List, Tuple, Union )
 
 from pylightnix import DRef
 
@@ -31,8 +31,8 @@ class BertSquad(DRef):
 class NL2Bash(DRef):
   pass
 
-class Wmt(DRef):
-  """ Dataset Wmt32k En_De """
+class WmtTfrecs(DRef):
+  """ Datasets like Wmt En-De """
   pass
 
 class TransWmt(DRef):

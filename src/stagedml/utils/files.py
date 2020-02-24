@@ -33,3 +33,9 @@ def system(cmd:List[str], cwd:Optional[str]=None, env:Optional[dict]=None, check
   retcode=p.wait()
   assert not (check_retcode and retcode!=0), f"Retcode is not zero, but {retcode}"
   return
+
+def flines(p:str, newline:str='\n')->int:
+  with open(p,'r',newline=newline) as f:
+    for i, l in enumerate(f):
+      pass
+  return i+1

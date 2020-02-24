@@ -51,7 +51,7 @@ def create_optimizer(params:dict)->Adam:
   assert not (params["dtype"] == tf.float16)
   return opt
 
-def train_ds(params):
+def train_ds(params:dict):
   train_ds = train_input_fn(params)
   train_ds = \
       train_ds.map(
