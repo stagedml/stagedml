@@ -9,8 +9,6 @@ some code from the earlier versions and tried to apply some fixes.
 FIXME: Char-encoded data appears to be broker (every ID is '2')
 """
 
-from typing import ( Optional,Any,List,Tuple,Union )
-
 from pylightnix import ( RefPath, Build, Path, Config, Manager, RRef, DRef,
     Context, build_wrapper, build_path, build_outpath, build_cattrs, mkdrv,
     rref2path, mkbuild, mkconfig, match_only, instantiate, realize, lsref,
@@ -21,7 +19,7 @@ from stagedml.utils.files import system
 from stagedml.imports import ( environ, join, basename, dedent, contextmanager,
     isfile )
 
-from stagedml.types import NL2Bash
+from stagedml.types import ( Optional,Any,List,Tuple,Union, NL2Bash )
 
 PYTHON=get_executable('python3', 'Python3 interpreter is required')
 NL2BASH_ROOT=environ.get('NL2BASH_ROOT', join('/','workspace','3rdparty','nl2bash_essence', 'src'))

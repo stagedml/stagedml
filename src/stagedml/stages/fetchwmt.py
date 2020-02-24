@@ -124,8 +124,8 @@ def trainfiles(m:Manager, lang1:str, lang2:str, europarl:Optional[bool]=None)->D
           if europarl_ else []))
 
   return mknode(m, {'name':'trainfiles',
-                    'input_combined':[inputs,inputsname],
-                    'target_combined':[targets,targetsname]})
+                    'train_input_combined':[inputs,inputsname],
+                    'train_target_combined':[targets,targetsname]})
 
 def evalfiles(m:Manager, lang1:str, lang2:str)->DRef:
   inputsname='inputs'
@@ -133,12 +133,13 @@ def evalfiles(m:Manager, lang1:str, lang2:str)->DRef:
   targetsname='targets'
   targets=catfiles(m, files=[ [fetchwmt17dev(m),'dev',f'newstest2013.{lang2}'] ], outname=targetsname)
   return mknode(m, {'name':'evalfiles',
-                    'input_combined':[inputs,inputsname],
-                    'target_combined':[targets,targetsname]})
+                    'eval_input_combined':[inputs,inputsname],
+                    'eval_target_combined':[targets,targetsname]})
 
 
 
-def wmttfrecs(m:Manager, lang1:str, lang2:str)->WmtTfrecs:
+def wmttfrecs_(m:Manager, trainfiles:DRef, evalfiles:DRef)->WmtTfrecs:
+
   def _config():
     name = "wmttfrecs"
     train_tag = "train"
@@ -146,14 +147,12 @@ def wmttfrecs(m:Manager, lang1:str, lang2:str)->WmtTfrecs:
     eval_tag = "eval"
 
     # Link to the raw train data collection
-    tf=trainfiles(m, lang1, lang2)
-    train_input_combined = store_cattrs(tf).input_combined
-    train_target_combined = store_cattrs(tf).target_combined
+    train_input_combined = store_cattrs(trainfiles).train_input_combined
+    train_target_combined = store_cattrs(trainfiles).train_target_combined
 
     # Link to the raw eval data collection
-    ef=evalfiles(m, lang1, lang2)
-    eval_input_combined = store_cattrs(ef).input_combined
-    eval_target_combined = store_cattrs(ef).target_combined
+    eval_input_combined = store_cattrs(evalfiles).eval_input_combined
+    eval_target_combined = store_cattrs(evalfiles).eval_target_combined
 
     # Desired number of subtokens in the vocabulary list.
     target_vocab_size = 32768
@@ -188,7 +187,7 @@ def wmttfrecs(m:Manager, lang1:str, lang2:str)->WmtTfrecs:
   return WmtTfrecs(mkdrv(m, _config(), match_only(), build_wrapper(_realize)))
 
 
-
-
-
+def wmttfrecs(m:Manager, lang1:str, lang2:str)->WmtTfrecs:
+  return wmttfrecs_(m,trainfiles(m,lang1,lang2),
+                      evalfiles(m,lang1,lang2))
 

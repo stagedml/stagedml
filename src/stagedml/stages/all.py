@@ -20,7 +20,8 @@ from stagedml.stages.bert_finetune_glue import bert_finetune_glue
 from stagedml.stages.fetchsquad import fetchsquad11
 from stagedml.stages.squad_tfrecords import squad11_tfrecords
 from stagedml.stages.bert_finetune_squad import bert_finetune_squad11
-from stagedml.stages.nl2bash.all import nl2bash
+# from stagedml.stages.nl2bash.all import nl2bash
+from stagedml.stages.fetchnl2bash import fetchnl2bash
 from stagedml.stages.fetchwmt import wmttfrecs
 from stagedml.stages.transformer_wmt import transformer_wmt
 from stagedml.stages.convnn_mnist import fetchmnist, convnn_mnist
@@ -55,8 +56,10 @@ def all_bert_finetune_squad11(m:Manager)->BertSquad:
   squadref=all_squad11_tfrecords(m)
   return bert_finetune_squad11(m,squadref)
 
-def all_nl2bash(m:Manager)->NL2Bash:
-  return nl2bash(m)
+# def all_nl2bash(m:Manager)->NL2Bash:
+#   return nl2bash(m)
+def all_fetchnl2bash(m:Manager)->DRef:
+  return fetchnl2bash(m)
 
 def all_wmttfrecs_enru(m:Manager)->WmtTfrecs:
   return wmttfrecs(m, 'en', 'ru')
