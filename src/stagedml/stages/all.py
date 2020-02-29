@@ -28,6 +28,7 @@ from stagedml.stages.convnn_mnist import fetchmnist, convnn_mnist
 
 from stagedml.types import ( DRef, Glue, Squad11, GlueTFR, Squad11TFR, BertCP,
     BertGlue, BertSquad, NL2Bash, TransWmt, WmtTfrecs, ConvnnMnist )
+from stagedml.utils import ( tbrealize )
 
 all_fetchglue = fetchglue
 all_fetchsquad11 = fetchsquad11

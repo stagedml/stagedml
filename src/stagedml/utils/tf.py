@@ -13,10 +13,10 @@ from hashlib import md5
 from subprocess import run as os_run, Popen
 from typing import ( Union, List, Any, Optional, Tuple, Callable, TypeVar )
 
-from pylightnix import ( Path, Build, Hash, DRef, assert_valid_rref,
+from pylightnix import ( Closure, Path, Build, Hash, DRef, assert_valid_rref,
     assert_serializable, PYLIGHTNIX_TMP, Realizer, build_outpath, mkbuild, RRef,
     rref2path, readjson, json_dumps, store_rrefs, dirhash, Context,
-    build_wrapper_, BuildArgs )
+    build_wrapper_, BuildArgs, repl_realize, repl_continue, repl_build )
 
 
 #  _   _ _   _ _
@@ -62,7 +62,9 @@ def dpurge(dir, pattern, debug=True):
 
 def runtensorboard(path:str, kill_existing:bool=True)->int:
   if kill_existing:
-    os_run('ps fax | grep -v grep | grep tensorboard | awk "{print \$1}" | xargs -r kill', shell=True)
+    os_run(('ps fax | grep -v grep | '
+            'grep tensorboard | awk "{print \$1}" | '
+            'xargs -r kill'), shell=True)
   with open(join(PYLIGHTNIX_TMP,"tensorboard.log"),"w") as f:
     pid = Popen(["tensorboard", "--host", "0.0.0.0", "--logdir", path],
                 stdout=f, stderr=f).pid
@@ -77,6 +79,24 @@ def runtb(arg:Union[Build,str])->None:
     path=build_outpath(arg)
     pid=runtensorboard(path)
     print('Tensorboard is running at', path, 'pid', pid)
+
+
+def tbrealize(clo:Closure)->RRef:
+  rh=repl_realize(clo, force_interrupt=True)
+  assert rh.drv is not None
+  assert rh.dref is not None
+  assert rh.context is not None
+  orrefs=rh.drv.matcher(rh.dref,rh.context)
+  if orrefs is None:
+    b=repl_build(rh)
+    runtensorboard(build_outpath(b), kill_existing=True)
+  else:
+    assert len(orrefs)>0
+    runtensorboard(rref2path(orrefs[0]), kill_existing=True)
+  rref=repl_continue(out_rrefs=orrefs,rh=rh)
+  assert rref is not None
+  return rref
+
 
 #  ____        _ _     _
 # | __ ) _   _(_) | __| | ___ _ __ ___
@@ -94,11 +114,6 @@ class ProtocolBuild(Build):
     self.protocol=[]
   def get_data_hash(self)->Hash:
     return dirhash(build_outpath(self))
-
-# def protocolled(f:Callable[[ProtocolBuild],None], buildtime:bool=True)->Realizer:
-#   def _wrapper(dref:DRef,context:Context)->List[Path]:
-#     pb=ProtocolBuild(mkbuild(dref,context,buildtime)); f(pb); return [build_outpath(pb)]
-#   return _wrapper
 
 def protocol_save(b:ProtocolBuild)->None:
   o=build_outpath(b)
@@ -119,7 +134,6 @@ def keras_save(b:KerasBuild)->None:
   o = build_outpath(b)
   b.model.save_weights(join(o, 'weights.h5'), save_format='h5')
   protocol_save(b)
-
 
 def protocolled(f:Callable[[ProtocolBuild],None], buildtime:bool=True):
   return build_wrapper_(f,ProtocolBuild,buildtime)

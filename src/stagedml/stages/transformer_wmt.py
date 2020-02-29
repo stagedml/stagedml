@@ -4,7 +4,7 @@ assert tf.version.VERSION.startswith('2.1')
 from pylightnix import ( Path, Config, Manager, RRef, DRef, Context,
     store_cattrs, build_path, build_outpath, build_cattrs, mkdrv, rref2path,
     json_load, build_config, mkconfig, mkbuild, match_only, build_wrapper_,
-    tryread, store_config, mklens )
+    tryread, store_config, mklens, repl_realize, instantiate, shell )
 
 from stagedml.imports import ( join, clear_session, set_session_config,
     TensorBoard, ModelCheckpoint, copy_tree, Model, isfile, get_single_element,
