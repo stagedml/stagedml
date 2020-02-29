@@ -39,3 +39,11 @@ def flines(p:str, newline:str='\n')->int:
     for i, l in enumerate(f):
       pass
   return i+1
+
+
+def tryindex(l:list,item)->Optional[int]:
+  try:
+    return l.index(item)
+  except ValueError:
+    return None
+

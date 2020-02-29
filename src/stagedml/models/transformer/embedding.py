@@ -2,10 +2,10 @@ import tensorflow as tf
 assert tf.version.VERSION.startswith('2.1')
 
 from stagedml.models.transformer.imports import ( Tensor,
-    random_normal_initializer )
+    Layer, random_normal_initializer )
 
 
-class EmbeddingSharedWeights(tf.keras.layers.Layer):
+class EmbeddingSharedWeights(Layer):
   """Calculates input embeddings and pre-softmax linear with shared weights."""
 
   def __init__(self, vocab_size, hidden_size)->None:

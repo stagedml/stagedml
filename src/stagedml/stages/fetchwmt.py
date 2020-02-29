@@ -1,7 +1,8 @@
 from pylightnix import ( RefPath, Build, Path, Config, Manager, RRef, DRef,
     Context, build_wrapper, build_path, build_outpath, build_cattrs, mkdrv,
     rref2path, mkbuild, mkconfig, match_only, instantiate, realize, lsref,
-    catref, store_cattrs, get_executable, fetchurl, mknode )
+    catref, store_cattrs, get_executable, fetchurl, mknode, checkpaths, mklens,
+    promise )
 
 from stagedml.imports import ( environ, join, basename, dedent, contextmanager,
     isfile )
@@ -14,62 +15,53 @@ from stagedml.utils.files import ( system, flines )
 from stagedml.types import ( WmtTfrecs, Optional, Any, List, Tuple, Union )
 
 
-# PYTHON=get_executable('python3', 'Python3 interpreter is required')
-# TFM_ROOT=environ.get('TFM_ROOT', join('/','workspace','3rdparty','tensorflow_models'))
-
-# def run_tfm_env(tfm_root, cmd)->None:
-#   system(cmd,
-#     cwd=tfm_root,
-#     env={'PYTHONPATH':f'{tfm_root}:{environ["PYTHONPATH"]}'})
-
-# def wmt32ende_config()->Config:
-#   name = 'wmt3k_ende'
-#   return mkconfig(locals())
-
-# def wmt32ende_realize(b:Build)->None:
-#   o=build_outpath(b)
-#   c=build_cattrs(b)
-#   run_tfm_env(TFM_ROOT, [PYTHON,
-#     join(TFM_ROOT,'official','transformer', 'data_download.py'),
-#     '--data_dir', o])
-
-# def wmt32ende(m:Manager)->Wmt:
-#   return Wmt(mkdrv(m, wmt32ende_config(),
-#                       match_only(),
-#                       build_wrapper(wmt32ende_realize)))
-
-
-
 def fetchwmt17parallel(m:Manager)->DRef:
-  return fetchurl(m,
+  langpairs=[['de','en'],['ru','en']]
+  f=fetchurl(m,
     name='training-parallel-nc-v12',
     url='http://data.statmt.org/wmt17/translation-task/training-parallel-nc-v12.tgz',
     sha256='2b45f30ef1d550d302fd17dd3a5cbe19134ccc4c2cf50c2dae534aee600101a2')
+  return checkpaths(m,
+      {('_'.join(lp)):{l:[f,"training",f"news-commentary-v12.{'-'.join(lp)}.{l}"] \
+      for l in lp} for lp in langpairs})
 
 def fetchwmt13commoncrawl(m:Manager)->DRef:
-  return fetchurl(m,
+  langpairs=[['de','en'],['ru','en']]
+  f=fetchurl(m,
     name='training-parallel-commoncrawl',
     url='http://www.statmt.org/wmt13/training-parallel-commoncrawl.tgz',
     sha256='c7a74e2ea01ac6c920123108627e35278d4ccb5701e15428ffa34de86fa3a9e5')
+  return checkpaths(m,
+      {('_'.join(lp)):{l:[f,'training-parallel-commoncrawl',f"commoncrawl.{'-'.join(lp)}.{l}"] \
+      for l in lp} for lp in langpairs})
 
 def fetchwmt13europarl(m:Manager)->DRef:
-  return fetchurl(m,
+  langpairs=[['de','en']]
+  f=fetchurl(m,
     name='training-parallel-europarl-v7',
     url='http://www.statmt.org/wmt13/training-parallel-europarl-v7.tgz',
     sha256='0224c7c710c8a063dfd893b0cc0830202d61f4c75c17eb8e31836103d27d96e7')
+  return checkpaths(m,
+      {('_'.join(lp)):{l:[f,'training',f"europarl-v7.{'-'.join(lp)}.{l}"] \
+      for l in lp} for lp in langpairs})
 
 def fetchwmt17dev(m:Manager)->DRef:
-  return fetchurl(m,
+  langs=['ru','en','de']
+  f=fetchurl(m,
     name='newstest2013',
     url=f'http://data.statmt.org/wmt17/translation-task/dev.tgz',
     sha256='9d5ff04a28496b7796904ea65e50e3837bab14dbdca88b1e063105f17513dca9')
+  return checkpaths(m,
+    {l:[f,'dev',f'newstest2013.{l}'] for l in langs})
 
 def fetchnewstest2014(m:Manager)->DRef:
+  langs=['en','de']
   name='newstest2014'
-  return fetchurl(m,
+  f=fetchurl(m,
     name=name,
     url=f'https://storage.googleapis.com/tf-perf-public/official_transformer/test_data/{name}.tgz',
     sha256='1d07bf20db2f4607bb5f3c228e24c1fa17bdfb66d650cc5e713353606fde0800')
+  return checkpaths(m, {l:[f,'newstest2014',f'newstest2014.{l}'] for l in langs})
 
 
 def fetchwmtpack(m:Manager)->DRef:
@@ -88,7 +80,7 @@ def catfiles(m:Manager, files:List[RefPath], outname:Optional[str]=None)->DRef:
   outname_='result' if outname is None else outname
   def _realize(b:Build)->None:
     o=build_outpath(b)
-    with open(join(o,outname_),'w') as dst:
+    with open(mklens(b).output.syspath,'w') as dst:
       for rp in files:
         path=build_path(b,rp)
         nwritten=0
@@ -99,43 +91,34 @@ def catfiles(m:Manager, files:List[RefPath], outname:Optional[str]=None)->DRef:
             nwritten+=1
         print(f'Written {nwritten} lines from {rp}')
 
-  return mkdrv(m,mkconfig({'version':3, 'files':files, 'output':outname_}),
+  return mkdrv(m,mkconfig({'version':3, 'files':files, 'output':[promise,outname_]}),
                  match_only(),
                  build_wrapper(_realize))
 
 def trainfiles(m:Manager, lang1:str, lang2:str, europarl:Optional[bool]=None)->DRef:
-  suffix=f"{lang2}-{lang1}"
-  inputsname='inputs'
+  suffix=f"{lang2}_{lang1}"
   europarl_= europarl if europarl is not None else ('ru' not in [lang1,lang2])
 
-  inputs=catfiles(m, outname=inputsname, files=[
-      [fetchwmt17parallel(m),'training',f'news-commentary-v12.{suffix}.{lang1}'],
-      [fetchwmt13commoncrawl(m),'training-parallel-commoncrawl',f'commoncrawl.{suffix}.{lang1}'],
-    ] + (
-      [[fetchwmt13europarl(m),'training',f'europarl-v7.{suffix}.{lang1}']] \
-          if europarl_ else []))
+  inputs=catfiles(m, outname='inputs', files=\
+      [mklens(fetchwmt17parallel(m)).get(suffix).get(lang1).refpath,
+       mklens(fetchwmt13commoncrawl(m)).get(suffix).get(lang1).refpath] + \
+      ([mklens(fetchwmt13europarl(m)).get(suffix).get(lang1).refpath] if europarl_ else []))
 
-  targetsname='targets'
-  targets=catfiles(m, outname=targetsname, files=[
-      [fetchwmt17parallel(m),'training',f'news-commentary-v12.{suffix}.{lang2}'],
-      [fetchwmt13commoncrawl(m),'training-parallel-commoncrawl',f'commoncrawl.{suffix}.{lang2}'],
-    ] + (
-      [[fetchwmt13europarl(m),'training',f'europarl-v7.{suffix}.{lang2}']] \
-          if europarl_ else []))
+  targets=catfiles(m, outname='targets', files=\
+      [mklens(fetchwmt17parallel(m)).get(suffix).get(lang2).refpath,
+       mklens(fetchwmt13commoncrawl(m)).get(suffix).get(lang2).refpath] + \
+      ([mklens(fetchwmt13europarl(m)).get(suffix).get(lang2).refpath] if europarl_ else []))
 
-  return mknode(m, {'name':'trainfiles',
-                    'train_input_combined':[inputs,inputsname],
-                    'train_target_combined':[targets,targetsname]})
+  return checkpaths(m,{'name':'trainfiles',
+                       'train_input_combined':mklens(inputs).output.refpath,
+                       'train_target_combined':mklens(targets).output.refpath})
 
 def evalfiles(m:Manager, lang1:str, lang2:str)->DRef:
-  inputsname='inputs'
-  inputs=catfiles(m, files=[ [fetchwmt17dev(m),'dev',f'newstest2013.{lang1}'] ], outname=inputsname)
-  targetsname='targets'
-  targets=catfiles(m, files=[ [fetchwmt17dev(m),'dev',f'newstest2013.{lang2}'] ], outname=targetsname)
-  return mknode(m, {'name':'evalfiles',
-                    'eval_input_combined':[inputs,inputsname],
-                    'eval_target_combined':[targets,targetsname]})
-
+  inputs=catfiles(m, files=[mklens(fetchwmt17dev(m)).get(lang1).val], outname='inputs')
+  targets=catfiles(m, files=[mklens(fetchwmt17dev(m)).get(lang2).val], outname='outputs')
+  return mknode(m,{'name':'evalfiles',
+                   'eval_input_combined':mklens(inputs).output.refpath,
+                   'eval_target_combined':mklens(targets).output.refpath})
 
 
 def wmttfrecs_(m:Manager, trainfiles:DRef, evalfiles:DRef)->WmtTfrecs:
@@ -147,12 +130,12 @@ def wmttfrecs_(m:Manager, trainfiles:DRef, evalfiles:DRef)->WmtTfrecs:
     eval_tag = "eval"
 
     # Link to the raw train data collection
-    train_input_combined = store_cattrs(trainfiles).train_input_combined
-    train_target_combined = store_cattrs(trainfiles).train_target_combined
+    train_input_combined = mklens(trainfiles).train_input_combined.refpath
+    train_target_combined = mklens(trainfiles).train_target_combined.refpath
 
     # Link to the raw eval data collection
-    eval_input_combined = store_cattrs(evalfiles).eval_input_combined
-    eval_target_combined = store_cattrs(evalfiles).eval_target_combined
+    eval_input_combined = mklens(evalfiles).eval_input_combined.refpath
+    eval_target_combined = mklens(evalfiles).eval_target_combined.refpath
 
     # Desired number of subtokens in the vocabulary list.
     target_vocab_size = 32768
@@ -188,6 +171,5 @@ def wmttfrecs_(m:Manager, trainfiles:DRef, evalfiles:DRef)->WmtTfrecs:
 
 
 def wmttfrecs(m:Manager, lang1:str, lang2:str)->WmtTfrecs:
-  return wmttfrecs_(m,trainfiles(m,lang1,lang2),
-                      evalfiles(m,lang1,lang2))
+  return wmttfrecs_(m,trainfiles(m,lang1,lang2), evalfiles(m,lang1,lang2))
 

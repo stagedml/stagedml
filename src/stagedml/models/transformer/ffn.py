@@ -1,13 +1,14 @@
 import tensorflow as tf
 assert tf.version.VERSION.startswith('2.1')
 
-from stagedml.models.transformer.imports import ( Tensor, Dense )
+from stagedml.models.transformer.imports import ( Layer, Tensor, Dense )
 
 from typing import List
 
-class FeedForwardNetwork:
+class FeedForwardNetwork(Layer):
 
-  def __init__(self, path, hidden_size, filter_size, relu_dropout)->None:
+  def __init__(self, hidden_size, filter_size, relu_dropout)->None:
+    super().__init__()
     self.hidden_size = hidden_size
     self.filter_size = filter_size
     self.relu_dropout = relu_dropout
@@ -16,11 +17,11 @@ class FeedForwardNetwork:
         self.filter_size,
         use_bias=True,
         activation=tf.nn.relu,
-        name=path+"/filter_layer")
+        name="filter_layer")
     self.output_dense_layer = Dense(
-        self.hidden_size, use_bias=True, name=path+"/output_layer")
+        self.hidden_size, use_bias=True, name="output_layer")
 
-  def __call__(self, x:Tensor, training:bool)->Tensor:
+  def call(self, x:Tensor, training:bool)->Tensor:
     # Retrieve dynamically known shapes
     batch_size = tf.shape(x)[0]
     length = tf.shape(x)[1]

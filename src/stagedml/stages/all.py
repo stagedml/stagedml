@@ -11,8 +11,8 @@ rref2path(rref)
 """
 
 from pylightnix import ( Manager, mknode, fetchurl, instantiate, realize,
-    rref2path, store_initialize, lsref, catref, repl_realize,
-    repl_continueBuild, repl_build, repl_rref, repl_cancel )
+    rref2path, store_initialize, shell, lsref, catref, repl_realize,
+    repl_continueBuild, repl_build, repl_rref, repl_cancelBuild )
 
 from stagedml.stages.fetchglue import fetchglue
 from stagedml.stages.glue_tfrecords import glue_tfrecords

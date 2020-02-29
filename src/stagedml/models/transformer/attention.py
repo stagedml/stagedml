@@ -1,13 +1,13 @@
 import tensorflow as tf
 assert tf.version.VERSION.startswith('2.1')
 
-from stagedml.models.transformer.imports import ( Tensor, Model, Dense3D )
+from stagedml.models.transformer.imports import ( Tensor, Layer, Model, Dense3D )
 
 
-class Attention:
+class Attention(Layer):
   """Multi-headed attention layer."""
 
-  def __init__(self, path, hidden_size, num_heads, attention_dropout):
+  def __init__(self, hidden_size, num_heads, attention_dropout):
     """Initialize Attention.
 
     Args:
@@ -15,6 +15,7 @@ class Attention:
       num_heads: int, number of heads to repeat the same attention structure.
       attention_dropout: float, dropout rate inside attention for training.
     """
+    super().__init__()
     if hidden_size % num_heads:
       raise ValueError(
           "Hidden size ({}) must be divisible by the number of heads ({})."
@@ -27,18 +28,18 @@ class Attention:
     size_per_head = self.hidden_size // self.num_heads
     self.query_dense_layer = Dense3D(
         self.num_heads, size_per_head, kernel_initializer="glorot_uniform",
-        use_bias=False, name=path+'/'+"query")
+        use_bias=False, name="query")
     self.key_dense_layer = Dense3D(
         self.num_heads, size_per_head, kernel_initializer="glorot_uniform",
-        use_bias=False, name=path+'/'+"key")
+        use_bias=False, name="key")
     self.value_dense_layer = Dense3D(
         self.num_heads, size_per_head, kernel_initializer="glorot_uniform",
-        use_bias=False, name=path+'/'+"value")
+        use_bias=False, name="value")
     self.output_dense_layer = Dense3D(
         self.num_heads, size_per_head, kernel_initializer="glorot_uniform",
-        use_bias=False, output_projection=True, name=path+'/'+"output_transform")
+        use_bias=False, output_projection=True, name="output_transform")
 
-  def __call__(self, query_input:Tensor, source_input:Tensor, bias, training, cache=None,
+  def call(self, query_input:Tensor, source_input:Tensor, bias, training, cache=None,
                decode_loop_step=None)->Tensor:
     # Linearly project the query, key and value using different learned
     # projections. Splitting heads is automatically done during the linear
@@ -90,11 +91,12 @@ class Attention:
     return attention_output
 
 
-class SelfAttention:
+class SelfAttention(Layer):
   def __init__(self, **kwargs)->None:
+    super().__init__()
     self.attn = Attention(**kwargs)
 
-  def __call__(self, query_input:Tensor, bias, training, cache=None,
-                     decode_loop_step=None)->Tensor:
+  def call(self, query_input:Tensor, bias, training, cache=None,
+                 decode_loop_step=None)->Tensor:
     return self.attn(query_input, query_input, bias, training, cache, decode_loop_step)
 

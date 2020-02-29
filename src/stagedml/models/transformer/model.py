@@ -15,25 +15,32 @@ from stagedml.models.transformer.embedding import EmbeddingSharedWeights
 from typing import Any, List, Tuple
 
 
-def create_train_model(cls, params:dict)->Model:
+def create_train_model(params:dict)->Model:
   """Creates transformer model for training."""
   with tf.name_scope("model"):
-    is_train = True
     inputs = tf.keras.layers.Input((None,), dtype="int64", name="inputs")
     targets = tf.keras.layers.Input((None,), dtype="int64", name="targets")
-    internal_model = cls(params, name="transformer_v2")
-    logits = internal_model([inputs, targets], training=is_train)
+    internal_model = TransformerLayer(params, name='transformerv2')
+    logits = internal_model([inputs, targets], training=True)
     vocab_size = params["vocab_size"]
     label_smoothing = params["label_smoothing"]
     if params["enable_metrics_in_training"]:
-      logits = Metrics(vocab_size)(internal_model, logits, targets)
-    logits = tf.keras.layers.Lambda(lambda x: x, name="logits",
-                                    dtype=tf.float32)(logits)
+      logits = Metrics(vocab_size)(logits, targets)
+    logits = tf.keras.layers.Lambda(lambda x: x, name="logits", dtype=tf.float32)(logits)
     model = Model([inputs, targets], logits)
     # TODO(reedwm): Can we do this loss in float16 instead of float32?
     loss = transformer_loss(logits, targets, label_smoothing, vocab_size)
     model.add_loss(loss)
     return model
+
+def create_eval_model(params:dict)->Model:
+  with tf.name_scope("model"):
+    inputs = tf.keras.layers.Input((None,), dtype="int64", name="inputs")
+    internal_model = TransformerLayer(params, name="transformer_v2")
+    ret = internal_model([inputs], training=False)
+    outputs, scores = ret["outputs"], ret["scores"]
+    return tf.keras.Model(inputs, [outputs, scores])
+
 
 def create_optimizer(params:dict)->Adam:
   """Creates optimizer."""
@@ -51,27 +58,17 @@ def create_optimizer(params:dict)->Adam:
   assert not (params["dtype"] == tf.float16)
   return opt
 
-def train_ds(params:dict):
-  train_ds = train_input_fn(params)
-  train_ds = \
-      train_ds.map(
-          map_data_for_transformer_fn,
-          num_parallel_calls=params["num_parallel_calls"])
-  return train_ds
+class TransformerLayer(tf.keras.layers.Layer):
 
-
-
-class Transformer:
-
-  def __init__(self, params, name=None)->None:
-    self.name = name
+  def __init__(self, params, **kwargs)->None:
+    super(TransformerLayer, self).__init__(**kwargs)
     self.params = params
     self.embedding_softmax_layer = EmbeddingSharedWeights(
         params["vocab_size"], params["hidden_size"])
-    self.encoder_stack = EncoderStack(name+"/EncoderStack", params)
-    self.decoder_stack = DecoderStack(name+"/DecoderStack", params)
+    self.encoder_stack = EncoderStack(params)
+    self.decoder_stack = DecoderStack(params)
 
-  def __call__(self, inputs:Tensor, training)->Tensor:
+  def call(self, inputs:Tensor, training)->Tensor:
     if len(inputs) == 2:
       inputs, targets = inputs[0], inputs[1]
     else:
@@ -309,27 +306,29 @@ class Transformer:
     top_decoded_ids = decoded_ids[:, 0, 1:]
     top_scores = scores[:, 0]
 
-    return {"outputs": top_decoded_ids, "scores": top_scores}
+    top_decoded_ids_padded = tf.pad(top_decoded_ids,
+        [[0,0],[0,self.params['max_length']-tf.shape(top_decoded_ids)[1]]])
+
+    return {"outputs": top_decoded_ids_padded, "scores": top_scores}
 
 
 
 
-class EncoderStack:
+class EncoderStack(Layer):
 
-  def __init__(self, path, params:dict)->None:
+  def __init__(self, params:dict)->None:
+    super().__init__()
     self.params = params
     self.layers = []
     params = self.params
     for i in range(params["num_hidden_layers"]):
       # Create sublayers for each layer.
       self_attention_layer = SelfAttention(
-          path=path+f"/self_attention_layer_{i}",
           hidden_size=params["hidden_size"],
           num_heads=params["num_heads"],
           attention_dropout=params["attention_dropout"])
 
       feed_forward_network = FeedForwardNetwork(
-          path=path+f"/feed_forward_network_{i}",
           hidden_size=params["hidden_size"],
           filter_size=params["filter_size"],
           relu_dropout=params["relu_dropout"])
@@ -343,10 +342,10 @@ class EncoderStack:
     self.output_normalization = LayerNormalization(epsilon=1e-6, dtype="float32")
 
 
-  def __call__(self, encoder_inputs:Tensor,
-                     attention_bias,
-                     inputs_padding,
-                     training:bool)->Tensor:
+  def call(self, encoder_inputs:Tensor,
+                 attention_bias,
+                 inputs_padding,
+                 training:bool)->Tensor:
 
     for n, layer in enumerate(self.layers):
       # Run inputs through the sublayers.
@@ -366,9 +365,10 @@ class EncoderStack:
 
 
 
-class DecoderStack:
+class DecoderStack(Layer):
 
-  def __init__(self, path, params:dict)->None:
+  def __init__(self, params:dict)->None:
+    super().__init__()
     self.params = params
     self.layers = []
 
@@ -376,16 +376,13 @@ class DecoderStack:
     params = self.params
     for i in range(params["num_hidden_layers"]):
       self_attention_layer = SelfAttention(
-          path=path+f"/self_attention_layer_{i}",
           hidden_size=params["hidden_size"],
           num_heads=params["num_heads"],
           attention_dropout=params["attention_dropout"])
       enc_dec_attention_layer = Attention(
-          path+f"/enc_dec_attention_layer_{i}",
           params["hidden_size"], params["num_heads"],
           params["attention_dropout"])
       feed_forward_network = FeedForwardNetwork(
-          path+f"/feed_forward_network_{i}",
           params["hidden_size"], params["filter_size"], params["relu_dropout"])
 
       self.layers.append([
@@ -396,7 +393,7 @@ class DecoderStack:
     self.output_normalization = tf.keras.layers.LayerNormalization(
         epsilon=1e-6, dtype="float32")
 
-  def __call__(self,
+  def call(self,
       decoder_inputs:Tensor,
       encoder_outputs:Tensor,
       decoder_self_attention_bias,
@@ -434,18 +431,18 @@ class DecoderStack:
     return self.output_normalization(decoder_inputs)
 
 
-class PrePostProcessingWrapper:
+class PrePostProcessingWrapper(Layer):
   """Wrapper class that applies layer pre-processing and post-processing."""
 
   def __init__(self, layer, params)->None:
-    # super(PrePostProcessingWrapper, self).__init__()
+    super().__init__()
     self.layer = layer
     self.params = params
     self.postprocess_dropout = params["layer_postprocess_dropout"]
     # Create normalization layer
     self.layer_norm = LayerNormalization(epsilon=1e-6, dtype="float32")
 
-  def __call__(self, x:Tensor, *args, **kwargs)->Tensor:
+  def call(self, x:Tensor, *args, **kwargs)->Tensor:
     """Calls wrapped layer with same parameters."""
     # Preprocessing: apply layer normalization
     training = kwargs["training"]
