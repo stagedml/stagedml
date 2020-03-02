@@ -42,14 +42,6 @@ def create_eval_model(params:dict)->Model:
     return tf.keras.Model(inputs, [outputs, scores])
 
 
-def bleu(ref_lines, hyp_lines, case_sensitive:bool):
-  if not case_sensitive:
-    ref_lines = [x.lower() for x in ref_lines]
-    hyp_lines = [x.lower() for x in hyp_lines]
-  ref_tokens = [bleu_tokenize(x) for x in ref_lines]
-  hyp_tokens = [bleu_tokenize(x) for x in hyp_lines]
-  return compute_bleu(ref_tokens, hyp_tokens) * 100
-
 def create_optimizer(params:dict)->Adam:
   """Creates optimizer."""
   # TODO(b/139414679): Explore the difference between using
