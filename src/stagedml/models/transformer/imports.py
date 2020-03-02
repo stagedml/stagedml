@@ -13,9 +13,11 @@ from official.nlp.transformer.metrics import ( padded_accuracy,
     padded_sequence_accuracy, transformer_loss )
 from official.nlp.transformer.beam_search import sequence_beam_search
 from official.nlp.transformer.utils.tokenizer import ( EOS_ID, Subtokenizer )
+from official.nlp.transformer.utils.metrics import compute_bleu
 from official.nlp.transformer.optimizer import ( LearningRateSchedule,
     LearningRateScheduler, LearningRateFn )
 from official.nlp.transformer.data_pipeline import ( train_input_fn,
     map_data_for_transformer_fn )
 from official.nlp.transformer.data_download import ( encode_and_save_files )
 from official.nlp.transformer.model_params import BASE_PARAMS
+from official.nlp.transformer.compute_bleu import ( bleu_wrapper, bleu_tokenize )

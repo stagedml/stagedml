@@ -144,7 +144,7 @@ def wmttfrecs_(m:Manager, trainfiles:DRef, evalfiles:DRef)->WmtTfrecs:
     # Minimum length of subtoken to pass the subtoken filter
     train_data_min_count:Optional[int] = 6
     # Vocabulry filename
-    vocab_file = "vocab.%d" % target_vocab_size
+    vocab_file = [promise, "vocab.%d" % target_vocab_size]
     return mkconfig({k:v for k,v in locals().items() if k!='m'})
 
   def _realize(b:Build):
@@ -157,7 +157,7 @@ def wmttfrecs_(m:Manager, trainfiles:DRef, evalfiles:DRef)->WmtTfrecs:
     assert flines(eval_combined[0])==flines(eval_combined[1]), \
         "Numbers of lines in eval files don't match. Consider checking line endings."
     subtokenizer = Subtokenizer.init_from_files(
-        vocab_file=join(o,c.vocab_file),
+        vocab_file=mklens(b).vocab_file.syspath,
         files=train_combined,
         target_vocab_size=c.target_vocab_size,
         threshold=c.target_threshold,

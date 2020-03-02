@@ -8,6 +8,7 @@ from tensorflow.keras import ( Model )
 from tensorflow.keras.models import ( Sequential )
 from tensorflow.keras.layers import ( Conv2D, MaxPool2D, Dropout, Flatten, Dense )
 from tensorflow.keras.utils import ( to_categorical )
+from tensorflow.summary import ( SummaryWriter, create_file_writer )
 
 def get_single_element(x):
   import tensorflow as tf

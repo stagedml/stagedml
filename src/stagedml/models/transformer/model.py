@@ -5,7 +5,7 @@ from stagedml.models.transformer.imports import ( Model, Layer, Tensor,
     transformer_loss, LayerNormalization, get_padding_bias, get_padding,
     get_position_encoding, get_decoder_self_attention_bias,
     sequence_beam_search, EOS_ID, LearningRateSchedule, Adam, train_input_fn,
-    map_data_for_transformer_fn )
+    map_data_for_transformer_fn, compute_bleu, bleu_tokenize )
 
 from stagedml.models.transformer.metrics import Metrics
 from stagedml.models.transformer.attention import Attention, SelfAttention
@@ -41,6 +41,14 @@ def create_eval_model(params:dict)->Model:
     outputs, scores = ret["outputs"], ret["scores"]
     return tf.keras.Model(inputs, [outputs, scores])
 
+
+def bleu(ref_lines, hyp_lines, case_sensitive:bool):
+  if not case_sensitive:
+    ref_lines = [x.lower() for x in ref_lines]
+    hyp_lines = [x.lower() for x in hyp_lines]
+  ref_tokens = [bleu_tokenize(x) for x in ref_lines]
+  hyp_tokens = [bleu_tokenize(x) for x in hyp_lines]
+  return compute_bleu(ref_tokens, hyp_tokens) * 100
 
 def create_optimizer(params:dict)->Adam:
   """Creates optimizer."""

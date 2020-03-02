@@ -36,7 +36,6 @@ def eval_ds(subtokenizer:Subtokenizer, eval_file:str, batch_size:int, params:dic
   #   return tf.size(example['inputs']) <= params['max_length']
   # ds=ds.filter(_filter_max_length)
 
-  print('Even newer ds')
   ds=ds.padded_batch(batch_size=batch_size,
                      padded_shapes=_repeat([None]),
                      drop_remainder=False)
