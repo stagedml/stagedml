@@ -3,7 +3,7 @@ This file contains a collection of aliases for Derivation references. They help
 Mypy the static typechecker to catch errors early.
 """
 
-from typing import ( Optional, Dict, Any, List, Tuple, Union, Callable )
+from typing import ( Optional, Dict, Any, List, Tuple, Union, Callable, Set )
 
 from pylightnix import DRef
 

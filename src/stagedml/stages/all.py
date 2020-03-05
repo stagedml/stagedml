@@ -10,9 +10,10 @@ rref2path(rref)
 ```
 """
 
-from pylightnix import ( Manager, mknode, fetchurl, instantiate, realize,
+from pylightnix import ( RRef, Manager, mknode, fetchurl, instantiate, realize,
     rref2path, store_initialize, shell, lsref, catref, repl_realize,
-    repl_continueBuild, repl_build, repl_rref, repl_cancelBuild )
+    repl_continueBuild, repl_build, repl_rref, repl_cancelBuild, store_gc, rmref
+    )
 
 from stagedml.stages.fetchglue import fetchglue
 from stagedml.stages.glue_tfrecords import glue_tfrecords
@@ -26,9 +27,10 @@ from stagedml.stages.fetchwmt import wmtsubtok
 from stagedml.stages.transformer_wmt import transformer_wmt
 from stagedml.stages.convnn_mnist import fetchmnist, convnn_mnist
 
-from stagedml.types import ( DRef, Glue, Squad11, GlueTFR, Squad11TFR, BertCP,
-    BertGlue, BertSquad, NL2Bash, TransWmt, WmtSubtok, ConvnnMnist )
-from stagedml.core import ( lrealize, tbrealize )
+from stagedml.types import ( Set, Tuple, List, DRef, Glue, Squad11, GlueTFR,
+    Squad11TFR, BertCP, BertGlue, BertSquad, NL2Bash, TransWmt, WmtSubtok,
+    ConvnnMnist )
+from stagedml.core import ( lrealize, tbrealize, tryrealize )
 
 all_fetchglue = fetchglue
 all_fetchsquad11 = fetchsquad11
@@ -79,3 +81,24 @@ all_fetchmnist = fetchmnist
 def all_convnn_mnist(m:Manager)->ConvnnMnist:
   return convnn_mnist(m, fetchmnist(m))
 
+
+def gc(force:bool=False)->None:
+  drefs,rrefs=store_gc(keep_drefs=[], keep_rrefs=\
+    filter(lambda x: x is not None, [tryrealize(clo) for clo in [
+      instantiate(all_convnn_mnist),
+      instantiate(all_transformer_nl2bash),
+      instantiate(all_transformer_wmtenru),
+      instantiate(all_bert_finetune_glue,'MRPC'),
+      instantiate(all_bert_finetune_squad11)
+      ]])
+  )
+  if not force:
+    print('The following refs will be deleted:')
+    print('\n'.join([str(r) for r in drefs]+[str(r) for r in rrefs]))
+    print('Re-run `gc` with `force=True` to actually remove them')
+    return
+
+  for rref in rrefs:
+    rmref(rref)
+  for dref in drefs:
+    rmref(dref)

@@ -3,7 +3,7 @@ from pylightnix import ( Context, Hash, Path, DRef, RRef, Closure, Build,
     BuildArgs, repl_realize, repl_continue, repl_build, build_outpath, realize,
     rref2path, store_config, config_name, mksymlink, isdir, dirhash, json_dumps,
     assert_serializable, assert_valid_rref, build_wrapper_, readjson,
-    store_rrefs )
+    store_rrefs, repl_rref, repl_cancel )
 
 from stagedml.imports import ( join, environ, remove, copytree, copy_tree )
 from stagedml.utils import ( runtensorboard, ndhashl )
@@ -66,6 +66,11 @@ def borrow(rref:RRef, clo:Closure)->RRef:
   return orref
 
 
+def tryrealize(clo:Closure)->Optional[RRef]:
+  try:
+    return realize(clo, assert_realized=[d.dref for d in clo.derivations])
+  except Exception:
+    return None
 
 #  ____        _ _     _
 # | __ ) _   _(_) | __| | ___ _ __ ___
