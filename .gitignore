@@ -8,3 +8,5 @@ _*egg-info
 *\.pyc
 tags
 result
+*png
+result-*

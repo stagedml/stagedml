@@ -21,14 +21,14 @@ from stagedml.stages.fetchsquad import fetchsquad11
 from stagedml.stages.squad_tfrecords import squad11_tfrecords
 from stagedml.stages.bert_finetune_squad import bert_finetune_squad11
 # from stagedml.stages.nl2bash.all import nl2bash
-from stagedml.stages.fetchnl2bash import fetchnl2bash
-from stagedml.stages.fetchwmt import wmttfrecs
+from stagedml.stages.fetchnl2bash import fetchnl2bash, nl2bashSubtok
+from stagedml.stages.fetchwmt import wmtsubtok
 from stagedml.stages.transformer_wmt import transformer_wmt
 from stagedml.stages.convnn_mnist import fetchmnist, convnn_mnist
 
 from stagedml.types import ( DRef, Glue, Squad11, GlueTFR, Squad11TFR, BertCP,
-    BertGlue, BertSquad, NL2Bash, TransWmt, WmtTfrecs, ConvnnMnist )
-from stagedml.utils import ( tbrealize )
+    BertGlue, BertSquad, NL2Bash, TransWmt, WmtSubtok, ConvnnMnist )
+from stagedml.core import ( lrealize, tbrealize )
 
 all_fetchglue = fetchglue
 all_fetchsquad11 = fetchsquad11
@@ -62,14 +62,17 @@ def all_bert_finetune_squad11(m:Manager)->BertSquad:
 def all_fetchnl2bash(m:Manager)->DRef:
   return fetchnl2bash(m)
 
-def all_wmttfrecs_enru(m:Manager)->WmtTfrecs:
-  return wmttfrecs(m, 'en', 'ru')
+def all_wmtsubtok_enru(m:Manager)->WmtSubtok:
+  return wmtsubtok(m, 'en', 'ru')
 
-def all_wmttfrecs_ende(m:Manager)->WmtTfrecs:
-  return wmttfrecs(m, 'en', 'de')
+def all_wmtsubtok_ende(m:Manager)->WmtSubtok:
+  return wmtsubtok(m, 'en', 'de')
 
 def all_transformer_wmtenru(m:Manager)->TransWmt:
-  return transformer_wmt(m, all_wmttfrecs_enru(m))
+  return transformer_wmt(m, all_wmtsubtok_enru(m))
+
+def all_transformer_nl2bash(m:Manager)->TransWmt:
+  return transformer_wmt(m, nl2bashSubtok(m))
 
 all_fetchmnist = fetchmnist
 

@@ -11,9 +11,10 @@ from stagedml.imports import ( join, clear_session, set_session_config,
     TensorBoard, ModelCheckpoint, to_categorical, np_load, Conv2D, MaxPool2D,
     Dropout, Sequential, Flatten, Dense )
 
-from stagedml.utils.tf import ( runtb, runtensorboard, thash, KerasBuild,
-    protocol_add, protocol_add_hist, protocol_add_eval, match_metric, dpurge,
-    keras_save, keras_wrapper )
+from stagedml.utils.tf import ( runtb, runtensorboard, thash, dpurge )
+
+from stagedml.core import ( KerasBuild, protocol_add, protocol_add_hist,
+    protocol_add_eval, match_metric, keras_save, keras_wrapper )
 
 from stagedml.types import ( ConvnnMnist, Mnist, Optional, Any, List, Tuple,
     Union )

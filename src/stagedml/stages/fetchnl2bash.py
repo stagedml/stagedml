@@ -1,59 +1,43 @@
 from pylightnix import ( Hash, RefPath, Build, Path, Config, Manager, RRef,
     DRef, Context, build_wrapper, build_path, build_outpath, build_cattrs,
     mkdrv, rref2path, mkbuild, mkconfig, match_only, instantiate, realize,
-    lsref, catref, store_cattrs, get_executable, dirhash )
+    lsref, catref, store_cattrs, get_executable, dirhash, fetchlocal, mknode,
+    mklens, instantiate, realize, repl_realize, repl_build, promise )
 
 from stagedml.utils.files import ( system, flines )
 
 from stagedml.imports import ( environ, join, basename, dedent, contextmanager,
     isfile )
 
-from stagedml.types import ( Optional,Any,List,Tuple,Union, NL2Bash )
-
+from stagedml.types import ( Optional,Any,List,Tuple,Union, WmtSubtok )
+from stagedml.stages.files import ( splitfile )
+from stagedml.stages.fetchwmt import ( wmtsubtok_ )
 
 
 NL2BASH_ROOT=environ.get('NL2BASH_ROOT', join('/','workspace','3rdparty','nl2bash_essence', 'src'))
 
 def fetchnl2bash(m:Manager)->DRef:
-  def _config()->Config:
-    sha256='a1bfa30d4b979cabf507df4a139a20e20634f6978669186aac57b3378263fa73'
-    train_fraction=0.8
-    dev_fraction=0.1
-    test_fraction=0.1
-    version=2
-    return mkconfig(locals())
-  def _realize(b:Build)->None:
-    o=build_outpath(b)
-    c=build_cattrs(b)
-    nl_path=join(o,'all.nl')
-    cm_path=join(o,'all.cm')
-    system(['cp', f'{NL2BASH_ROOT}/data/bash/all.nl', nl_path])
-    system(['cp', f'{NL2BASH_ROOT}/data/bash/all.cm', cm_path])
-    h=dirhash(o)
-    assert h==Hash(c.sha256), f"Sha256 mismatch. Expected '{c.sha256}', got '{h}'"
-    nlines=flines(nl_path)
-    assert nlines==flines(cm_path)
+  def _split(m, fn_suffix:str, sha256:str ):
+    raw=fetchlocal(m, filename=join('3rdparty','nl2bash_essence','src','data','bash',f'all.{fn_suffix}'),
+                      sha256=sha256, mode='asis',
+                      output=[promise, f'all.{fn_suffix}'] )
+    split=splitfile(m, src=mklens(raw).output.refpath,
+                       fractions=[('train',f'train_{fn_suffix}.txt', 0.9),
+                                  ('eval', f'eval_{fn_suffix}.txt',0.1)])
+    return split
 
-    def _iter():
-      with open(nl_path,'r',newline='\n') as f1, \
-           open(cm_path,'r',newline='\n') as f2:
-        for _,(nl,cm) in enumerate(zip(f1,f2)):
-          yield (nl.strip(),cm.strip())
+  nlfiles=_split(m, 'nl', sha256='1db0c529c350b463919624550b8f5882a97c42ad5051c7d49fbc496bc4e8b770')
+  cmfiles=_split(m, 'cm', sha256='3a72eaced7fa14a0938354cefc42b2dcafb2d47297102f1279086e18c3abe57e')
 
-    def _write(i, inputs, targets, n:int):
-      with open(join(o,inputs),'w') as f1, \
-           open(join(o,targets),'w') as f2:
-        for _ in range(n):
-          (nl,cm)=next(i)
-          f1.write(nl); f1.write('\n')
-          f2.write(cm); f2.write('\n')
+  return mknode(m, {
+    'name':'fetchnl2bash',
+    'train_input_combined':mklens(nlfiles).train.refpath,
+    'train_target_combined':mklens(cmfiles).train.refpath,
+    'eval_input_combined':mklens(nlfiles).eval.refpath,
+    'eval_target_combined':mklens(cmfiles).eval.refpath
+    })
 
-    try:
-      g=_iter()
-      _write(g, join(o,'train.nl'),join(o,'train.cm'), int(c.train_fraction*nlines))
-      _write(g, join(o,'dev.nl'),join(o,'dev.cm'), int(c.dev_fraction*nlines))
-      _write(g, join(o,'test.nl'),join(o,'test.cm'), int(c.test_fraction*nlines))
-    except StopIteration:
-      pass
 
-  return mkdrv(m, _config(), match_only(), build_wrapper(_realize))
+def nl2bashSubtok(m:Manager)->WmtSubtok:
+  nl2b=fetchnl2bash(m)
+  return wmtsubtok_(m,nl2b,nl2b,target_vocab_size=8192)

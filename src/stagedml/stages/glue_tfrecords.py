@@ -5,11 +5,11 @@ from typing import Optional,Any,List,Tuple,Union
 from pylightnix import ( Manager, Build, Config, Hash, DRef, build_cattrs,
     build_outpath, build_path, mkdrv, match_only )
 
-from stagedml.utils.files import json_read
-from stagedml.utils.tf import ( ProtocolBuild, protocol_add, memlimit, protocolled )
+from stagedml.utils import ( json_read, memlimit )
 from stagedml.types import Glue,GlueTFR,BertCP
 from stagedml.datasets.glue.create_tfrecord import create_tfrecord_data
 from stagedml.datasets.glue.download_glue_data import TASKS as GLUE_TASKS
+from stagedml.core import ( ProtocolBuild, protocol_add, protocolled )
 
 def glue_tasks():
   return \

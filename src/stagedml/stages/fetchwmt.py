@@ -4,16 +4,12 @@ from pylightnix import ( RefPath, Build, Path, Config, Manager, RRef, DRef,
     catref, store_cattrs, get_executable, fetchurl, mknode, checkpaths, mklens,
     promise )
 
-from stagedml.imports import ( environ, join, basename, dedent, contextmanager,
-    isfile )
-
+from stagedml.imports import ( join )
 from stagedml.models.transformer.imports import ( Subtokenizer,
     encode_and_save_files )
-
-from stagedml.utils.files import ( system, flines )
-
-from stagedml.types import ( WmtTfrecs, Optional, Any, List, Tuple, Union )
-
+from stagedml.utils.files import ( flines )
+from stagedml.stages.files import catfiles
+from stagedml.types import ( WmtSubtok, Optional, Any, List, Tuple, Union )
 
 def fetchwmt17parallel(m:Manager)->DRef:
   langpairs=[['de','en'],['ru','en']]
@@ -74,27 +70,6 @@ def fetchwmtpack(m:Manager)->DRef:
     })
 
 
-def catfiles(m:Manager, files:List[RefPath], outname:Optional[str]=None)->DRef:
-  """ Concatenate `files` into a single file named `outname` (defaults to
-  'result') """
-  outname_='result' if outname is None else outname
-  def _realize(b:Build)->None:
-    o=build_outpath(b)
-    with open(mklens(b).output.syspath,'w') as dst:
-      for rp in files:
-        path=build_path(b,rp)
-        nwritten=0
-        with open(path,'r',newline='\n') as tgt:
-          for line in tgt:
-            dst.write(line.strip())
-            dst.write('\n')
-            nwritten+=1
-        print(f'Written {nwritten} lines from {rp}')
-
-  return mkdrv(m,mkconfig({'version':3, 'files':files, 'output':[promise,outname_]}),
-                 match_only(),
-                 build_wrapper(_realize))
-
 def trainfiles(m:Manager, lang1:str, lang2:str, europarl:Optional[bool]=None)->DRef:
   suffix=f"{lang2}_{lang1}"
   europarl_= europarl if europarl is not None else ('ru' not in [lang1,lang2])
@@ -109,22 +84,23 @@ def trainfiles(m:Manager, lang1:str, lang2:str, europarl:Optional[bool]=None)->D
        mklens(fetchwmt13commoncrawl(m)).get(suffix).get(lang2).refpath] + \
       ([mklens(fetchwmt13europarl(m)).get(suffix).get(lang2).refpath] if europarl_ else []))
 
-  return checkpaths(m,{'name':'trainfiles',
+  return checkpaths(m,{'name':f'wmt-{suffix}',
                        'train_input_combined':mklens(inputs).output.refpath,
                        'train_target_combined':mklens(targets).output.refpath})
 
 def evalfiles(m:Manager, lang1:str, lang2:str)->DRef:
+  suffix=f"{lang2}_{lang1}"
   inputs=catfiles(m, files=[mklens(fetchwmt17dev(m)).get(lang1).val], outname='inputs')
   targets=catfiles(m, files=[mklens(fetchwmt17dev(m)).get(lang2).val], outname='outputs')
-  return mknode(m,{'name':'evalfiles',
+  return mknode(m,{'name':f'wmt-{suffix}-eval',
                    'eval_input_combined':mklens(inputs).output.refpath,
                    'eval_target_combined':mklens(targets).output.refpath})
 
 
-def wmttfrecs_(m:Manager, trainfiles:DRef, evalfiles:DRef)->WmtTfrecs:
+def wmtsubtok_(m:Manager, trainfiles:DRef, evalfiles:DRef, target_vocab_size:int=32768)->WmtSubtok:
 
   def _config():
-    name = "wmttfrecs"
+    name = "subtok-"+mklens(trainfiles).name.val
     train_tag = "train"
     train_shards = 100
     eval_tag = "eval"
@@ -138,7 +114,7 @@ def wmttfrecs_(m:Manager, trainfiles:DRef, evalfiles:DRef)->WmtTfrecs:
     eval_target_combined = mklens(evalfiles).eval_target_combined.refpath
 
     # Desired number of subtokens in the vocabulary list.
-    target_vocab_size = 32768
+    nonlocal target_vocab_size
     # Accept vocabulary if size is within this threshold.
     target_threshold = 327
     # Minimum length of subtoken to pass the subtoken filter
@@ -167,9 +143,9 @@ def wmttfrecs_(m:Manager, trainfiles:DRef, evalfiles:DRef)->WmtTfrecs:
     print('Encoding eval files')
     encode_and_save_files(subtokenizer, o, eval_combined, c.eval_tag, 1)
 
-  return WmtTfrecs(mkdrv(m, _config(), match_only(), build_wrapper(_realize)))
+  return WmtSubtok(mkdrv(m, _config(), match_only(), build_wrapper(_realize)))
 
 
-def wmttfrecs(m:Manager, lang1:str, lang2:str)->WmtTfrecs:
-  return wmttfrecs_(m,trainfiles(m,lang1,lang2), evalfiles(m,lang1,lang2))
+def wmtsubtok(m:Manager, lang1:str, lang2:str)->WmtSubtok:
+  return wmtsubtok_(m,trainfiles(m,lang1,lang2), evalfiles(m,lang1,lang2))
 

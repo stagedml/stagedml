@@ -19,9 +19,9 @@ from pylightnix import ( Path, Config, Manager, RRef, DRef, Context,
 
 from stagedml.datasets.glue.tfdataset import ( dataset, dataset_eval, dataset_train )
 from stagedml.models.bert import ( BertLayer, classification_logits )
-from stagedml.utils.tf import ( runtb, runtensorboard, thash, KerasBuild,
-    protocol_add, protocol_add_hist, protocol_add_eval, match_metric, dpurge,
-    keras_save )
+from stagedml.utils.tf import ( runtb, runtensorboard, thash, dpurge )
+from stagedml.core import ( KerasBuild, protocol_add, protocol_add_hist,
+    protocol_add_eval, match_metric, keras_save )
 from stagedml.types import ( GlueTFR, BertGlue )
 
 

@@ -7,7 +7,7 @@ from pylightnix import ( Manager, Config, build_cattrs, build_outpath,
     build_path, mkdrv, match_only, store_cattrs )
 
 from stagedml.utils.files import json_read
-from stagedml.utils.tf import ( ProtocolBuild, protocol_add, protocolled )
+from stagedml.core import ( ProtocolBuild, protocol_add, protocolled )
 from stagedml.types import BertCP, Squad11, Squad11TFR
 
 from stagedml.datasets.squad.tfrecord import ( predict_squad,

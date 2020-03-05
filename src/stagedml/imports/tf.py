@@ -2,7 +2,7 @@
 from tensorflow.keras.backend import ( clear_session, image_data_format )
 from official.utils.misc.keras_utils import set_session_config
 
-from tensorflow.keras.callbacks import TensorBoard, ModelCheckpoint
+from tensorflow.keras.callbacks import TensorBoard, ModelCheckpoint, History
 
 from tensorflow.keras import ( Model )
 from tensorflow.keras.models import ( Sequential )

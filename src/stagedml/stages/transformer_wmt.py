@@ -11,21 +11,22 @@ from stagedml.imports import ( join, clear_session, set_session_config,
     TensorBoard, ModelCheckpoint, copy_tree, Model, isfile, get_single_element,
     deepcopy, copyfile, SummaryWriter, create_file_writer )
 
-from stagedml.utils import ( runtb, thash, KerasBuild,
-    protocol_add, protocol_add_hist, protocol_add_eval, match_metric, dpurge,
-    keras_save, keras_wrapper, tryindex )
+from stagedml.utils import ( runtb, thash, dpurge, tryindex )
+
+from stagedml.core import ( KerasBuild, protocol_add, protocol_add_hist,
+    protocol_add_eval, match_metric, keras_save, keras_wrapper )
 
 from stagedml.models.transformer import ( create_train_model, create_eval_model,
     create_optimizer, train_ds, eval_ds, LearningRateScheduler, LearningRateFn,
     BASE_PARAMS, Subtokenizer, EOS_ID, bleu_wrapper)
 
-from stagedml.types import ( WmtTfrecs, TransWmt, Dict, Optional,Any,List,Tuple,Union )
+from stagedml.types import ( WmtSubtok, TransWmt, Dict, Optional,Any,List,Tuple,Union )
 
 
 from official.utils.flags._performance import DTYPE_MAP
 
-def config(wmt:WmtTfrecs):
-  name = 'transformer_wmt'
+def config(wmt:WmtSubtok):
+  name = 'transformer-nmt-'+mklens(wmt).name.val
   version = 1
   enable_xla = False
   num_gpus = 1
@@ -52,6 +53,7 @@ def config(wmt:WmtTfrecs):
   params["repeat_dataset"] = None
   params["enable_metrics_in_training"] = True
 
+  bleu_refpath = [promise,'bleu.txt']
   checkpoint_refpath = [promise,'checkpoint.ckpt']
   eval_input_refpath=mklens(wmt).eval_input_combined.refpath
   eval_target_refpath=mklens(wmt).eval_target_combined.refpath
@@ -105,7 +107,7 @@ def evaluate(b:TransformerBuild)->None:
   input_txt:Path=mklens(b).eval_input_refpath.syspath
   target_src_txt:Path=mklens(b).eval_target_refpath.syspath
   target_txt=join(o,'targets.txt')
-  output_txt:Path=Path(join(o,f"output-{str(b.epoch) if b.epoch else '?'}.txt"))
+  output_txt:Path=Path(join(o,f"output-{str(b.epoch) if b.epoch is not None else '?'}.txt"))
   b.eval_model.load_weights(mklens(b).checkpoint_refpath.syspath)
   ds = eval_ds(subtokenizer,
                input_txt,
@@ -135,6 +137,8 @@ def evaluate(b:TransformerBuild)->None:
   with b.filewriter.as_default():
     tf.summary.scalar('bleu_cased',bleu_cased,step=b.epoch*c.steps_between_evals)
     tf.summary.scalar('bleu_uncased',bleu_uncased,step=b.epoch*c.steps_between_evals)
+  with open(mklens(b).bleu_refpath.syspath,'w') as f:
+    f.write(f"{(bleu_cased + bleu_uncased)/2.0}\n")
 
 
 def loadcp(b:TransformerBuild):
@@ -149,7 +153,7 @@ def train(b:TransformerBuild):
   o = build_outpath(b)
   ckpt = mklens(b).checkpoint_refpath.syspath
   callbacks = [
-    TensorBoard(log_dir=o, profile_batch=0, write_graph=False, update_freq='batch'),
+    TensorBoard(log_dir=o, profile_batch=0, write_graph=False),
     LearningRateScheduler(
         LearningRateFn(c.params["learning_rate"],
                        c.params["hidden_size"],
@@ -174,10 +178,9 @@ def train(b:TransformerBuild):
 
 def _realize(b:TransformerBuild)->None:
   build(b)
-  loadcp(b)
   train(b)
 
-def transformer_wmt(m:Manager, wmt:WmtTfrecs)->TransWmt:
+def transformer_wmt(m:Manager, wmt:WmtSubtok)->TransWmt:
   return TransWmt(mkdrv(m, config=config(wmt),
                            matcher=match_only(),
                            realizer=build_wrapper_(_realize, TransformerBuild),

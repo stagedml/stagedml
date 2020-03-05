@@ -17,11 +17,9 @@ from pylightnix import ( Path, Manager, Config, DRef, RRef, Context, match_only,
 from stagedml.datasets.squad.tfrecord import tf_record_dataset
 from stagedml.models.bert import ( BertLayer )
 from stagedml.models.bert_squad import BertSquadLogitsLayer
-from stagedml.types import ( Squad11TFR, BertSquad )
-from stagedml.utils.tf import ( KerasBuild, protocol_add, dpurge, keras_save,
-    match_metric )
-
-from typing import ( Optional, Any, List, Tuple, Union )
+from stagedml.types import ( Squad11TFR, BertSquad, Optional, Any, List, Tuple, Union )
+from stagedml.utils import ( dpurge )
+from stagedml.core import ( KerasBuild, protocol_add, keras_save, match_metric )
 
 
 def config(tfrecs:Squad11TFR)->Config:
