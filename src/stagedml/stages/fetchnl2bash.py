@@ -18,7 +18,7 @@ NL2BASH_ROOT=environ.get('NL2BASH_ROOT', join('/','workspace','3rdparty','nl2bas
 
 def fetchnl2bash(m:Manager)->DRef:
   def _split(m, fn_suffix:str, sha256:str ):
-    raw=fetchlocal(m, filename=join('3rdparty','nl2bash_essence','src','data','bash',f'all.{fn_suffix}'),
+    raw=fetchlocal(m, path=join('3rdparty','nl2bash_essence','src','data','bash',f'all.{fn_suffix}'),
                       sha256=sha256, mode='asis',
                       output=[promise, f'all.{fn_suffix}'] )
     split=splitfile(m, src=mklens(raw).output.refpath,

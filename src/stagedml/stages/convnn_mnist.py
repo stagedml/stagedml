@@ -108,10 +108,6 @@ def mnist_realize(b:Model):
   mnist_eval(b)
 
 def convnn_mnist(m:Manager, mnist:Mnist)->ConvnnMnist:
-  def _ctr(dref, ctx, bt):
-    return Model(mkbuild(dref,ctx,bt))
-  def _outpaths(b:Model):
-    return b.outpaths
   return ConvnnMnist(mkdrv(m, mnist_config(mnist), mnist_match(),
-    build_wrapper_(mnist_realize, True, _ctr, _outpaths)))
+    build_wrapper_(Model, mnist_realize)))
 
