@@ -80,7 +80,8 @@ Features
      '/tmp/pylightnix/store-v0/3b9f88037f737f06af0fe82b6f6ac3c8-convnn-mnist/2bf51e3ce37061ccff6168ccefac7221'
      # ^^^ Storage             ^^^ Stage configuration                       ^^^ Stage realization
      ```
-     Selection criteria are up to the user. See `Matcher` topic.
+     Selection criteria are up to the user. See `Matcher` topic of the
+     Pylightnix documentation.
   9. Finally, StagedML offers basic garbage collector `stagedml.stages.all.gc`
      allowing users to keep the chosen set of stages (and thus all their
      dependencies) and remove the rest.
@@ -89,7 +90,12 @@ Features
   [tensorflow-models](https://github.com/tensorflow/models), other libraries may
   be supported in future. Check the [full collection of adopted
   models and datasets](./src/stagedml/stages/all.py)
+* We do not support the deployment of trained models mainly due to the lack of
+  author's time. Thanks to the atomicity of Pylightnix, the deployment could
+  probably be done just by running `rsync` on the Pylightnix storages of the
+  source and target machines.
 * We extensively use [Mypy](http://mypy-lang.org/)-compatible type annotations.
+* Unfortunately, StagedML is not tested as thoroughly as we wish it should.
 
 Install
 -------
