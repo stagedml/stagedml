@@ -201,7 +201,7 @@ Most of the stages are defined in [stagedml.stages](./src/stagedml/stages)
 packages. The [stagedml.stages.all](./src/stagedml/stages/all.py) module contains
 top-level definitions. Machine learning models are mostly borrowed from the
 [TensorFlow Official Models](https://github.com/tensorflow/models), we keep
-their main parts under the [stagedml.models](./src/stagedml/stages/models)
+their main parts under the [stagedml.models](./src/stagedml/models)
 module.
 
 Below sections describe the typical work scenarios.
