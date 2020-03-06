@@ -184,10 +184,18 @@ Documentation
 
 Not much yet:)
 
-StagedML is designed as a Pylightnix application, so
+StagedML is a Pylightnix application, so
 [Pylightnix documentation and manuals](https://github.com/stagedml/pylightnix/blob/master/README.md#Documentation)
-do apply here.
+do apply here:
 
+* [MNIST demo](https://github.com/stagedml/pylightnix/blob/master/docs/demos/MNIST.md)
+  shows the machine learning specifics of Pylightnix.
+* [REPL demo](https://github.com/stagedml/pylightnix/blob/master/docs/demos/REPL.md)
+  illustrates how to debug stages using Read-Eval-Print-friendly routines
+  [(wiki)](https://en.wikipedia.org/wiki/Read%E2%80%93eval%E2%80%93print_loop).
+* [Ultimatum tutorial](https://github.com/grwlf/ultimatum-game/blob/master/docs/Pylightnix.md)
+  is a note on organizing experiments.
+* [Pylightnix API Reference](https://github.com/stagedml/pylightnix/blob/master/docs/Reference.md)
 
 Quick Start
 -----------
