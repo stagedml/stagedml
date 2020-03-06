@@ -25,10 +25,10 @@ Features
 
 * Stagedml is a library of adopted ML models. We do not claim any
   remarkable accuracy or performance achievements, but we do provide several
-  infrastracture properties which simplify the development process.
+  infrastructure properties which simplify the development process.
   1. StagedML is powered by [Pylightnix](https://github.com/stagedml/pylightnix/)
      immutable data management library.
-  2. All addopted models and datasets are defined as a linked graph of
+  2. All adopted models and datasets are defined as a linked graph of
      [stages](https://github.com/stagedml/pylightnix/blob/master/docs/Reference.md#pylightnix.types.Derivation). Dependency resolution is done automatically.
   3. Any stage could be deployed in one button click (here: by
      one line of Python code, not counting the imports). Example:
@@ -85,15 +85,15 @@ Features
      allowing users to keep the chosen set of stages (and thus all their
      dependencies) and remove the rest.
 
-* Currently, we include TensorFlow NLP models from
+* Currently, we include some NLP models from
   [tensorflow-models](https://github.com/tensorflow/models), other libraries may
-  be supported in future. Check the [full collection of adopted
+  be supported in future. Often we pick only BASE versions which could be
+  trained on GPU. Check the [full collection of adopted
   models and datasets](./src/stagedml/stages/all.py)
-* We do not support the deployment of trained models mainly due to the lack of
-  author's time. Thanks to the atomicity of Pylightnix, the deployment could
-  probably be done just by running `rsync` on the Pylightnix storages of the
-  source and target machines.
-* We extensively use [Mypy](http://mypy-lang.org/)-compatible type annotations.
+* Deployment of trained models is not supported now but may be supported in
+  future. Thanks to the simplicity of Pylightnix storage format, the deployment
+  could probably be done just by running `rsync` on the Pylightnix storage
+  folders of the source and target machines.
 * StagedML is not tested as thoroughly as we wish it should. At
   the same time:
   - To minimize the uncertainty, we specify the exact versions of dependency
@@ -101,6 +101,7 @@ Features
     submodules.
   - The considerable efforts were made to test the underlying Pylightnix
     library.
+  - We extensively use [Mypy](http://mypy-lang.org/)-compatible type annotations.
 
 Install
 -------
