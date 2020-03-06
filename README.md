@@ -1,10 +1,10 @@
-Stagedml
+StagedML
 ========
 
-Stagedml brings manageability into Deep Learning by applying
+StagedML brings manageability into Deep Learning by applying
 [Nix](https://nixos.org/nix) ideas of software deployment to the domain of ML
 model libraries. The project is currenlty focused on NLP models which often
-requre complex pre-processing and long training. StagedML uses minimalistic
+require complex pre-processing and long training. StagedML uses minimalistic
 immutable data engine named
 [Pylightnix](https://github.com/stagedml/pylightnix).
 
@@ -23,7 +23,7 @@ Contents
 Features
 --------
 
-* Stagedml is a library of adopted ML models. We do not claim any
+* StagedML is a library of adopted ML models. We do not claim any
   remarkable accuracy or performance achievements, but we do provide several
   infrastructure properties which simplify the development process.
   1. StagedML is powered by [Pylightnix](https://github.com/stagedml/pylightnix/)
