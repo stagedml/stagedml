@@ -77,11 +77,11 @@ Features
        1e-05
        ```
   8. Thanks to the
-     [REPL-friendly API](https://github.com/stagedml/pylightnix/blob/master/docs/Reference.md#pylightnix.repl),
+     [REPL API](https://github.com/stagedml/pylightnix/blob/master/docs/Reference.md#pylightnix.repl),
      we could debug intermediate stages by instructing Pylightnix to pause before
-     starting certain constructors. The resulting workflow is similar to the one
-     that we see in `git-rebase/git-rebase --continue` setting. See also
-     [REPL-tutorial](https://github.com/stagedml/pylightnix/blob/master/docs/demos/REPL.md).
+     starting certain constructors. The resulting procedure is similar to the one
+     that we see in `git-rebase --continue` workflow. See also
+     [REPL demo of Pylightnix](https://github.com/stagedml/pylightnix/blob/master/docs/demos/REPL.md).
   9. StagedML supports non-determenistic build processes which means that we
      could train several instances of the model and pick up the best one to use
      in subsequent stages. Selection criteria are up to the user. See `Matcher`
