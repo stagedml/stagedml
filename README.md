@@ -28,8 +28,10 @@ Features
   infrastructure properties which simplify the development process.
   1. StagedML is powered by [Pylightnix](https://github.com/stagedml/pylightnix/)
      immutable data management library.
-  2. All adopted models and datasets are defined as a linked graph of
-     [stages](https://github.com/stagedml/pylightnix/blob/master/docs/Reference.md#pylightnix.types.Derivation). Dependency resolution is done automatically.
+  2. All adopted models and datasets are defined as a linked graph of Pylightnix
+     core objects called
+     [stages](https://github.com/stagedml/pylightnix/blob/master/docs/Reference.md#pylightnix.types.Derivation).
+     Dependency resolution is done automatically.
   3. Any stage could be deployed in one button click (here: by
      one line of Python code, not counting the imports). Example:
      ```python
@@ -40,8 +42,8 @@ Features
      'rref:2bf51e3ce37061ccff6168ccefac7221-3b9f88037f737f06af0fe82b6f6ac3c8-convnn-mnist'
      # ^^^ Realization Reference describes a folder containing checkpoints and training logs
      ```
-  4. StagedML attempts to re-use the already trained models whenever possible.
-  5. For every stage, user could access it's full configuration, including the
+  4. StagedML attempts to re-use already trained models whenever possible.
+  5. For every stage, users could access it's full configuration, including the
      configurations of it's dependencies
      ```python
      > from pylightnix import mklens
@@ -51,9 +53,11 @@ Features
      'https://storage.googleapis.com/tensorflow/tf-keras-datasets/mnist.npz'
      ```
   6. StagedML **evaluates all the configurations before executing all the
-     builders**. Thanks to this approach, equipped with `Lenses` and `Promises`,
-     we could catch all the typo errors, all the misspelled parameter names and
-     a large portion of wrong system paths.
+     builders**. Thanks to this feature, equipped with
+     [Lenses](https://github.com/stagedml/pylightnix/blob/master/docs/Reference.md#lens-objects) and
+     [Promises](https://github.com/stagedml/pylightnix/blob/master/docs/Reference.md#pylightnix.types.PromisePath),
+     we could catch configuration-time typos, misspelled parameter names and
+     a large portion of incorrect paths before starting long training.
   7. Users could overwrite stage configurations by editing the source code!
      OK, sometimes we really can't avoid it. StagedML attempts to
      keep this process less painful:
@@ -72,18 +76,24 @@ Features
        > mklens(rref5).learning_rate.val
        1e-05
        ```
-  8. StagedML supports non-determenistic build processes which means that we
+  8. Thanks to the
+     [REPL-friendly API](https://github.com/stagedml/pylightnix/blob/master/docs/Reference.md#pylightnix.repl),
+     we could debug intermediate stages by instructing Pylightnix to pause before
+     starting certain constructors. The resulting workflow is similar to the one
+     that we see in `git-rebase/git-rebase --continue` setting. See also
+     [REPL-tutorial](https://github.com/stagedml/pylightnix/blob/master/docs/demos/REPL.md).
+  9. StagedML supports non-determenistic build processes which means that we
      could train several instances of the model and pick up the best one to use
      in subsequent stages. Selection criteria are up to the user. See `Matcher`
      topic of the Pylightnix documentation.
      ```python
      > rref2path(rref)
      '/tmp/pylightnix/store-v0/3b9f88037f737f06af0fe82b6f6ac3c8-convnn-mnist/2bf51e3ce37061ccff6168ccefac7221'
-     # ^^^ Storage             ^^^ Stage configuration                       ^^^ Stage realization
+     # ^^^ Storage root        ^^^ Stage configuration                       ^^^ Stage realization (one of)
      ```
-  9. Finally, StagedML offers basic garbage collector `stagedml.stages.all.gc`
-     allowing users to keep the chosen set of stages (and thus all their
-     dependencies) and remove the rest.
+  10. Finally, StagedML offers basic garbage collector `stagedml.stages.all.gc`
+      allowing users to keep the chosen set of stages (and thus all their
+      dependencies) and remove the rest.
 
 * Currently, we include some NLP models from
   [tensorflow-models](https://github.com/tensorflow/models), other libraries may
