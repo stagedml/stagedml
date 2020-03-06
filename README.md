@@ -184,10 +184,9 @@ Documentation
 
 Not much yet:)
 
-StagedML is designed as a Pylightnix application, so [Pylightnix
-documentation and
-manuals](https://github.com/stagedml/pylightnix/blob/master/README.md#Documentation)
-apply here as well.
+StagedML is designed as a Pylightnix application, so
+[Pylightnix documentation and manuals](https://github.com/stagedml/pylightnix/blob/master/README.md#Documentation)
+do apply here.
 
 
 Quick Start
@@ -229,10 +228,16 @@ be converted into storage folder with `pylightnix.rref2path` function.
 With the realization reference in hands, we could:
 
 - Examine training logs and figures by accessing training artifacts located in
-  storage folder returned by `rref2path`.
-- Run TensorBoard by passing RRef to `stagedml.utils.tf.runtb`
-- Change model parameters and re-train it without loosing previous results
-- Build new models based on the current model's checkpoints. Stagedml will track
-  stage configurations and prevent you from messing up the data.
-- Run the garbage collector `stagedml.stages.all.gc` to remove unused models.
+  storage folder returned by `pylightnix.rref2path`.
+- Obtain derivation reference with `pylightnix.rref2dref` and define new stages
+  based on existing stages. StagedML tracks configurations and prevent you from
+  messing up the data.
+- Run TensorBoard by passing RRef to `stagedml.utils.tf.runtb`. Also we have
+  `stagedml.core.tbrealize` function to run TensorBoard at the time of stage's
+  realization. Assuming that we run StagedML in Docker as described in the
+  Install section, we could run `./runchrome.sh` script from Host machine to
+  connect a web-client and monitor the training process.
+- Tweak model parameters with `pylightnix.redefine`, re-train the model while
+  keeping results of previous trainings.
+- Run the garbage collector `stagedml.stages.all.gc` to remove outdated data.
 
