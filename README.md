@@ -184,7 +184,7 @@ Documentation
 
 Not much yet:)
 
-StagedML is a Pylightnix application, so
+StagedML is a collection of Pylightnix stages, so
 [Pylightnix documentation and manuals](https://github.com/stagedml/pylightnix/blob/master/README.md#Documentation)
 do apply here:
 
@@ -197,16 +197,25 @@ do apply here:
   is a note on organizing experiments.
 * [Pylightnix API Reference](https://github.com/stagedml/pylightnix/blob/master/docs/Reference.md)
 
+Most of the stages are defined in [stagedml.stages](./src/stagedml/stages)
+packages. The [stagedml.stages.all](./src/stagedml/stages/all.py) module contains
+top-level definitions. Machine learning models are mostly borrowed from the
+[TensorFlow Official Models](https://github.com/tensorflow/models), we keep
+their main parts under the [stagedml.models](./src/stagedml/stages/models)
+module.
+
+Below sections describe the typical work scenarios.
+
 Quick Start
 -----------
 
 Top-level definitions are listed in a single
-[all.py](./src/stagedml/stages/all.py) file.  There, each `all_` function
-defines a *stage*, which is usually a model or a dataset. Any stage could be
+[all.py](./src/stagedml/stages/all.py) file.  There, every `all_` function
+defines a *stage*, which is usually a model or a dataset. Every stage could be
 built (or *realized*) by calling `realize(instantiate(...))` functions. Stages
 may depend on each other and Pylightnix will manage dependencies automatically.
 
-An example IPython session looks like the following:
+An example IPython session may look like the following:
 
 ```python
 > from stagedml.stages.all import *
