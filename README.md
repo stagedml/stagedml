@@ -33,7 +33,7 @@ Features
   3. Any stage could be deployed in one button click (here: by
      one line of Python code, not counting the imports). Example:
      ```python
-     > from stagedml.stages.all import all_convnn_mnist, realize, instantiate, rref2path
+     > from stagedml.stages.all import all_convnn_mnist, realize, instantiate, rref2path, shell
      > rref=realize(instantiate(all_convnn_mnist))
      # ^^^ Train the convolution network on the MNIST dataset
      > rref
@@ -55,18 +55,23 @@ Features
      we could catch all the typo errors, all the misspelled parameter names and
      a large portion of wrong system paths.
   7. Users could overwrite stage configurations by editing the source code!
-     OK, also we could do it by re-defining stages in-place:
-     ```python
-     > from pylightnix import redefine
-     > def _new_config(old_config):
-     >   old_config.learning_rate = 1e-5
-     >   return old_config
-     > rref5=realize(instantiate(redefine(all_convnn_mnist, new_config=_new_config)))
-     > rref5
-     'rref:1ece593a8e761fa28fdc0da0fed00eb8-dd084d4a8b75a787b7c230474549e5db-convnn-mnist'
-     > mklens(rref5).learning_rate.val
-     1e-05
-     ```
+     OK, sometimes we really can't avoid it. StagedML attempts to
+     keep this process less painful:
+     - Changing and running the code wouldn't overwrite any existing data.
+     - Stages may often be re-wired on a higher-level without accessing
+       low-level details.
+     - In many cases we can tweak configurations in-place:
+       ```python
+       > from pylightnix import redefine
+       > def _new_config(old_config):
+       >   old_config.learning_rate = 1e-5
+       >   return old_config
+       > rref5=realize(instantiate(redefine(all_convnn_mnist, new_config=_new_config)))
+       > rref5
+       'rref:1ece593a8e761fa28fdc0da0fed00eb8-dd084d4a8b75a787b7c230474549e5db-convnn-mnist'
+       > mklens(rref5).learning_rate.val
+       1e-05
+       ```
   8. StagedML supports non-determenistic build processes which means that we
      could train several instances of the model and pick up the best one to use
      in subsequent stages.
