@@ -51,9 +51,9 @@ Features
      'https://storage.googleapis.com/tensorflow/tf-keras-datasets/mnist.npz'
      ```
   6. StagedML **evaluates all the configurations before executing all the
-     builders**. Thanks to this approach and equipped with `Lenses` and
-     `Promises`, we could catch all the typo errors and a large portion
-     misspelled parameter names and wrong system paths.
+     builders**. Thanks to this approach, equipped with `Lenses` and `Promises`,
+     we could catch all the typo errors, all the misspelled parameter names and
+     a large portion of wrong system paths.
   7. Users could overwrite stage configurations by editing the source code!
      OK, also we could do it by re-defining stages in-place:
      ```python
