@@ -32,15 +32,15 @@ Features
      core objects called
      [stages](https://github.com/stagedml/pylightnix/blob/master/docs/Reference.md#pylightnix.types.Derivation).
      Dependency resolution is done automatically.
-  3. Any stage could be deployed in one button click (here: by
+  3. Any stage could be created in one button click (here: by
      one line of Python code, not counting the imports). Example:
      ```python
      > from stagedml.stages.all import all_convnn_mnist, realize, instantiate, rref2path, shell
      > rref=realize(instantiate(all_convnn_mnist))
-     # ^^^ Train the convolution network on the MNIST dataset
+     # ^^^ Download the dataset, train the convolution network, etc..
      > rref
      'rref:2bf51e3ce37061ccff6168ccefac7221-3b9f88037f737f06af0fe82b6f6ac3c8-convnn-mnist'
-     # ^^^ Realization Reference describes a folder containing checkpoints and training logs
+     # ^^^ Realization reference describes a folder containing final checkpoints and training logs
      ```
   4. StagedML attempts to re-use already trained models whenever possible.
   5. For every stage, users could access it's full configuration, including the
