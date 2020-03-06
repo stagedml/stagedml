@@ -23,8 +23,9 @@ from stagedml.stages.squad_tfrecords import squad11_tfrecords
 from stagedml.stages.bert_finetune_squad import bert_finetune_squad11
 # from stagedml.stages.nl2bash.all import nl2bash
 from stagedml.stages.fetchnl2bash import fetchnl2bash, nl2bashSubtok
-from stagedml.stages.fetchwmt import wmtsubtok
+from stagedml.stages.fetchwmt import wmtsubtok, wmtsubtokInv
 from stagedml.stages.transformer_wmt import transformer_wmt
+from stagedml.stages.transformer2 import transformer2
 from stagedml.stages.convnn_mnist import fetchmnist, convnn_mnist
 
 from stagedml.types import ( Set, Tuple, List, DRef, Glue, Squad11, GlueTFR,
@@ -67,11 +68,17 @@ def all_fetchnl2bash(m:Manager)->DRef:
 def all_wmtsubtok_enru(m:Manager)->WmtSubtok:
   return wmtsubtok(m, 'en', 'ru')
 
+def all_wmtsubtok_ruen(m:Manager)->WmtSubtok:
+  return wmtsubtokInv(m, 'ru', 'en')
+
 def all_wmtsubtok_ende(m:Manager)->WmtSubtok:
   return wmtsubtok(m, 'en', 'de')
 
 def all_transformer_wmtenru(m:Manager)->TransWmt:
   return transformer_wmt(m, all_wmtsubtok_enru(m))
+
+def all_transformer_wmtruen(m:Manager)->TransWmt:
+  return transformer_wmt(m, all_wmtsubtok_ruen(m))
 
 def all_transformer_nl2bash(m:Manager)->TransWmt:
   return transformer_wmt(m, nl2bashSubtok(m))
@@ -84,7 +91,7 @@ def all_convnn_mnist(m:Manager)->ConvnnMnist:
 
 def gc(force:bool=False)->None:
   drefs,rrefs=store_gc(keep_drefs=[], keep_rrefs=\
-    filter(lambda x: x is not None, [tryrealize(clo) for clo in [
+    filter(lambda x: x is not None, [tryrealize(clo) for clo in [  # type:ignore
       instantiate(all_convnn_mnist),
       instantiate(all_transformer_nl2bash),
       instantiate(all_transformer_wmtenru),

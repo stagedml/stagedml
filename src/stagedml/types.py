@@ -43,3 +43,10 @@ class Mnist(DRef):
 
 class ConvnnMnist(DRef):
   pass
+
+class Tr2Subtok(DRef):
+  pass
+
+class Trans2(DRef):
+  pass
+

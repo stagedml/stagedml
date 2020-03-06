@@ -5,7 +5,7 @@ assert tf.version.VERSION.startswith('2.1')
 from pylightnix import ( Matcher, Build, Path, RefPath, Config, Manager, RRef,
     DRef, Context, store_cattrs, build_path, build_outpath, build_cattrs, mkdrv,
     rref2path, json_load, build_config, mkconfig, mkbuild, match_only,
-    match_best, build_wrapper_, tryread, fetchurl )
+    match_best, build_wrapper_, tryread, fetchurl, mklens )
 
 from stagedml.imports import ( join, clear_session, set_session_config,
     TensorBoard, ModelCheckpoint, to_categorical, np_load, Conv2D, MaxPool2D,
@@ -30,6 +30,7 @@ def fetchmnist(m:Manager)->Mnist:
 
 
 def mnist_config(mnist:Mnist)->Config:
+  name = 'convnn-'+mklens(mnist).name.val
   dataset:RefPath = [mnist, 'mnist.npz']
   learning_rate = 1e-3
   num_epoches = 6
@@ -109,5 +110,5 @@ def mnist_realize(b:Model):
 
 def convnn_mnist(m:Manager, mnist:Mnist)->ConvnnMnist:
   return ConvnnMnist(mkdrv(m, mnist_config(mnist), mnist_match(),
-    build_wrapper_(Model, mnist_realize)))
+    build_wrapper_(mnist_realize,Model)))
 

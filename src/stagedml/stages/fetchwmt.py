@@ -70,29 +70,29 @@ def fetchwmtpack(m:Manager)->DRef:
     })
 
 
-def trainfiles(m:Manager, lang1:str, lang2:str, europarl:Optional[bool]=None)->DRef:
-  suffix=f"{lang2}_{lang1}"
+def trainfiles(m:Manager, lang1:str, lang2:str, suffix:Optional[str]=None, europarl:Optional[bool]=None)->DRef:
+  suffix_=f"{lang2}_{lang1}" if suffix is None else suffix
   europarl_= europarl if europarl is not None else ('ru' not in [lang1,lang2])
 
   inputs=catfiles(m, outname='inputs', files=\
-      [mklens(fetchwmt17parallel(m)).get(suffix).get(lang1).refpath,
-       mklens(fetchwmt13commoncrawl(m)).get(suffix).get(lang1).refpath] + \
-      ([mklens(fetchwmt13europarl(m)).get(suffix).get(lang1).refpath] if europarl_ else []))
+      [mklens(fetchwmt17parallel(m)).get(suffix_).get(lang1).refpath,
+       mklens(fetchwmt13commoncrawl(m)).get(suffix_).get(lang1).refpath] + \
+      ([mklens(fetchwmt13europarl(m)).get(suffix_).get(lang1).refpath] if europarl_ else []))
 
   targets=catfiles(m, outname='targets', files=\
-      [mklens(fetchwmt17parallel(m)).get(suffix).get(lang2).refpath,
-       mklens(fetchwmt13commoncrawl(m)).get(suffix).get(lang2).refpath] + \
-      ([mklens(fetchwmt13europarl(m)).get(suffix).get(lang2).refpath] if europarl_ else []))
+      [mklens(fetchwmt17parallel(m)).get(suffix_).get(lang2).refpath,
+       mklens(fetchwmt13commoncrawl(m)).get(suffix_).get(lang2).refpath] + \
+      ([mklens(fetchwmt13europarl(m)).get(suffix_).get(lang2).refpath] if europarl_ else []))
 
-  return checkpaths(m,{'name':f'wmt-{suffix}',
+  return checkpaths(m,{'name':f'wmt-{suffix_}',
                        'train_input_combined':mklens(inputs).output.refpath,
                        'train_target_combined':mklens(targets).output.refpath})
 
-def evalfiles(m:Manager, lang1:str, lang2:str)->DRef:
-  suffix=f"{lang2}_{lang1}"
+def evalfiles(m:Manager, lang1:str, lang2:str, suffix:Optional[str]=None)->DRef:
+  suffix_=f"{lang2}_{lang1}" if suffix is None else suffix
   inputs=catfiles(m, files=[mklens(fetchwmt17dev(m)).get(lang1).val], outname='inputs')
   targets=catfiles(m, files=[mklens(fetchwmt17dev(m)).get(lang2).val], outname='outputs')
-  return mknode(m,{'name':f'wmt-{suffix}-eval',
+  return mknode(m,{'name':f'wmt-{suffix_}-eval',
                    'eval_input_combined':mklens(inputs).output.refpath,
                    'eval_target_combined':mklens(targets).output.refpath})
 
@@ -148,4 +148,8 @@ def wmtsubtok_(m:Manager, trainfiles:DRef, evalfiles:DRef, target_vocab_size:int
 
 def wmtsubtok(m:Manager, lang1:str, lang2:str)->WmtSubtok:
   return wmtsubtok_(m,trainfiles(m,lang1,lang2), evalfiles(m,lang1,lang2))
+
+def wmtsubtokInv(m:Manager, lang1:str, lang2:str)->WmtSubtok:
+  return wmtsubtok_(m, trainfiles(m,lang1,lang2, suffix=f"{lang1}_{lang2}"),
+                       evalfiles(m,lang1,lang2, suffix=f"{lang1}_{lang2}"))
 
