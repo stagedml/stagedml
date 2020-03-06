@@ -23,17 +23,62 @@ Contents
 Features
 --------
 
-* Stagedml is a library of adopted ML models, focused on the ease of
-  experimenting.
-  - All addopted models and datasets are defined as a linked graph of
-    [Pylightnix stages](https://github.com/stagedml/pylightnix/blob/master/docs/Reference.md#pylightnix.types.Derivation).
-    Dependency resolution is done automatically by Pylightnix.
-  - Check the [collection of adopted entities](./src/stagedml/stages/all.py)
+* Stagedml is a library of adopted ML models in Python. We do not claim any
+  remarkable accuracy or performance achievements, but we do provide several
+  infrastracture properties which simplify the development process.
+  1. StagedML is powered by [Pylighnix](https://github.com/stagedml/pylightnix/)
+     immutable data management library.
+  2. All addopted models and datasets are defined as a linked graph of
+     [Pylightnix stages](https://github.com/stagedml/pylightnix/blob/master/docs/Reference.md#pylightnix.types.Derivation). Dependency resolution is done automatically by Pylightnix.
+  3. Any stage could be deployed in one button click (here: by
+     one line of Python code, not counting the imports). Example:
+     ```python
+     > from stagedml.stages.all import all_convnn_mnist, realize, instantiate
+     > rref=realize(instantiate(all_convnn_mnist))
+     # Train simple convolution network on the MNIST dataset
+     > print(rref)
+     rref:2bf51e3ce37061ccff6168ccefac7221-3b9f88037f737f06af0fe82b6f6ac3c8-convnn-mnist
+     # The above reference describes a folder with model checkpoints and training logs
+     > from pylightnix import rref2path
+     > rref2path(rref)
+     ```
+  4. For every stage, user could access it's full configuration, including the
+     configurations of it's dependencies
+     ```python
+     > from pylightnix import mklens
+     > mklens(rref).learning_rate.val # Learning rate of the model
+     0.001
+     >  mklens(rref).mnist.url.val # URL of the dependency of the model
+     'https://storage.googleapis.com/tensorflow/tf-keras-datasets/mnist.npz'
+     ```
+  5. StagedML evaluates configurations of **all** stages **before** executing
+     all the builders. Thanks to it's `Lenses` and `Promises`, we could catch
+     all the typo errors and a large portion misspelled file names.
+  6. Users could overwrite stage's configurations by editing the source code!
+     OK, also we could do it by re-defining stages in-place:
+     ```python
+     > from pylightnix import redefine
+     > def _new_config(old_config):
+     >   old_config.learning_rate = 1e-5
+     >   return old_config
+     > rref5=realize(instantiate(redefine(all_convnn_mnist, _new_config)))
+     > print(rref5)
+     rref:1ece593a8e761fa28fdc0da0fed00eb8-dd084d4a8b75a787b7c230474549e5db-convnn-mnist
+     > mklens(rref5).learning_rate.val
+     1e-05
+     ```
+  7. StagedML supports non-determenistic build processes which means that we
+     could train several instances of the model and pick up the best one to use
+     in subsequent stages. Selection criteria are up to the user. See `Matcher`
+     topic.
+  8. Finally, StagedML offers basic garbage collector `stagedml.stages.all.gc`
+     allowing users to keep the chosen set of stages (and thus all their
+     dependencies) and remove the rest.
+
 * Currently, we include TensorFlow NLP models from
   [tensorflow-models](https://github.com/tensorflow/models), other libraries may
-  be supported in future.
-* Instantiated Datasets and Model checkpoints are cached and hashed into the
-  organized filesystem storage.
+  be supported in future. Check the [full collection of adopted
+  models and datasets](./src/stagedml/stages/all.py)
 * We extensively use [Mypy](http://mypy-lang.org/)-compatible type annotations.
 
 Install
@@ -149,13 +194,13 @@ be converted into storage folder with `pylightnix.rref2path` function.
 /var/run/pylightnix/store-v0/c32bccd3f671d6a3da075cc655ee0a09/eedaa6f13fee251b9451283ef1932ca0/
 ```
 
-In general, With realization reference in hands, you could:
+With the realization reference in hands, we could:
 
 - Examine training logs and figures by accessing training artifacts located in
   storage folder returned by `rref2path`.
+- Run TensorBoard by passing RRef to `stagedml.utils.tf.runtb`
 - Change model parameters and re-train it without loosing previous results
-  (until Pylightnix garbage collection is run).
 - Build new models based on the current model's checkpoints. Stagedml will track
   stage configurations and prevent you from messing up the data.
-- (TODO) Run Pylightnix garbage collector to remove unused models.
+- Run the garbage collector `stagedml.stages.all.gc` to remove unused models.
 
