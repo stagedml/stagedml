@@ -395,7 +395,7 @@ def get_processor(task_name):
   processors = {
       'imdb': ImdbProcessor,
       'cola': ColaProcessor,
-      'sst': Sst2Processor,
+      'sst-2': Sst2Processor,
       'mrpc': MrpcProcessor,
       'qqp': QqpProcessor,
       'mnli-m': MnliMatchedProcessor,

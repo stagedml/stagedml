@@ -11,8 +11,8 @@ from official.nlp.optimization import create_optimizer
 from official.modeling.model_training_utils import run_customized_training_loop
 
 from pylightnix import ( Path, Manager, Config, DRef, RRef, Context, match_only,
-    store_cattrs, build_cattrs, build_path, build_outpath, json_load, mkbuild,
-    mkdrv, match_latest, mklens )
+    store_cattrs, build_cattrs, build_outpath, json_load, mkbuild,
+    mkdrv, match_latest, mklens, build_wrapper_ )
 
 from stagedml.datasets.squad.tfrecord import tf_record_dataset
 from stagedml.models.bert import ( BertLayer )
@@ -25,12 +25,12 @@ from stagedml.core import ( KerasBuild, protocol_add, keras_save, match_metric )
 def config(tfrecs:Squad11TFR)->Config:
   name = 'bert-finetune-squad'
 
-  train_tfrecord_refpath = [tfrecs, 'train.tfrecord']
-  eval_tfrecord_refpath = [tfrecs, 'eval.tfrecord']
-  task_config_refpath = [tfrecs, 'meta.json']
+  train_tfrecord = mklens(tfrecs).output_train.refpath
+  eval_tfrecord = mklens(tfrecs).output_eval.refpath
+  task_config = mklens(tfrecs).output_meta.refpath
 
-  bert_ckpt_refpath = store_cattrs(tfrecs).bert_ckpt_refpath
-  bert_config_refpath = store_cattrs(tfrecs).bert_config
+  bert_ckpt = mklens(tfrecs).bertref.bert_ckpt.refpath
+  bert_config = mklens(tfrecs).bertref.bert_config.refpath
 
   lr = 2e-5
   train_epoches = 3
@@ -51,10 +51,10 @@ def build(m:Model, clear_session:bool=True)->None:
   c = build_cattrs(m)
 
 
-  with open(build_path(m, c.bert_config_refpath), "r") as f:
+  with open(mklens(m).bert_config.syspath, "r") as f:
     bert_config = BertConfig.from_dict(json_load(f))
 
-  with open(build_path(m, c.task_config_refpath), "r") as f:
+  with open(mklens(m).task_config.syspath, "r") as f:
     task_config = json_load(f)
 
   c.train_data_size = task_config['train_data_size']
@@ -100,7 +100,7 @@ def cpload(m:Model)->None:
   """ Load checkpoint into model """
   c = build_cattrs(m)
   checkpoint = tf.train.Checkpoint(model=m.model_core)
-  checkpoint.restore(build_path(m, c.bert_ckpt_refpath)).assert_consumed()
+  checkpoint.restore(mklens(m).bert_ckpt.syspath).assert_consumed()
   protocol_add(m, 'cpload')
 
 
@@ -141,7 +141,7 @@ def ctrain(m:Model)->None:
     batch_size = ctx.get_per_replica_batch_size(
         global_batch_size) if ctx else global_batch_size
     return tf_record_dataset(
-      input_file=mklens(m).train_tfrecord_refpath.syspath,
+      input_file=mklens(m).train_tfrecord.syspath,
       max_seq_length=c.max_seq_length,
       train_batch_size=batch_size)
 
@@ -183,16 +183,12 @@ def evaluate(m:Model)->Model:
   # protocol_add_eval(m, 'evaluate', k.metrics_names, h)
   return m
 
+def _realize(b:Model)->None:
+  build(b); cpload(b); ctrain(b);
 
 def bert_finetune_squad11(m:Manager, *args, **kwargs)->BertSquad:
-  def _realize(dref:DRef,context:Context)->List[Path]:
-    b=Model(mkbuild(dref,context));
-    build(b); cpload(b); ctrain(b);
-    # FIXME: evaluate(b);
-    keras_save(b)
-    return [build_outpath(b)]
   return BertSquad(mkdrv(m,
     config=config(*args, **kwargs),
     matcher=match_latest(), #match_metric('evaluate', 'eval_accuracy'),
-    realizer=_realize))
+    realizer=build_wrapper_(_realize, Model)))
 

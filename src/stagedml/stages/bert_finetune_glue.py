@@ -14,8 +14,8 @@ from absl import logging
 from typing import Optional,Any,List,Tuple,Union
 
 from pylightnix import ( Path, Config, Manager, RRef, DRef, Context,
-    store_cattrs, build_path, build_outpath, build_cattrs, mkdrv, rref2path,
-    json_load, build_config, mkbuild )
+    store_cattrs, build_outpath, build_cattrs, mkdrv, rref2path,
+    json_load, build_config, mklens, build_wrapper_, mkconfig )
 
 from stagedml.datasets.glue.tfdataset import ( dataset, dataset_eval, dataset_train )
 from stagedml.models.bert import ( BertLayer, classification_logits )
@@ -25,21 +25,20 @@ from stagedml.core import ( KerasBuild, protocol_add, protocol_add_hist,
 from stagedml.types import ( GlueTFR, BertGlue )
 
 
-def config(task_name:str, tfrecs:GlueTFR)->Config:
-  name = 'bert-finetune'
+def config(tfrecs:GlueTFR)->Config:
+  name = 'bert-finetune-'+mklens(tfrecs).task_name.val.lower()
 
-  task_train_refpath = [tfrecs, task_name,'train.tfrecord']
-  task_eval_refpath = [tfrecs, task_name, 'dev.tfrecord']
-  task_config_refpath = [tfrecs, task_name, 'meta.json']
-
-  bert_config_refpath = store_cattrs(tfrecs).bert_config_refpath
-  bert_ckpt_refpath = store_cattrs(tfrecs).bert_ckpt_refpath
+  task_train = mklens(tfrecs).outputs.train.refpath
+  task_eval = mklens(tfrecs).outputs.dev.refpath
+  task_config = mklens(tfrecs).outputs.meta.refpath
+  bert_config = mklens(tfrecs).refbert.bert_config.refpath
+  bert_ckpt = mklens(tfrecs).refbert.bert_ckpt.refpath
 
   lr = 2e-5
   batch_size = 8
   train_epoches = 3
   version = 3
-  return Config(locals())
+  return mkconfig(locals())
 
 
 class ModelBuild(KerasBuild):
@@ -55,10 +54,10 @@ def build(b:ModelBuild, clear_session:bool=True):
 
   c = build_cattrs(b)
 
-  with open(build_path(b, c.bert_config_refpath), "r") as f:
+  with open(mklens(b).bert_config.syspath, "r") as f:
     bert_config = BertConfig.from_dict(json_load(f))
 
-  with open(build_path(b, c.task_config_refpath), "r") as f:
+  with open(mklens(b).task_config.syspath, "r") as f:
     task_config = json_load(f)
 
   c.num_labels = int(task_config['num_classes'])
@@ -112,7 +111,7 @@ def cpload(b:ModelBuild)->None:
   """ Load checkpoint into model """
   c = build_cattrs(b)
   checkpoint = tf.train.Checkpoint(model=b.core_model)
-  checkpoint.restore(build_path(b, c.bert_ckpt_refpath)).assert_consumed()
+  checkpoint.restore(mklens(b).bert_ckpt.syspath).assert_consumed()
   protocol_add(b, 'cpload')
   return
 
@@ -123,7 +122,7 @@ def train(b:ModelBuild, **kwargs)->None:
   c = build_cattrs(b)
   o = build_outpath(b)
 
-  dt, dv = dataset_train(build_path(b, c.task_train_refpath), c.train_data_size, c.train_batch_size, c.max_seq_length)
+  dt, dv = dataset_train(mklens(b).task_train.syspath, c.train_data_size, c.train_batch_size, c.max_seq_length)
   tensorboard_callback = TensorBoard(log_dir=o, profile_batch=0,
                                      write_graph=False, update_freq='batch')
 
@@ -141,66 +140,6 @@ def train(b:ModelBuild, **kwargs)->None:
   protocol_add_hist(b, 'train', h)
   return
 
-
-# def ctrain(m:Model)->Model:
-#   """ Train the model by using Custom training loop from TF Official models """
-#   assert m.model is not None
-#   c = model_config_ro(m)
-#   print('Training (custom)')
-
-#   loss_fn = get_loss_fn(num_classes=c.num_labels, loss_factor=1.0)
-
-#   def _metric_fn():
-#     return \
-#       tf.keras.metrics.SparseCategoricalAccuracy('val_accuracy', dtype=tf.float32)
-
-#   def _get_model():
-#     return m.model,None
-
-#   def _train_input_fn(is_training:bool=True, drop_remainder:bool=True)->Any:
-#     d = dataset(store_systempath(c.task_train_refpath), model_config(m))
-#     dtrain=d.take(c.train_data_size)
-#     if is_training:
-#       dtrain=dtrain.shuffle(100)
-#       dtrain=dtrain.repeat()
-#     dtrain=dtrain.batch(c.train_batch_size, drop_remainder=drop_remainder)
-#     dtrain=dtrain.prefetch(1024)
-#     return dtrain
-
-#   def _eval_input_fn()->Any:
-#     d = dataset(store_systempath(c.task_train_refpath), model_config(m))
-#     dvalid=d.skip(c.train_data_size)
-#     dvalid=dvalid.batch(c.train_batch_size, drop_remainder=False)
-#     return dvalid
-
-#   o = model_outpath(m)
-#   tensorboard_callback = TensorBoard(log_dir=o, profile_batch=0,
-#                                      write_graph=False, update_freq='batch')
-#   m.model.optimizer = m.optimizer
-#   logging.set_verbosity(logging.INFO)
-#   run_customized_training_loop(
-#       strategy=m.strategy,
-#       model_fn=_get_model,
-#       loss_fn=loss_fn,
-#       model_dir=o,
-#       steps_per_epoch=c.train_steps_per_epoch,
-#       steps_per_loop=2*c.batch_size,
-#       epochs=c.train_epoches,
-#       train_input_fn=_train_input_fn,
-#       eval_input_fn=_eval_input_fn,
-#       eval_steps=c.valid_steps_per_epoch,
-#       # init_checkpoint=ckpt,
-#       metric_fn=_metric_fn,
-#       custom_callbacks=None, # [tensorboard_callback],
-#       run_eagerly=False)
-
-#   dpurge(o,'ctl_step.*ckpt', debug=True)
-#   with open(o+'/summaries/training_summary.txt', 'r') as f:
-#     s=json.load(f)
-#   protocol_add(m, 'ctrain', result=s)
-#   return m
-
-
 def evaluate(b:ModelBuild):
   c = build_cattrs(b)
   o = build_outpath(b)
@@ -211,7 +150,7 @@ def evaluate(b:ModelBuild):
   k = b.model_eval
   k.compile(b.optimizer, loss=loss_fn, metrics=[metric_fn])
 
-  de = dataset_eval(build_path(b, c.task_eval_refpath), c.eval_batch_size, c.max_seq_length)
+  de = dataset_eval(mklens(b).task_eval.syspath, c.eval_batch_size, c.max_seq_length)
   h = k.evaluate(de, steps=c.eval_steps_per_epoch)
 
   filewriter = tf.summary.create_file_writer(o)
@@ -221,17 +160,12 @@ def evaluate(b:ModelBuild):
   protocol_add_eval(b, 'evaluate', k.metrics_names, h)
   return
 
+def _realize(b:ModelBuild)->None:
+  build(b); cpload(b); train(b); evaluate(b); keras_save(b)
 
-def bert_finetune_glue(m:Manager, task_name:str, tfrecs:GlueTFR)->BertGlue:
-  def _realize(dref:DRef,context:Context)->List[Path]:
-    b=ModelBuild(mkbuild(dref,context));
-    build(b); cpload(b); train(b); evaluate(b); keras_save(b)
-    return [build_outpath(b)]
+def bert_finetune_glue(m:Manager, tfrecs:GlueTFR)->BertGlue:
   return BertGlue(mkdrv(m,
-    config=config(task_name, tfrecs),
+    config=config(tfrecs),
     matcher=match_metric('evaluate', 'eval_accuracy'),
-    realizer=_realize))
-
-
-
+    realizer=build_wrapper_(_realize, ModelBuild)))
 

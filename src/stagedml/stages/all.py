@@ -12,8 +12,8 @@ rref2path(rref)
 
 from pylightnix import ( RRef, Manager, mknode, fetchurl, instantiate, realize,
     rref2path, store_initialize, shell, lsref, catref, repl_realize,
-    repl_continueBuild, repl_build, repl_rref, repl_cancelBuild, store_gc, rmref
-    )
+    repl_continueBuild, repl_build, repl_rref, repl_cancelBuild, store_gc,
+    rmref, mklens, promise, claim)
 
 from stagedml.stages.fetchglue import fetchglue
 from stagedml.stages.glue_tfrecords import glue_tfrecords
@@ -25,7 +25,7 @@ from stagedml.stages.bert_finetune_squad import bert_finetune_squad11
 from stagedml.stages.fetchnl2bash import fetchnl2bash, nl2bashSubtok
 from stagedml.stages.fetchwmt import wmtsubtok, wmtsubtokInv
 from stagedml.stages.transformer_wmt import transformer_wmt
-from stagedml.stages.transformer2 import transformer2
+# from stagedml.stages.transformer2 import transformer2
 from stagedml.stages.convnn_mnist import fetchmnist, convnn_mnist
 
 from stagedml.types import ( Set, Tuple, List, DRef, Glue, Squad11, GlueTFR,
@@ -40,12 +40,16 @@ def all_fetchbert(m:Manager)->BertCP:
   return BertCP(fetchurl(m,
     name='uncased-bert',
     url='https://storage.googleapis.com/cloud-tpu-checkpoints/bert/tf_20/uncased_L-12_H-768_A-12.tar.gz',
-    sha256='018ef0ac65fc371f97c1e2b1ede59b5afb2d9e1da0217eb5072888940fb51978'))
+    sha256='018ef0ac65fc371f97c1e2b1ede59b5afb2d9e1da0217eb5072888940fb51978',
+    bert_config=[promise,'uncased_L-12_H-768_A-12','bert_config.json'],
+    bert_vocab=[promise,'uncased_L-12_H-768_A-12','vocab.txt'],
+    bert_ckpt=[claim,'uncased_L-12_H-768_A-12','bert_model.ckpt']
+    ))
 
-def all_glue_tfrecords(m:Manager)->GlueTFR:
+def all_glue_tfrecords(m:Manager, task_name:str)->GlueTFR:
   refbert=all_fetchbert(m)
   refglue=all_fetchglue(m)
-  return glue_tfrecords(m, dataset_name='glue', refbert=refbert, refdataset=refglue)
+  return glue_tfrecords(m, task_name, refbert=refbert, refdataset=refglue)
 
 def all_squad11_tfrecords(m:Manager)->Squad11TFR:
   bertref=all_fetchbert(m)
@@ -53,8 +57,8 @@ def all_squad11_tfrecords(m:Manager)->Squad11TFR:
   return squad11_tfrecords(m, bertref, squadref)
 
 def all_bert_finetune_glue(m:Manager, task_name:str)->BertGlue:
-  glueref=all_glue_tfrecords(m)
-  return bert_finetune_glue(m,task_name,glueref)
+  glueref=all_glue_tfrecords(m,task_name)
+  return bert_finetune_glue(m,glueref)
 
 def all_bert_finetune_squad11(m:Manager)->BertSquad:
   squadref=all_squad11_tfrecords(m)
