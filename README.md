@@ -26,7 +26,7 @@ Features
 * Stagedml is a library of adopted ML models. We do not claim any
   remarkable accuracy or performance achievements, but we do provide several
   infrastracture properties which simplify the development process.
-  1. StagedML is powered by [Pylighnix](https://github.com/stagedml/pylightnix/)
+  1. StagedML is powered by [Pylightnix](https://github.com/stagedml/pylightnix/)
      immutable data management library.
   2. All addopted models and datasets are defined as a linked graph of
      [stages](https://github.com/stagedml/pylightnix/blob/master/docs/Reference.md#pylightnix.types.Derivation). Dependency resolution is done automatically.
