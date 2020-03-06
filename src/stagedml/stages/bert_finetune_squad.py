@@ -12,7 +12,7 @@ from official.modeling.model_training_utils import run_customized_training_loop
 
 from pylightnix import ( Path, Manager, Config, DRef, RRef, Context, match_only,
     store_cattrs, build_cattrs, build_path, build_outpath, json_load, mkbuild,
-    mkdrv, match_latest )
+    mkdrv, match_latest, mklens )
 
 from stagedml.datasets.squad.tfrecord import tf_record_dataset
 from stagedml.models.bert import ( BertLayer )
@@ -136,11 +136,14 @@ def ctrain(m:Model)->None:
   def _get_model():
     return m.model,None
 
-  def _train_input_fn()->Any:
+  def _train_input_fn(ctx:Any)->Any:
+    global_batch_size=c.train_batch_size
+    batch_size = ctx.get_per_replica_batch_size(
+        global_batch_size) if ctx else global_batch_size
     return tf_record_dataset(
-      input_file=build_path(m, c.train_tfrecord_refpath),
+      input_file=mklens(m).train_tfrecord_refpath.syspath,
       max_seq_length=c.max_seq_length,
-      train_batch_size=c.train_batch_size)
+      train_batch_size=batch_size)
 
   def _eval_input_fn()->Any:
     assert False
