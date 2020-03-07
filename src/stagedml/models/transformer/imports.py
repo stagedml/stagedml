@@ -12,7 +12,8 @@ from official.nlp.transformer.metrics import ( padded_accuracy,
     padded_accuracy_topk, padded_accuracy_top5, padded_neg_log_perplexity,
     padded_sequence_accuracy, transformer_loss )
 from official.nlp.transformer.beam_search import sequence_beam_search
-from official.nlp.transformer.utils.tokenizer import ( EOS_ID, Subtokenizer )
+from official.nlp.transformer.utils.tokenizer import ( EOS_ID, Subtokenizer,
+    RESERVED_TOKENS )
 from official.nlp.transformer.utils.metrics import compute_bleu
 from official.nlp.transformer.optimizer import ( LearningRateSchedule,
     LearningRateScheduler, LearningRateFn )

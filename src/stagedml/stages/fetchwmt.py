@@ -101,7 +101,7 @@ def evalfiles(m:Manager, lang1:str, lang2:str, suffix:Optional[str]=None)->DRef:
 def create_subtokenizer(dref:WmtSubtok, ctx:Context, b:Optional[Build]=None)->Subtokenizer:
   me=mklens(dref,b=b,ctx=ctx)
   master_char_set=list(readlines(me.master_char_set.syspath)) \
-                            if me.master_char_set.val else None
+                  if me.master_char_set.val else None
   return Subtokenizer(
       vocab_file=me.vocab_file.syspath,
       master_char_set=master_char_set)
@@ -116,7 +116,7 @@ def wmtsubtok_(m:Manager,
                target_vocab_size:int=32768,
                train_shards:int=100)->WmtSubtok:
 
-  def _config():
+  def _config_v1():
     name = "subtok-"+mklens(trainfiles).name.val
     train_tag = "train"
     nonlocal train_shards
@@ -138,11 +138,17 @@ def wmtsubtok_(m:Manager,
     train_data_min_count:Optional[int] = 6
     # Vocabulry filename
     vocab_file = [promise, "vocab.%d" % target_vocab_size]
+    return locals()
+
+  def _config():
+    cfg=_config_v1()
     # Reserved tokens
-    nonlocal reserved_tokens
+    if reserved_tokens:
+      cfg.update({'reserved_tokens':reserved_tokens})
     # Master charset
-    nonlocal master_char_set
-    return mkconfig(locals())
+    if master_char_set:
+      cfg.update({'master_char_set':master_char_set})
+    return mkconfig(cfg)
 
   def _realize(b:Build):
     c=build_cattrs(b)

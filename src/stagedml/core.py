@@ -66,10 +66,12 @@ def borrow(rref:RRef, clo:Closure)->RRef:
   return orref
 
 
-def tryrealize(clo:Closure)->Optional[RRef]:
+def tryrealize(clo:Closure, verbose:bool=False)->Optional[RRef]:
   try:
     return realize(clo, assert_realized=[d.dref for d in clo.derivations])
-  except Exception:
+  except Exception as e:
+    if verbose:
+      print(e)
     return None
 
 #  ____        _ _     _
