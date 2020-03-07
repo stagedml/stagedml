@@ -32,16 +32,20 @@ def lrealize(clo:Closure)->RRef:
 
 def tbrealize(clo:Closure)->RRef:
   rh=repl_realize(clo, force_interrupt=True)
-  assert rh.drv is not None
-  assert rh.dref is not None
-  assert rh.context is not None
-  orrefs=rh.drv.matcher(rh.dref,rh.context)
-  if orrefs is None:
-    b=repl_build(rh)
-    runtensorboard(build_outpath(b), kill_existing=True)
-  else:
-    assert len(orrefs)>0
-    runtensorboard(rref2path(orrefs[0]), kill_existing=True)
+  try:
+    assert rh.drv is not None
+    assert rh.dref is not None
+    assert rh.context is not None
+    orrefs=rh.drv.matcher(rh.dref,rh.context)
+    if orrefs is None:
+      b=repl_build(rh)
+      runtensorboard(build_outpath(b), kill_existing=True)
+    else:
+      assert len(orrefs)>0
+      runtensorboard(rref2path(orrefs[0]), kill_existing=True)
+  except Exception:
+    repl_cancel(rh)
+    raise
   rref=repl_continue(out_rrefs=orrefs,rh=rh)
   assert rref is not None
   linkrref(rref)
@@ -51,15 +55,19 @@ def tbrealize(clo:Closure)->RRef:
 
 
 def borrow(rref:RRef, clo:Closure)->RRef:
-  """ Borrows the contents of `rref` to cook the realization of `clos`. """
+  """ Borrows the contents of `rref` to cook the realization of `clo`. """
   rh=repl_realize(clo, force_interrupt=True)
-  assert rh.drv is not None
-  assert rh.dref is not None
-  assert rh.context is not None
-  b=repl_build(rh)
-  o=build_outpath(b)
-  copy_tree(rref2path(rref),o)
-  remove(join(o,'context.json'))
+  try:
+    assert rh.drv is not None
+    assert rh.dref is not None
+    assert rh.context is not None
+    b=repl_build(rh)
+    o=build_outpath(b)
+    copy_tree(rref2path(rref),o)
+    remove(join(o,'context.json'))
+  except Exception:
+    repl_cancel(rh)
+    raise
   orref=repl_continue(out_paths=[o],rh=rh)
   assert orref is not None
   linkrref(orref)
