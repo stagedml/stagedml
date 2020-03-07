@@ -2,14 +2,15 @@ from pylightnix import ( RefPath, Build, Path, Config, Manager, RRef, DRef,
     Context, build_wrapper, build_path, build_outpath, build_cattrs, mkdrv,
     rref2path, mkbuild, mkconfig, match_only, instantiate, realize, lsref,
     catref, store_cattrs, get_executable, fetchurl, mknode, checkpaths, mklens,
-    promise )
+    promise, rref2dref, store_context )
 
 from stagedml.imports import ( join )
 from stagedml.models.transformer.imports import ( Subtokenizer,
-    encode_and_save_files )
-from stagedml.utils.files import ( flines )
+    encode_and_save_files, RESERVED_TOKENS )
+from stagedml.utils.files import ( flines, readlines, writelines )
 from stagedml.stages.files import catfiles
-from stagedml.types import ( WmtSubtok, Optional, Any, List, Tuple, Union )
+from stagedml.types import ( WmtSubtok, Optional, Any, List, Tuple, Union,
+    Callable, NamedTuple, Set )
 
 def fetchwmt17parallel(m:Manager)->DRef:
   langpairs=[['de','en'],['ru','en']]
@@ -97,12 +98,28 @@ def evalfiles(m:Manager, lang1:str, lang2:str, suffix:Optional[str]=None)->DRef:
                    'eval_target_combined':mklens(targets).output.refpath})
 
 
-def wmtsubtok_(m:Manager, trainfiles:DRef, evalfiles:DRef, target_vocab_size:int=32768)->WmtSubtok:
+def create_subtokenizer(dref:WmtSubtok, ctx:Context, b:Optional[Build]=None)->Subtokenizer:
+  me=mklens(dref,b=b,ctx=ctx)
+  master_char_set=list(readlines(me.master_char_set.syspath)) \
+                            if me.master_char_set.val else None
+  return Subtokenizer(
+      vocab_file=me.vocab_file.syspath,
+      master_char_set=master_char_set)
+
+
+
+def wmtsubtok_(m:Manager,
+               trainfiles:DRef,
+               evalfiles:DRef,
+               reserved_tokens:Optional[RefPath]=None,
+               master_char_set:Optional[RefPath]=None,
+               target_vocab_size:int=32768,
+               train_shards:int=100)->WmtSubtok:
 
   def _config():
     name = "subtok-"+mklens(trainfiles).name.val
     train_tag = "train"
-    train_shards = 100
+    nonlocal train_shards
     eval_tag = "eval"
 
     # Link to the raw train data collection
@@ -117,11 +134,15 @@ def wmtsubtok_(m:Manager, trainfiles:DRef, evalfiles:DRef, target_vocab_size:int
     nonlocal target_vocab_size
     # Accept vocabulary if size is within this threshold.
     target_threshold = 327
-    # Minimum length of subtoken to pass the subtoken filter
+    # Minimum number of subtoken usage to pass the subtoken filter
     train_data_min_count:Optional[int] = 6
     # Vocabulry filename
     vocab_file = [promise, "vocab.%d" % target_vocab_size]
-    return mkconfig({k:v for k,v in locals().items() if k!='m'})
+    # Reserved tokens
+    nonlocal reserved_tokens
+    # Master charset
+    nonlocal master_char_set
+    return mkconfig(locals())
 
   def _realize(b:Build):
     c=build_cattrs(b)
@@ -132,12 +153,21 @@ def wmtsubtok_(m:Manager, trainfiles:DRef, evalfiles:DRef, target_vocab_size:int
     eval_combined=[build_path(b,c.eval_input_combined), build_path(b,c.eval_target_combined)]
     assert flines(eval_combined[0])==flines(eval_combined[1]), \
         "Numbers of lines in eval files don't match. Consider checking line endings."
-    subtokenizer = Subtokenizer.init_from_files(
-        vocab_file=mklens(b).vocab_file.syspath,
-        files=train_combined,
-        target_vocab_size=c.target_vocab_size,
-        threshold=c.target_threshold,
-        min_count=c.train_data_min_count)
+
+    reserved_tokens=(RESERVED_TOKENS+list(readlines(mklens(b).reserved_tokens.syspath))) \
+                      if mklens(b).reserved_tokens.val else None
+    master_char_set=list(readlines(mklens(b).master_char_set.syspath)) \
+                      if mklens(b).master_char_set.val else None
+    Subtokenizer.init_from_files(
+      vocab_file=mklens(b).vocab_file.syspath,
+      files=train_combined,
+      target_vocab_size=c.target_vocab_size,
+      threshold=c.target_threshold,
+      min_count=c.train_data_min_count,
+      master_char_set=master_char_set,
+      reserved_tokens=reserved_tokens)
+
+    subtokenizer = create_subtokenizer(WmtSubtok(b.dref), b.context, b)
     print('Encoding train files')
     encode_and_save_files(subtokenizer, o, train_combined, c.train_tag, c.train_shards)
     print('Encoding eval files')

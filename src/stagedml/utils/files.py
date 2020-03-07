@@ -3,7 +3,7 @@ import logging
 from os.path import islink
 from json import load as json_load
 from distutils.spawn import find_executable
-from typing import List, Any, Optional, Dict
+from typing import List, Any, Optional, Dict, Iterable
 from subprocess import Popen
 
 def listloggers()->List[Any]:
@@ -33,6 +33,20 @@ def system(cmd:List[str], cwd:Optional[str]=None, env:Optional[dict]=None, check
   retcode=p.wait()
   assert not (check_retcode and retcode!=0), f"Retcode is not zero, but {retcode}"
   return
+
+def readlines(filepath:str, tostrip:str='\n')->Iterable[str]:
+  with open(filepath,'r') as f:
+    for line in f:
+      line_stripped=line.rstrip(tostrip)
+      assert tostrip not in line_stripped
+      yield line_stripped
+
+def writelines(filepath:str, lines:Iterable[str])->None:
+  with open(filepath,'w') as f:
+    for line in lines:
+      assert '\n' not in line, f"Can't save line '{line}' because it contains EOL"
+      f.write(line); f.write('\n')
+
 
 def flines(p:str, newline:str='\n')->int:
   with open(p,'r',newline=newline) as f:

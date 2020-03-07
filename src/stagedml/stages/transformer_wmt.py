@@ -5,7 +5,7 @@ from pylightnix import ( Path, Config, Manager, RRef, DRef, Context,
     store_cattrs, build_path, build_outpath, build_cattrs, mkdrv, rref2path,
     json_load, build_config, mkconfig, mkbuild, match_only, build_wrapper_,
     tryread, store_config, mklens, repl_realize, instantiate, shell, promise,
-    repl_build )
+    repl_build, build_context )
 
 from stagedml.imports import ( join, clear_session, set_session_config,
     TensorBoard, ModelCheckpoint, copy_tree, Model, isfile, get_single_element,
@@ -22,6 +22,7 @@ from stagedml.models.transformer import ( create_train_model, create_eval_model,
 
 from stagedml.types import ( WmtSubtok, TransWmt, Dict, Optional,Any,List,Tuple,Union )
 
+from stagedml.stages.fetchwmt import create_subtokenizer
 
 from official.utils.flags._performance import DTYPE_MAP
 
@@ -103,7 +104,7 @@ def evaluate(b:TransformerBuild)->None:
   assert b.eval_model is not None
   o = build_outpath(b)
   c = build_cattrs(b)
-  subtokenizer = Subtokenizer(build_path(b, c.vocab_refpath))
+  subtokenizer:Subtokenizer = create_subtokenizer(mklens(b).wmt.dref, build_context(b))
   input_txt:Path=mklens(b).eval_input_refpath.syspath
   target_src_txt:Path=mklens(b).eval_target_refpath.syspath
   target_txt=join(o,'targets.txt')
