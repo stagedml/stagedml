@@ -10,7 +10,7 @@ from stagedml.imports import ( environ, join, basename, dedent, contextmanager,
     isfile )
 
 from stagedml.types import ( Optional,Any,List,Tuple,Union, WmtSubtok, Set )
-from stagedml.stages.files import ( splitfile )
+from stagedml.stages.files import ( splitfile, lineshuffle )
 from stagedml.stages.fetchwmt import ( wmtsubtok_ )
 
 from official.nlp.transformer.utils.tokenizer import ( EOS_ID, Subtokenizer,
@@ -77,20 +77,29 @@ def collect_bash_specific_tokens(fp:str)->Set[str]:
 
 
 def fetchnl2bash(m:Manager)->DRef:
-  def _split(m, fn_suffix:str, sha256:str ):
-    raw=fetchlocal(m, path=join('3rdparty','nl2bash_essence','src','data','bash',f'all.{fn_suffix}'),
-                      sha256=sha256, mode='asis',
-                      output=[promise, f'all.{fn_suffix}'] )
-    split=splitfile(m, src=mklens(raw).output.refpath,
-                       fractions=[('train',f'train_{fn_suffix}.txt', 0.9),
-                                  ('eval', f'eval_{fn_suffix}.txt',0.1)])
-    return split
+  allnl=fetchlocal(m,
+    path=join('3rdparty','nl2bash_essence','src','data','bash','all.nl'),
+    sha256='1db0c529c350b463919624550b8f5882a97c42ad5051c7d49fbc496bc4e8b770',
+    mode='asis',
+    output=[promise, 'all.nl'] )
 
-  nlfiles=_split(m, 'nl', sha256='1db0c529c350b463919624550b8f5882a97c42ad5051c7d49fbc496bc4e8b770')
-  cmfiles=_split(m, 'cm', sha256='3a72eaced7fa14a0938354cefc42b2dcafb2d47297102f1279086e18c3abe57e')
+  allcm=fetchlocal(m,
+    path=join('3rdparty','nl2bash_essence','src','data','bash','all.cm'),
+    sha256='3a72eaced7fa14a0938354cefc42b2dcafb2d47297102f1279086e18c3abe57e',
+    mode='asis',
+    output=[promise, 'all.cm'] )
 
-  return mknode(m, {
-    'name':'fetchnl2bash',
+  shuffle=lineshuffle(m, src={'allnl':mklens(allnl).output.refpath,
+                              'allcm':mklens(allcm).output.refpath})
+
+  nlfiles=splitfile(m, src=mklens(shuffle).allnl.refpath,
+                       fractions=[('train',f'train_nl.txt',0.9),
+                                  ('eval', f'eval_nl.txt',0.1)])
+  cmfiles=splitfile(m, src=mklens(shuffle).allcm.refpath,
+                       fractions=[('train',f'train_cm.txt',0.9),
+                                  ('eval', f'eval_cm.txt',0.1)])
+
+  return mknode(m, name='fetchnl2bash', sources={
     'train_input_combined':mklens(nlfiles).train.refpath,
     'train_target_combined':mklens(cmfiles).train.refpath,
     'eval_input_combined':mklens(nlfiles).eval.refpath,
