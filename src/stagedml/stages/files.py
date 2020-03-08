@@ -2,11 +2,11 @@ from pylightnix import ( RefPath, Build, Path, Config, Manager, RRef, DRef,
     Context, build_wrapper, build_path, build_outpath, build_cattrs, mkdrv,
     rref2path, mkbuild, mkconfig, match_only, instantiate, realize, lsref,
     catref, store_cattrs, get_executable, fetchurl, mknode, checkpaths, mklens,
-    promise )
+    promise, match_latest, forcelink, relpath )
 
 from stagedml.utils import ( flines )
 from stagedml.types import ( Optional, Any, List, Tuple, Union, Dict )
-from stagedml.imports import ( join )
+from stagedml.imports.sys import ( join, random )
 
 
 def catfiles(m:Manager, files:List[RefPath], outname:Optional[str]=None)->DRef:
@@ -70,5 +70,38 @@ def splitfile(m:Manager, src:RefPath, fractions:List[Tuple[str,str,float]])->DRe
       pass
 
   return mkdrv(m, _config(), match_only(), build_wrapper(_realize))
+
+
+def lineshuffle(m:Manager, src:Dict[str,RefPath])->DRef:
+  config={'name':'shuffle','src':src}
+  firstpath=None
+  for nm,rp in src.items():
+    firstpath=rp if firstpath is None else firstpath
+    config.update({nm:[promise,f"{nm}.txt"]})
+  assert firstpath is not None
+  def _realize(b:Build)->None:
+    print(f'Shuffling {src.values()}')
+    build_outpath(b)
+    nlines=flines(mklens(firstpath,b=b).syspath)
+    ids=[random() for _ in range(nlines)]
+    for nm,rp in src.items():
+      with open(mklens(rp,b=b).syspath,'r') as f:
+        lines=f.readlines()
+      assert len(lines)==nlines
+      with open(mklens(b).get(nm).syspath,'w') as f:
+        f.writelines(map(lambda x:x[1], sorted(zip(ids,lines))))
+  return mkdrv(m, mkconfig(config), match_latest(), build_wrapper(_realize))
+
+
+# def linkfiles(m:Manager, src:Dict[str,RefPath], name:str='linkfiles')->DRef:
+#   """ FIXME: figure out how to deal with symlinks from tmp->storage """
+#   config={'name':name, 'src':src}
+#   for nm in src.keys():
+#     config.update({nm:[promise,nm]})
+#   def _realize(b:Build)->None:
+#     o=build_outpath(b)
+#     for nm,rp in src.items():
+#       forcelink(Path(relpath(mklens(rp,b=b).syspath, o)), mklens(b).get(nm).syspath)
+#   return mkdrv(m, mkconfig(config), match_latest(), build_wrapper(_realize))
 
 
