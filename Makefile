@@ -18,9 +18,13 @@ $(WHEEL): $(SRC) $(TESTS)
 
 .PHONY: wheels
 wheels: $(WHEEL)
-	@echo "To install, run \n> sudo pip3 install --force $(WHEEL)"
+	@echo "To install, run \`sudo -H make install\` or"
+	@echo "> sudo -H pip3 install --force $(WHEEL)"
+
+.PHONY: install
+install: $(WHEEL)
+	make -C 3rdparty/pylightnix install
+	pip3 install --force $(WHEEL)
 
 .PHONY: all
 all: test wheels
-
-
