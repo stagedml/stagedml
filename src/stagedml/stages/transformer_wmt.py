@@ -5,7 +5,7 @@ from pylightnix import ( Path, Config, Manager, RRef, DRef, Context,
     store_cattrs, build_path, build_outpath, build_cattrs, mkdrv, rref2path,
     json_load, build_config, mkconfig, mkbuild, match_only, build_wrapper_,
     tryread, store_config, mklens, repl_realize, instantiate, shell, promise,
-    repl_build, build_context )
+    claim, repl_build, build_context )
 
 from stagedml.imports import ( join, clear_session, set_session_config,
     TensorBoard, ModelCheckpoint, copy_tree, Model, isfile, get_single_element,
@@ -27,40 +27,6 @@ from stagedml.types import ( WmtSubtok, TransWmt, Dict, Optional,Any,List,Tuple,
 from stagedml.stages.fetchwmt import create_subtokenizer
 
 from official.utils.flags._performance import DTYPE_MAP
-
-def config(wmt:WmtSubtok):
-  name = 'transformer-nmt-'+mklens(wmt).name.val
-  version = 1
-  enable_xla = False
-  num_gpus = 1
-  data_dir = [ wmt ]
-  vocab_refpath = mklens(wmt).vocab_file.refpath
-  dtype = 'fp32'
-  train_steps = 22500
-  steps_between_evals = 5000
-
-  eval_steps:Optional[int] = None # all
-  eval_batch_size = 30
-
-  params:Dict[str,Any] = dict(BASE_PARAMS)
-  params["num_gpus"] = num_gpus
-  params["use_ctl"] = False
-  params["static_batch"] = False
-  params["max_length"] = 256
-  params["decode_batch_size"] = 32
-  params["decode_max_length"] = 128
-  params["padded_decode"] = False
-  params["num_parallel_calls"] = 4
-  params["use_synthetic_data"] = False
-  params["batch_size"] = params["default_batch_size"]
-  params["repeat_dataset"] = None
-  params["enable_metrics_in_training"] = True
-
-  bleu_refpath = [promise,'bleu.txt']
-  checkpoint_refpath = [promise,'checkpoint.ckpt']
-  eval_input_refpath=mklens(wmt).eval_input_combined.refpath
-  eval_target_refpath=mklens(wmt).eval_target_combined.refpath
-  return mkconfig(locals())
 
 class TransformerBuild(KerasBuild):
   params:dict
@@ -102,7 +68,7 @@ def build(b:TransformerBuild)->None:
   b.epoch = None
   b.filewriter = create_file_writer(join(o,'eval'))
   b.tbcallback = TensorBoard(log_dir=o, profile_batch=0, write_graph=False)
-  b.subtokenizer = create_subtokenizer(mklens(b).wmt.dref, build_context(b))
+  b.subtokenizer = create_subtokenizer(WmtSubtok(mklens(b).wmt.dref), build_context(b))
   runtb(b)
 
 def loadcp(b:TransformerBuild):
@@ -209,9 +175,43 @@ def _realize(b:TransformerBuild)->None:
   build(b)
   train(b)
 
-def transformer_wmt(m:Manager, wmt:WmtSubtok)->TransWmt:
-  return TransWmt(mkdrv(m, config=config(wmt),
+def transformer_wmt(m:Manager, wmt:WmtSubtok, train_steps:int=300000)->TransWmt:
+
+  def _config():
+    name = 'transformer-nmt-'+mklens(wmt).name.val
+    version = 1
+    enable_xla = False
+    num_gpus = 1
+    data_dir = [wmt]
+    vocab_refpath = mklens(wmt).vocab_file.refpath
+    dtype = 'fp32'
+    nonlocal train_steps
+    steps_between_evals = 5000
+
+    eval_steps:Optional[int] = None # all
+    eval_batch_size = 30
+
+    params:Dict[str,Any] = dict(BASE_PARAMS)
+    params["num_gpus"] = num_gpus
+    params["use_ctl"] = False
+    params["static_batch"] = False
+    params["max_length"] = 256
+    params["decode_batch_size"] = 32
+    params["decode_max_length"] = 128
+    params["padded_decode"] = False
+    params["num_parallel_calls"] = 4
+    params["use_synthetic_data"] = False
+    params["batch_size"] = params["default_batch_size"]
+    params["repeat_dataset"] = None
+    params["enable_metrics_in_training"] = True
+
+    bleu_refpath = [promise, 'bleu.txt']
+    checkpoint_refpath = [claim, 'checkpoint.ckpt']
+    eval_input_refpath=mklens(wmt).eval_input_combined.refpath
+    eval_target_refpath=mklens(wmt).eval_target_combined.refpath
+    return mkconfig(locals())
+
+  return TransWmt(mkdrv(m, config=_config(),
                            matcher=match_only(),
-                           realizer=build_wrapper_(_realize, TransformerBuild),
-                           check_promises=False))
+                           realizer=build_wrapper_(_realize, TransformerBuild)))
 

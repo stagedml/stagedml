@@ -88,7 +88,7 @@ def all_nl2bashsubtok(m:Manager)->WmtSubtok:
   return nl2bashSubtok(m)
 
 def all_transformer_nl2bash(m:Manager)->TransWmt:
-  return transformer_wmt(m, all_nl2bashsubtok(m))
+  return transformer_wmt(m, all_nl2bashsubtok(m), train_steps=225000)
 
 all_fetchmnist = fetchmnist
 
