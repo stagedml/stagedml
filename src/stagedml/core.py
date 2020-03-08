@@ -30,28 +30,30 @@ def lrealize(clo:Closure)->RRef:
   return rref
 
 
-def tbrealize(clo:Closure)->RRef:
-  rh=repl_realize(clo, force_interrupt=True)
-  try:
-    assert rh.drv is not None
-    assert rh.dref is not None
-    assert rh.context is not None
-    orrefs=rh.drv.matcher(rh.dref,rh.context)
-    if orrefs is None:
-      b=repl_build(rh)
-      runtensorboard(build_outpath(b), kill_existing=True)
-    else:
-      assert len(orrefs)>0
-      runtensorboard(rref2path(orrefs[0]), kill_existing=True)
-  except Exception:
-    repl_cancel(rh)
-    raise
-  rref=repl_continue(out_rrefs=orrefs,rh=rh)
-  assert rref is not None
-  linkrref(rref)
-  if orrefs is None:
-    runtensorboard(rref2path(rref), kill_existing=True)
-  return rref
+# def tbrealize(clo:Closure, cancel_on_exception:bool=True)->RRef:
+#   """ FIXME: repl_build is not preserved """
+#   rh=repl_realize(clo, force_interrupt=True)
+#   try:
+#     assert rh.drv is not None
+#     assert rh.dref is not None
+#     assert rh.context is not None
+#     orrefs=rh.drv.matcher(rh.dref,rh.context)
+#     if orrefs is None:
+#       b=repl_build(rh)
+#       runtensorboard(build_outpath(b), kill_existing=True)
+#     else:
+#       assert len(orrefs)>0
+#       runtensorboard(rref2path(orrefs[0]), kill_existing=True)
+#   except Exception:
+#     if cancel_on_exception:
+#       repl_cancel(rh)
+#     raise
+#   rref=repl_continue(out_rrefs=orrefs,rh=rh)
+#   assert rref is not None
+#   linkrref(rref)
+#   if orrefs is None:
+#     runtensorboard(rref2path(rref), kill_existing=True)
+#   return rref
 
 
 def borrow(rref:RRef, clo:Closure)->RRef:
