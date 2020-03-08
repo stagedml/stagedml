@@ -153,6 +153,7 @@ def wmtsubtok_(m:Manager,
   def _realize(b:Build):
     c=build_cattrs(b)
     o=build_outpath(b)
+    print('Starting subtokenizer')
     train_combined=[build_path(b,c.train_input_combined), build_path(b,c.train_target_combined)]
     assert flines(train_combined[0])==flines(train_combined[1]), \
         "Numbers of lines in train files don't match. Consider checking line endings."
