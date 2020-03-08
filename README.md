@@ -213,15 +213,17 @@ An example IPython session may look like the following:
 # * Download GLUE Dataset...
 # * Download pretrained BERT checkpoint
 # * Convert the Dataset into TFRecord format
-# * Fine tune the model
-# * Return the handle to the output directory
+# * Fine tune the BERT model on MRPC classification task (~15 min on Nv1080Ti GPU)
+# * Save model's checkpoint and other data into directory
+# * Return the handle to this directory
 
 'rref:eedaa6f13fee251b9451283ef1932ca0-c32bccd3f671d6a3da075cc655ee0a09-bert'
 ```
 
-Now we have *realization reference*, we could ask IPython to save it in a
-variable by typing `rref=_`. This reference identifies the stage in our storage.
-It could be converted into system path by calling `pylightnix.rref2path` function.
+Now we have *realization reference*, so we could ask IPython to save it in a
+variable by typing `rref=_`. RRefs identifiy stages in the Pyligtnix storage.
+They could be converted into system paths by calling `pylightnix.rref2path`
+function:
 
 ```python
 > print(rref2path(rref))
