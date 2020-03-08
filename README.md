@@ -68,10 +68,10 @@ Features
        low-level details.
      - In many cases we can tweak configurations in-place:
        ```python
-       > from pylightnix import redefine
+       > from pylightnix import redefine, mkconfig
        > def _new_config(old_config):
-       >   old_config.learning_rate = 1e-5
-       >   return old_config
+       >   old_config['learning_rate'] = 1e-5
+       >   return mkconfig(old_config)
        > rref5=realize(instantiate(redefine(all_convnn_mnist, new_config=_new_config)))
        > rref5
        'rref:1ece593a8e761fa28fdc0da0fed00eb8-dd084d4a8b75a787b7c230474549e5db-convnn-mnist'
