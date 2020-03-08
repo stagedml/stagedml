@@ -20,6 +20,8 @@ from stagedml.models.transformer import ( create_train_model, create_eval_model,
     create_optimizer, train_ds, eval_ds, LearningRateScheduler, LearningRateFn,
     BASE_PARAMS, Subtokenizer, EOS_ID, bleu_wrapper)
 
+from stagedml.models.transformer.data import eval_ds, predict_ds
+
 from stagedml.types import ( WmtSubtok, TransWmt, Dict, Optional,Any,List,Tuple,Union )
 
 from stagedml.stages.fetchwmt import create_subtokenizer
@@ -34,11 +36,11 @@ def config(wmt:WmtSubtok):
   data_dir = [ wmt ]
   vocab_refpath = mklens(wmt).vocab_file.refpath
   dtype = 'fp32'
-  train_steps = 300000
+  train_steps = 22500
   steps_between_evals = 5000
 
   eval_steps:Optional[int] = None # all
-  eval_batch_size = 10
+  eval_batch_size = 30
 
   params:Dict[str,Any] = dict(BASE_PARAMS)
   params["num_gpus"] = num_gpus
@@ -66,6 +68,8 @@ class TransformerBuild(KerasBuild):
   train_model:Model
   epoch:Optional[int]
   filewriter:SummaryWriter
+  tbcallback:TensorBoard
+  subtokenizer:Subtokenizer
 
 def cont(b:TransformerBuild)->None:
   copy_tree(rref2path(build_cattrs(b).continue_from),build_outpath(b))
@@ -96,33 +100,61 @@ def build(b:TransformerBuild)->None:
   b.eval_model = create_eval_model(c.params)
   b.eval_model.summary()
   b.epoch = None
-  b.filewriter = create_file_writer(o)
+  b.filewriter = create_file_writer(join(o,'eval'))
+  b.tbcallback = TensorBoard(log_dir=o, profile_batch=0, write_graph=False)
+  b.subtokenizer = create_subtokenizer(mklens(b).wmt.dref, build_context(b))
   runtb(b)
 
+def loadcp(b:TransformerBuild):
+  ckpt0 = mklens(b).checkpoint_init.val
+  assert ckpt0 is not None
+  b.train_model.load_weights(ckpt0)
+  b.epoch = None
 
 def evaluate(b:TransformerBuild)->None:
+  assert b.train_model is not None
+  c = build_cattrs(b)
+  input_txt:Path=mklens(b).eval_input_refpath.syspath
+  target_src_txt:Path=mklens(b).eval_target_refpath.syspath
+  print('Evaluating')
+  epoch=b.epoch if b.epoch is not None else 0
+  ds = eval_ds(b.subtokenizer,
+               input_txt,
+               target_src_txt,
+               batch_size=mklens(b).eval_batch_size.val,
+               params=mklens(b).params.val,
+               take=mklens(b).eval_steps.val)
+  h=b.train_model.evaluate(ds, verbose=1, callbacks=[b.tbcallback])
+  with b.filewriter.as_default():
+    for mname,v in zip(b.train_model.metrics_names,h):
+      tf.summary.scalar('epoch_'+mname,v,step=epoch)
+
+
+def predict(b:TransformerBuild)->None:
   assert b.eval_model is not None
   o = build_outpath(b)
   c = build_cattrs(b)
-  subtokenizer:Subtokenizer = create_subtokenizer(mklens(b).wmt.dref, build_context(b))
   input_txt:Path=mklens(b).eval_input_refpath.syspath
   target_src_txt:Path=mklens(b).eval_target_refpath.syspath
   target_txt=join(o,'targets.txt')
-  output_txt:Path=Path(join(o,f"output-{str(b.epoch) if b.epoch is not None else '?'}.txt"))
+  epoch=b.epoch if b.epoch is not None else 0
+  output_txt:Path=Path(join(o,f"output-{epoch}.txt"))
   b.eval_model.load_weights(mklens(b).checkpoint_refpath.syspath)
-  ds = eval_ds(subtokenizer,
-               input_txt,
-               batch_size=c.eval_batch_size,
-               params=c.params)
-  if c.eval_steps is not None:
-    ds = ds.take(c.eval_steps)
-  outputs,_ = b.eval_model.predict(ds, verbose=1)
+
+  print('Predicting')
+  ds = predict_ds(b.subtokenizer,
+                  input_txt,
+                  batch_size=mklens(b).eval_batch_size.val,
+                  params=mklens(b).params.val,
+                  take=mklens(b).eval_steps.val)
+
+  outputs,_ = b.eval_model.predict(ds, verbose=1, callbacks=[b.tbcallback])
   with open(output_txt,'w') as fhyp, \
        open(target_src_txt,'r') as ftgt_src, \
        open(target_txt,'w') as ftgt:
     neols=0
     for ids in outputs:
-      reply=subtokenizer.decode(ids[:tryindex(list(ids),EOS_ID)])
+      reply=b.subtokenizer.decode(ids[:tryindex(list(ids),EOS_ID)])
       target=ftgt_src.readline().strip()
       if '\n' in reply:
         neols+=1
@@ -136,25 +168,18 @@ def evaluate(b:TransformerBuild)->None:
         f'BLEU (uncased): {bleu_uncased}\n'
         f'BLEU (cased): {bleu_cased}\n')
   with b.filewriter.as_default():
-    tf.summary.scalar('bleu_cased',bleu_cased,step=b.epoch*c.steps_between_evals)
-    tf.summary.scalar('bleu_uncased',bleu_uncased,step=b.epoch*c.steps_between_evals)
+    tf.summary.scalar('bleu_cased',bleu_cased,step=epoch)
+    tf.summary.scalar('bleu_uncased',bleu_uncased,step=epoch)
   with open(mklens(b).bleu_refpath.syspath,'w') as f:
     f.write(f"{(bleu_cased + bleu_uncased)/2.0}\n")
 
-
-def loadcp(b:TransformerBuild):
-  ckpt0 = mklens(b).checkpoint_init.val
-  assert ckpt0 is not None
-  b.train_model.load_weights(ckpt0)
-  b.epoch = None
 
 def train(b:TransformerBuild):
   assert b.train_model is not None
   c = build_cattrs(b)
   o = build_outpath(b)
-  ckpt = mklens(b).checkpoint_refpath.syspath
   callbacks = [
-    TensorBoard(log_dir=o, profile_batch=0, write_graph=False),
+    b.tbcallback,
     LearningRateScheduler(
         LearningRateFn(c.params["learning_rate"],
                        c.params["hidden_size"],
@@ -172,8 +197,11 @@ def train(b:TransformerBuild):
       callbacks=callbacks,
       verbose=True)
 
+    ckpt = mklens(b).checkpoint_refpath.syspath
+    print(f"Saving '{ckpt}'")
     b.train_model.save_weights(ckpt)
     evaluate(b)
+    predict(b)
     b.epoch += 1
 
 
