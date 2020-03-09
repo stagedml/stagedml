@@ -24,6 +24,7 @@ def mysubtok(m):
 def mytransformer(m):
   def _config(c):
     c['train_steps']=5*5000
+    c['params']['beam_size']=3 # As in Tellina paper
     return mkconfig(c)
   return redefine(transformer_wmt,_config)(m, mysubtok(m))
 
