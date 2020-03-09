@@ -75,7 +75,9 @@ def runtb(arg:Union[RRef,Build,str])->None:
     path=rref2path(RRef(arg))
   elif isinstance(arg,str):
     path=Path(arg)
-  else:
+  elif isinstance(arg,Build):
     path=build_outpath(arg)
+  else:
+    assert False, "Value of unsupported type: '{arg}'"
   pid=runtensorboard(path)
   print('Tensorboard is running at', path, 'pid', pid)

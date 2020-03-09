@@ -69,13 +69,14 @@ def build(b:TransformerBuild)->None:
   b.filewriter = create_file_writer(join(o,'eval'))
   b.tbcallback = TensorBoard(log_dir=o, profile_batch=0, write_graph=False)
   b.subtokenizer = create_subtokenizer(WmtSubtok(mklens(b).wmt.dref), build_context(b))
-  runtb(b)
+
 
 def loadcp(b:TransformerBuild):
   ckpt0 = mklens(b).checkpoint_init.val
   assert ckpt0 is not None
   b.train_model.load_weights(ckpt0)
   b.epoch = None
+
 
 def evaluate(b:TransformerBuild)->None:
   assert b.train_model is not None

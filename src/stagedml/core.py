@@ -19,6 +19,7 @@ assert isdir(STAGEDML_ROOT), (
 
 
 def linkrref(rref:RRef)->None:
+  """ Create a 'result-' symlink under the Pylightnix root folder """
   mksymlink(rref, Path(STAGEDML_ROOT),
             name='result-'+config_name(store_config(rref)), withtime=False)
 
@@ -30,34 +31,15 @@ def lrealize(clo:Closure)->RRef:
   return rref
 
 
-# def tbrealize(clo:Closure, cancel_on_exception:bool=True)->RRef:
-#   """ FIXME: repl_build is not preserved """
-#   rh=repl_realize(clo, force_interrupt=True)
-#   try:
-#     assert rh.drv is not None
-#     assert rh.dref is not None
-#     assert rh.context is not None
-#     orrefs=rh.drv.matcher(rh.dref,rh.context)
-#     if orrefs is None:
-#       b=repl_build(rh)
-#       runtensorboard(build_outpath(b), kill_existing=True)
-#     else:
-#       assert len(orrefs)>0
-#       runtensorboard(rref2path(orrefs[0]), kill_existing=True)
-#   except Exception:
-#     if cancel_on_exception:
-#       repl_cancel(rh)
-#     raise
-#   rref=repl_continue(out_rrefs=orrefs,rh=rh)
-#   assert rref is not None
-#   linkrref(rref)
-#   if orrefs is None:
-#     runtensorboard(rref2path(rref), kill_existing=True)
-#   return rref
-
-
 def borrow(rref:RRef, clo:Closure)->RRef:
-  """ Borrows the contents of `rref` to cook the realization of `clo`. """
+  """ Borrows the contents of `rref` to cook the realization of `clo`.
+
+  - FIXME: Maybe move `borrow` to Pylightnix.
+  - FIXME: Maybe re-define `borrow` via `pylightnix.redefine`+copying
+    realizer.
+  - FIXME: Maybe print config difference of source and target with
+    `pylightnix.bashlike.diff`.
+  """
   rh=repl_realize(clo, force_interrupt=True)
   try:
     assert rh.drv is not None
@@ -77,12 +59,26 @@ def borrow(rref:RRef, clo:Closure)->RRef:
 
 
 def tryrealize(clo:Closure, verbose:bool=False)->Optional[RRef]:
+  """ Run the realization, but deosn't allow it to run any realizers. """
   try:
     return realize(clo, assert_realized=[d.dref for d in clo.derivations])
   except Exception as e:
     if verbose:
       print(e)
     return None
+
+
+# from pylightnix import datahash, encode, makedirs
+# def linkrefs(rrefs:List[RRef], tgtdir:Optional[Path]=None)->Path:
+#   if tgtdir is None:
+#     import pylightnix.core
+#     tgtdir=join(pylightnix.core.PYLIGHTNIX_TMP,
+#                 datahash([encode(rref) for rref in rrefs])[:7])
+#   makedirs(tgtdir,exist_ok=True)
+#   for rref in rrefs:
+#     mksymlink(rref,tgtdir,name=str(rref),withtime=False)
+#   return tgtdir
+
 
 #  ____        _ _     _
 # | __ ) _   _(_) | __| | ___ _ __ ___

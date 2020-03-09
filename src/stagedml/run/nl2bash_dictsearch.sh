@@ -1,7 +1,13 @@
 #!/bin/sh
 
+set -e -x
+
 # Install the latest version of StagedML and Pylightnix
 sudo -H make install
+
+# Create the folder containing the results of this experiment
+O=_pylightnix/experiments/nl2bash
+mkdir -p "$O" | true
 
 # Set PYTHONPATH to refer to 3rdparty modules, but use system StagedML and
 # Pylighnitx. This way we could edit the sources while running a long-running task.
@@ -11,7 +17,8 @@ export PYTHONPATH=/workspace/3rdparty/nl2bash_essence/src:/workspace/3rdparty/te
 run() {
 VSIZE="$1"
 python3 -c "
-from pylightnix import realize, instantiate, redefine, mkconfig, promise
+from pylightnix import ( realize, instantiate, redefine, mkconfig, promise,
+                         rref2dref, mksymlink )
 from stagedml.stages.all import *
 
 def mysubtok(m):
@@ -28,7 +35,8 @@ def mytransformer(m):
     return mkconfig(c)
   return redefine(transformer_wmt,_config)(m, mysubtok(m))
 
-realize(instantiate(mytransformer))
+rref=realize(instantiate(mytransformer))
+mksymlink(rref, '$O', str('$VSIZE'))
 "
 }
 
@@ -40,3 +48,5 @@ run 10000
 run 5000
 run 1000
 run 500
+
+python3 -c "from stagedml.utils.tf import runtb; runtb('$O')"
