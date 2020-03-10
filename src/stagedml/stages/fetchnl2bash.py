@@ -128,13 +128,13 @@ def bash_charset(m:Manager)->DRef:
     assert test==charset
   return mkdrv(m, config, match_only(), realizer=build_wrapper(_realize))
 
-def nl2bashSubtok(m:Manager)->WmtSubtok:
+def nl2bashSubtok(m:Manager, with_bash_subtokens:bool=True)->WmtSubtok:
   nl2b=fetchnl2bash(m)
   restok=mklens(bash_reserved_tokens(m,mklens(nl2b).train_target_combined.refpath)).output.refpath
   charset=mklens(bash_charset(m)).output.refpath
   return wmtsubtok_(m,nl2b,nl2b,
                       target_vocab_size=8192,
                       train_shards=1,
-                      reserved_tokens=restok,
+                      reserved_tokens=restok if with_bash_subtokens else None,
                       master_char_set=charset)
 

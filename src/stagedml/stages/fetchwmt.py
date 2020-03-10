@@ -114,7 +114,8 @@ def wmtsubtok_(m:Manager,
                reserved_tokens:Optional[RefPath]=None,
                master_char_set:Optional[RefPath]=None,
                target_vocab_size:int=32768,
-               train_shards:int=100)->WmtSubtok:
+               train_shards:int=100,
+               file_byte_limit:Optional[int]=None)->WmtSubtok:
 
   def _config_v1():
     name = "subtok-"+mklens(trainfiles).name.val
@@ -148,6 +149,8 @@ def wmtsubtok_(m:Manager,
     # Master charset
     if master_char_set:
       cfg.update({'master_char_set':master_char_set})
+    if file_byte_limit:
+      cfg.update({'file_byte_limit':file_byte_limit})
     return mkconfig(cfg)
 
   def _realize(b:Build):
@@ -172,9 +175,12 @@ def wmtsubtok_(m:Manager,
       threshold=c.target_threshold,
       min_count=c.train_data_min_count,
       master_char_set=master_char_set,
+      file_byte_limit=getattr(c,'file_byte_limit',1e6),
       reserved_tokens=reserved_tokens)
 
     subtokenizer = create_subtokenizer(WmtSubtok(b.dref), b.context, b)
+    print('Subtoken list size:', len(subtokenizer.subtoken_list))
+
     print('Encoding train files')
     encode_and_save_files(subtokenizer, o, train_combined, c.train_tag, c.train_shards)
     print('Encoding eval files')
