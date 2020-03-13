@@ -273,7 +273,50 @@ With the realization reference in hands, we could:
 Documentation
 -------------
 
-Not much yet:)
+### Repository structure
+
+Most of the _stages_ are defined in [stagedml.stages](./src/stagedml/stages)
+packages. The [stagedml.stages.all](./src/stagedml/stages/all.py) module contains
+top-level definitions. Machine learning models are mostly borrowed from the
+[TensorFlow Official Models](https://github.com/tensorflow/models), we keep
+their main parts under the [stagedml.models](./src/stagedml/models)
+module.
+
+
+```
+.
+├── 3rdparty/                      # Thirdparty projects, Git submodules
+│   ├── pylightnix/                # Pylightnix core library
+│   ├── nl2bash_essence/
+│   ├── tensorflow/
+│   └── tensorflow_models/
+├── docker/                        # Docker scripts and install rules
+│   ├── stagedml_ci.docker
+│   └── stagedml_dev.docker
+├── nix/
+│   └── docker_inject.nix
+├── run/                           # Experiments, have own Makefile
+│   └── nl2bash/
+├── src/                           # Python sources
+│   └── stagedml/
+│       ├── datasets/              # Dataset utilities
+│       ├── imports/               # Import aggregation modules
+│       ├── models/                # ML models
+│       ├── stages/                # Collcection of Stages
+│       └── utils/                 # Utilities
+├── LICENSE
+├── Makefile                       # Rules for building wheels, testing, etc.
+├── README.md                      # <-- You are here
+├── env.sh
+├── ipython.sh
+├── localrc.vim
+├── runchrome.sh*                  # Chrome browser runner, TensorBoard ports are open
+├── rundocker.sh*                  # Docker container runner
+└── setup.py
+```
+
+
+### Pylightnix core
 
 StagedML is a collection of Pylightnix _stages_, so the following
 [Pylightnix documentation and manuals](https://github.com/stagedml/pylightnix/blob/master/README.md#Documentation)
@@ -288,14 +331,7 @@ do apply here:
   is a note on organizing experiments.
 * [Pylightnix API Reference](https://github.com/stagedml/pylightnix/blob/master/docs/Reference.md)
 
-Most of the _stages_ are defined in [stagedml.stages](./src/stagedml/stages)
-packages. The [stagedml.stages.all](./src/stagedml/stages/all.py) module contains
-top-level definitions. Machine learning models are mostly borrowed from the
-[TensorFlow Official Models](https://github.com/tensorflow/models), we keep
-their main parts under the [stagedml.models](./src/stagedml/models)
-module.
-
-The list below illustrates applications of StagedML
+### Experiment reports
 
 * [NL2BASH](https://htmlpreview.github.io/?https://github.com/stagedml/stagedml/blob/master/run/nl2bash/out/Report.html)
 
