@@ -154,7 +154,7 @@ We show how to run the project in development docker
    The docker builder will download [deepo](https://github.com/ufoym/deepo) base
    image and additional dependencies. After the image is ready, the script will
    bind-mount project root folder as container's `/workspace`. Finally, it will
-   open Bash shell with PYTHONPATH pointing to local Python sources, and a
+   open Bash shell with `PYTHONPATH` pointing to local Python sources, and a
    collection of [helper shell functions](./env.sh).
 
 3. Now, we have to make sure we are using a compatible version of TensorFlow.
@@ -189,7 +189,20 @@ We show how to run the project in development docker
      call `installtf` (but not `buildtf`) at each start of the container for now.
 
 
-4. That is all. Run `ipython` and try StagedML in action.
+4. Now we should have (a) Git submodules updated, (b) PYTHONPATH pointing to the
+   local sources and (c) recent version of TensorFlow is installed systemwide.
+   This is enough for the Quick Start and local development.
+
+   In order to run experiments from the `run` folder we also do require
+   installing Pylightnix, StagedML and other dependencies systemwide:
+
+   ```
+   user@docker $ make wheels
+   user@docker $ sudo -H make install
+   ```
+
+   This is it. Note that the experiments tun `make check` to make sure that
+   version installed with `make install` does exactly match the current sources.
 
 
 Quick Start
