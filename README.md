@@ -295,5 +295,7 @@ top-level definitions. Machine learning models are mostly borrowed from the
 their main parts under the [stagedml.models](./src/stagedml/models)
 module.
 
-Below sections describe the typical work scenarios.
+The list below illustrates applications of StagedML
+
+* [NL2BASH](./run/nl2bash/out/Report.html)
 
