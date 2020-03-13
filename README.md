@@ -229,15 +229,16 @@ An example IPython session may look like the following:
 ```python
 > from stagedml.stages.all import *                    # Import the collection of toplevel stages
 > store_initialize()                                   # Make sure that Pylightnix storage is initialized
-> realize(instantiate(all_bert_finetune_glue, 'MRPC')) # Train the model of choice: here - BERT and GLUE/MRPC task
+> realize(instantiate(all_bert_finetune_glue, 'MRPC')) # Train our model of choice
 
-                                                        # StagedML will:
-                                                        # * Download GLUE Dataset...
-                                                        # * Download pretrained BERT checkpoint
-                                                        # * Convert the Dataset into TFRecord format
-                                                        # * Fine tune the BERT model on MRPC classification task (~15 min on Nv1080Ti GPU)
-                                                        # * Save model's checkpoint and other data into directory
-                                                        # * Return the handle to this directory
+                                                       # During the realize, StagedML will:
+                                                       # * Download GLUE Dataset...
+                                                       # * Download pretrained BERT checkpoint
+                                                       # * Convert the Dataset into TFRecord format
+                                                       # * Fine tune the BERT model on MRPC classification task
+                                                       #   (~15 min on Nv1080Ti GPU)
+                                                       # * Save model's checkpoint and other data
+                                                       # * Return the handle to this data
 
 'rref:eedaa6f13fee251b9451283ef1932ca0-c32bccd3f671d6a3da075cc655ee0a09-bert'
 ```
