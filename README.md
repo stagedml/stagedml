@@ -32,17 +32,20 @@ Features
   2. All adopted models and datasets are defined as a linked graph of Pylightnix
      core objects called
      [stages](https://github.com/stagedml/pylightnix/blob/master/docs/Reference.md#pylightnix.types.Derivation).
-     Dependency resolution is done automatically.
-  3. Any _stage_ object could be created in a button click (here: by one line
-     of Python code, not counting the imports). Example:
+     A Stage is a direct analogy of a package manager's package.  Dependencies
+     between stages are encoded by passing special handlers called _derivation
+     references_.
+  3. Any _stage_ object could be created in just one line
+     of Python code, not counting the imports. Example:
      ```python
      > from stagedml.stages.all import all_convnn_mnist, realize, instantiate, rref2path, shell
      > rref=realize(instantiate(all_convnn_mnist))
-     # ^^^ Download the dataset, train the convolution network, etc..
      > rref
      'rref:2bf51e3ce37061ccff6168ccefac7221-3b9f88037f737f06af0fe82b6f6ac3c8-convnn-mnist'
-     # ^^^ Realization reference describes a folder containing final checkpoints and training logs
      ```
+     Realization reference identifies a folder containing final checkpoints and
+     training logs
+
   4. StagedML attempts to re-use already trained models whenever possible.
   5. For every _stage_, users could access it's full configuration, including the
      configurations of it's dependencies
@@ -175,34 +178,40 @@ We show how to run the project in development docker
      sourced at the start of the Docker). To compile TF, type:
 
      ```
-     $ buildtf
+     (docker) $ buildtf
      ```
 
      Building takes a long time. The resulting `*wheel` will appear in `./_tf`
      folder. Once it is ready, call
 
      ```
-     $ installtf
+     (docker) $ installtf
      ```
 
      to actually install the TF wheel into the container. Note, that you need to
      call `installtf` (but not `buildtf`) at each start of the container for now.
 
 
-4. Now we should have (a) Git submodules updated, (b) PYTHONPATH pointing to the
-   local sources and (c) recent version of TensorFlow is installed systemwide.
-   This is enough for the Quick Start and local development.
+4. (Optional) Now we should have (a) Git submodules updated, (b) PYTHONPATH
+   pointing to the local sources and (c) recent version of TensorFlow is
+   installed systemwide.  This is enough for the Quick Start and local
+   development.
 
    In order to run experiments from the `run` folder we also do require
    installing Pylightnix, StagedML and other dependencies systemwide:
 
    ```
-   user@docker $ make wheels
-   user@docker $ sudo -H make install
+   (docker) $ make wheels; sudo -H make install
    ```
 
    This is it. Note that the experiments tun `make check` to make sure that
    version installed with `make install` does exactly match the current sources.
+
+5. (Optional) StagedML supports `mypy`-based typechecking:
+
+   ```
+   (docker) $ make test
+   ```
 
 
 Quick Start
@@ -218,20 +227,17 @@ automatically.
 An example IPython session may look like the following:
 
 ```python
-> from stagedml.stages.all import *
-> # ^^^ Import the collection of toplevel stages
-> store_initialize()
-> # ^^^ Make sure that Pylightnix storage is initialized
-> realize(instantiate(all_bert_finetune_glue, 'MRPC'))
-> # ^^^ Train the model of choice: here - BERT and GLUE/MRPC task
+> from stagedml.stages.all import *                    # Import the collection of toplevel stages
+> store_initialize()                                   # Make sure that Pylightnix storage is initialized
+> realize(instantiate(all_bert_finetune_glue, 'MRPC')) # Train the model of choice: here - BERT and GLUE/MRPC task
 
-# StagedML will:
-# * Download GLUE Dataset...
-# * Download pretrained BERT checkpoint
-# * Convert the Dataset into TFRecord format
-# * Fine tune the BERT model on MRPC classification task (~15 min on Nv1080Ti GPU)
-# * Save model's checkpoint and other data into directory
-# * Return the handle to this directory
+                                                        # StagedML will:
+                                                        # * Download GLUE Dataset...
+                                                        # * Download pretrained BERT checkpoint
+                                                        # * Convert the Dataset into TFRecord format
+                                                        # * Fine tune the BERT model on MRPC classification task (~15 min on Nv1080Ti GPU)
+                                                        # * Save model's checkpoint and other data into directory
+                                                        # * Return the handle to this directory
 
 'rref:eedaa6f13fee251b9451283ef1932ca0-c32bccd3f671d6a3da075cc655ee0a09-bert'
 ```
