@@ -297,5 +297,5 @@ module.
 
 The list below illustrates applications of StagedML
 
-* [NL2BASH](./run/nl2bash/out/Report.html)
+* [NL2BASH](https://htmlpreview.github.io/?https://github.com/stagedml/stagedml/blob/master/run/nl2bash/out/Report.html)
 
