@@ -2,10 +2,11 @@ import tensorflow as tf
 assert tf.version.VERSION.startswith('2.1')
 
 from pylightnix import ( Path, Config, Manager, RRef, DRef, Context,
-    store_cattrs, build_path, build_outpath, build_cattrs, mkdrv, rref2path,
+    store_cattrs, build_path, build_outpaths, build_cattrs, mkdrv, rref2path,
     json_load, build_config, mkconfig, mkbuild, match_only, build_wrapper_,
     tryread, store_config, mklens, repl_realize, instantiate, shell, promise,
-    claim, repl_build, build_context )
+    claim, repl_build, build_context, match_best, build_outpaths,
+    build_setoutpaths )
 
 from stagedml.imports import ( join, clear_session, set_session_config,
     TensorBoard, ModelCheckpoint, copy_tree, Model, isfile, get_single_element,
@@ -37,26 +38,29 @@ class TransformerBuild(KerasBuild):
   tbcallback:TensorBoard
   subtokenizer:Subtokenizer
 
-def cont(b:TransformerBuild)->None:
-  copy_tree(rref2path(build_cattrs(b).continue_from),build_outpath(b))
+# def cont(b:TransformerBuild)->None:
+#   copy_tree(rref2path(build_cattrs(b).continue_from),build_outpath(b))
 
-def compute_missing_params(b):
+def compute_missing_params(b, instance_idx:int):
   c = build_cattrs(b)
-  c.params["model_dir"] = build_outpath(b)
+  o = build_outpaths(b)[instance_idx]
+  me = mklens(b,o)
+  c.params["model_dir"] = o
   c.params["dtype"] = DTYPE_MAP[c.dtype]
-  c.params["data_dir"] = mklens(b).data_dir.syspath
-  vocab_contents = tryread(mklens(b).vocab_refpath.syspath)
+  c.params["data_dir"] = me.data_dir.syspath
+  vocab_contents = tryread(me.vocab_refpath.syspath)
   assert vocab_contents is not None
   c.params["vocab_size"] = len(vocab_contents.split('\n'))
   print(f'Setting vocab_size to {c.params["vocab_size"]}')
 
 
-def build(b:TransformerBuild)->None:
+def build(b:TransformerBuild, instance_idx:int)->None:
   c = build_cattrs(b)
-  o = build_outpath(b)
+  o = build_outpaths(b)[instance_idx]
+  me = mklens(b,o)
 
   clear_session()
-  compute_missing_params(b)
+  compute_missing_params(b, instance_idx)
   set_session_config(enable_xla=c.enable_xla)
 
   b.train_model = create_train_model(c.params)
@@ -68,52 +72,55 @@ def build(b:TransformerBuild)->None:
   b.epoch = None
   b.filewriter = create_file_writer(join(o,'eval'))
   b.tbcallback = TensorBoard(log_dir=o, profile_batch=0, write_graph=False)
-  b.subtokenizer = create_subtokenizer(WmtSubtok(mklens(b).wmt.dref), build_context(b))
+  b.subtokenizer = create_subtokenizer(WmtSubtok(me.wmt.dref), build_context(b))
 
 
-def loadcp(b:TransformerBuild):
-  ckpt0 = mklens(b).checkpoint_init.val
+def loadcp(b:TransformerBuild, instance_idx):
+  me = mklens(b,o=build_outpaths(b)[instance_idx])
+  ckpt0 = me.checkpoint_init.val
   assert ckpt0 is not None
   b.train_model.load_weights(ckpt0)
   b.epoch = None
 
 
-def evaluate(b:TransformerBuild)->None:
+def evaluate(b:TransformerBuild, instance_idx:int)->None:
   assert b.train_model is not None
   c = build_cattrs(b)
-  input_txt:Path=mklens(b).eval_input_refpath.syspath
-  target_src_txt:Path=mklens(b).eval_target_refpath.syspath
+  me = mklens(b,o=build_outpaths(b)[instance_idx])
+  input_txt:Path=me.eval_input_refpath.syspath
+  target_src_txt:Path=me.eval_target_refpath.syspath
   print('Evaluating')
   epoch=b.epoch if b.epoch is not None else 0
   ds = eval_ds(b.subtokenizer,
                input_txt,
                target_src_txt,
-               batch_size=mklens(b).eval_batch_size.val,
-               params=mklens(b).params.val,
-               take=mklens(b).eval_steps.val)
+               batch_size=me.eval_batch_size.val,
+               params=me.params.val,
+               take=me.eval_steps.val)
   h=b.train_model.evaluate(ds, verbose=1, callbacks=[b.tbcallback])
   with b.filewriter.as_default():
     for mname,v in zip(b.train_model.metrics_names,h):
       tf.summary.scalar('epoch_'+mname,v,step=epoch)
 
 
-def predict(b:TransformerBuild)->None:
+def predict(b:TransformerBuild, instance_idx:int)->None:
   assert b.eval_model is not None
-  o = build_outpath(b)
   c = build_cattrs(b)
-  input_txt:Path=mklens(b).eval_input_refpath.syspath
-  target_src_txt:Path=mklens(b).eval_target_refpath.syspath
+  o = build_outpaths(b)[instance_idx]
+  me = mklens(b,o=o)
+  input_txt:Path=me.eval_input_refpath.syspath
+  target_src_txt:Path=me.eval_target_refpath.syspath
   target_txt=join(o,'targets.txt')
   epoch=b.epoch if b.epoch is not None else 0
   output_txt:Path=Path(join(o,f"output-{epoch}.txt"))
-  b.eval_model.load_weights(mklens(b).checkpoint_refpath.syspath)
+  b.eval_model.load_weights(me.checkpoint_refpath.syspath)
 
   print('Predicting')
   ds = predict_ds(b.subtokenizer,
                   input_txt,
-                  batch_size=mklens(b).eval_batch_size.val,
-                  params=mklens(b).params.val,
-                  take=mklens(b).eval_steps.val)
+                  batch_size=me.eval_batch_size.val,
+                  params=me.params.val,
+                  take=me.eval_steps.val)
 
   outputs,_ = b.eval_model.predict(ds, verbose=1, callbacks=[b.tbcallback])
   with open(output_txt,'w') as fhyp, \
@@ -137,14 +144,15 @@ def predict(b:TransformerBuild)->None:
   with b.filewriter.as_default():
     tf.summary.scalar('bleu_cased',bleu_cased,step=epoch)
     tf.summary.scalar('bleu_uncased',bleu_uncased,step=epoch)
-  with open(mklens(b).bleu_refpath.syspath,'w') as f:
+  with open(me.bleu_refpath.syspath,'w') as f:
     f.write(f"{(bleu_cased + bleu_uncased)/2.0}\n")
 
 
-def train(b:TransformerBuild):
+def train(b:TransformerBuild, instance_idx:int=0):
   assert b.train_model is not None
   c = build_cattrs(b)
-  o = build_outpath(b)
+  o = build_outpaths(b)[instance_idx]
+  me = mklens(b,o)
   callbacks = [
     b.tbcallback,
     LearningRateScheduler(
@@ -164,19 +172,23 @@ def train(b:TransformerBuild):
       callbacks=callbacks,
       verbose=True)
 
-    ckpt = mklens(b).checkpoint_refpath.syspath
+    ckpt = me.checkpoint_refpath.syspath
     print(f"Saving '{ckpt}'")
     b.train_model.save_weights(ckpt)
-    evaluate(b)
-    predict(b)
+    evaluate(b, instance_idx)
+    predict(b, instance_idx)
     b.epoch += 1
 
 
-def _realize(b:TransformerBuild)->None:
-  build(b)
-  train(b)
+def transformer_wmt(m:Manager, wmt:WmtSubtok, num_instances:int=1)->TransWmt:
+  train_steps = 300000
 
-def transformer_wmt(m:Manager, wmt:WmtSubtok, train_steps:int=300000)->TransWmt:
+  def _realize(b:TransformerBuild)->None:
+    build_setoutpaths(b,num_instances)
+    for instance_idx in range(num_instances):
+      print(f'Building Transformer instance {instance_idx+1} of {num_instances}')
+      build(b,instance_idx)
+      train(b,instance_idx)
 
   def _config():
     name = 'transformer-nmt-'+mklens(wmt).name.val
@@ -213,6 +225,6 @@ def transformer_wmt(m:Manager, wmt:WmtSubtok, train_steps:int=300000)->TransWmt:
     return mkconfig(locals())
 
   return TransWmt(mkdrv(m, config=_config(),
-                           matcher=match_only(),
+                           matcher=match_best('bleu.txt'),
                            realizer=build_wrapper_(_realize, TransformerBuild)))
 

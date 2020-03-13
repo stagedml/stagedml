@@ -76,7 +76,7 @@ def collect_bash_specific_tokens(fp:str)->Set[str]:
   return ret
 
 
-def fetchnl2bash(m:Manager)->DRef:
+def fetchnl2bash(m:Manager, shuffle:bool=True)->DRef:
   allnl=fetchlocal(m,
     path=join('3rdparty','nl2bash_essence','src','data','bash','all.nl'),
     sha256='1db0c529c350b463919624550b8f5882a97c42ad5051c7d49fbc496bc4e8b770',
@@ -89,13 +89,19 @@ def fetchnl2bash(m:Manager)->DRef:
     mode='asis',
     output=[promise, 'all.cm'] )
 
-  shuffle=lineshuffle(m, src={'allnl':mklens(allnl).output.refpath,
-                              'allcm':mklens(allcm).output.refpath})
+  if shuffle:
+    s=lineshuffle(m, src={'allnl':mklens(allnl).output.refpath,
+                          'allcm':mklens(allcm).output.refpath})
+    allnl_refpath=mklens(s).allnl.refpath
+    allcm_refpath=mklens(s).allcm.refpath
+  else:
+    allnl_refpath=mklens(allnl).output.refpath
+    allcm_refpath=mklens(allcm).output.refpath
 
-  nlfiles=splitfile(m, src=mklens(shuffle).allnl.refpath,
+  nlfiles=splitfile(m, src=allnl_refpath,
                        fractions=[('train',f'train_nl.txt',0.9),
                                   ('eval', f'eval_nl.txt',0.1)])
-  cmfiles=splitfile(m, src=mklens(shuffle).allcm.refpath,
+  cmfiles=splitfile(m, src=allcm_refpath,
                        fractions=[('train',f'train_cm.txt',0.9),
                                   ('eval', f'eval_cm.txt',0.1)])
 
@@ -128,13 +134,16 @@ def bash_charset(m:Manager)->DRef:
     assert test==charset
   return mkdrv(m, config, match_only(), realizer=build_wrapper(_realize))
 
-def nl2bashSubtok(m:Manager, with_bash_subtokens:bool=True)->WmtSubtok:
-  nl2b=fetchnl2bash(m)
+
+def nl2bashSubtok(m:Manager, shuffle:bool=True,
+                             with_bash_charset:bool=True,
+                             with_bash_subtokens:bool=True)->WmtSubtok:
+  nl2b=fetchnl2bash(m, shuffle)
   restok=mklens(bash_reserved_tokens(m,mklens(nl2b).train_target_combined.refpath)).output.refpath
   charset=mklens(bash_charset(m)).output.refpath
   return wmtsubtok_(m,nl2b,nl2b,
                       target_vocab_size=8192,
                       train_shards=1,
                       reserved_tokens=restok if with_bash_subtokens else None,
-                      master_char_set=charset)
+                      master_char_set=charset if with_bash_charset else None)
 

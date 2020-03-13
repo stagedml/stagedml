@@ -101,10 +101,13 @@ def evalfiles(m:Manager, lang1:str, lang2:str, suffix:Optional[str]=None)->DRef:
 def create_subtokenizer(dref:WmtSubtok, ctx:Context, b:Optional[Build]=None)->Subtokenizer:
   me=mklens(dref,b=b,ctx=ctx)
   master_char_set=list(readlines(me.master_char_set.syspath)) \
-                  if me.master_char_set.val else None
+                  if me.master_char_set.val is not None else None
+  no_slave_multichar = me.no_slave_multichar.val \
+                       if me.no_slave_multichar.val is not None else False
   return Subtokenizer(
       vocab_file=me.vocab_file.syspath,
-      master_char_set=master_char_set)
+      master_char_set=master_char_set,
+      no_slave_multichar=no_slave_multichar)
 
 
 
@@ -165,9 +168,9 @@ def wmtsubtok_(m:Manager,
         "Numbers of lines in eval files don't match. Consider checking line endings."
 
     reserved_tokens=(RESERVED_TOKENS+list(readlines(mklens(b).reserved_tokens.syspath))) \
-                      if mklens(b).reserved_tokens.val else None
+                      if mklens(b).reserved_tokens.val is not None else None
     master_char_set=list(readlines(mklens(b).master_char_set.syspath)) \
-                      if mklens(b).master_char_set.val else None
+                      if mklens(b).master_char_set.val is not None else None
     Subtokenizer.init_from_files(
       vocab_file=mklens(b).vocab_file.syspath,
       files=train_combined,
@@ -176,7 +179,8 @@ def wmtsubtok_(m:Manager,
       min_count=c.train_data_min_count,
       master_char_set=master_char_set,
       file_byte_limit=getattr(c,'file_byte_limit',1e6),
-      reserved_tokens=reserved_tokens)
+      reserved_tokens=reserved_tokens,
+      no_slave_multichar=getattr(c, 'no_slave_multichar', False))
 
     subtokenizer = create_subtokenizer(WmtSubtok(b.dref), b.context, b)
     print('Subtoken list size:', len(subtokenizer.subtoken_list))

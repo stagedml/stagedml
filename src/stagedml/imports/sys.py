@@ -1,4 +1,6 @@
-from os import environ, remove
+from os import (
+    mkdir, makedirs, replace, listdir, rmdir, symlink, rename, remove, environ,
+    walk, lstat, chmod, stat, readlink )
 from os.path import join, basename, isfile, isdir
 from textwrap import dedent
 from contextlib import contextmanager
