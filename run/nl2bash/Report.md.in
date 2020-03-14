@@ -10,44 +10,71 @@ System][2].
 Intro
 -----
 
-The primary goal of this report is to demonstrate the features of [StagedML
-library][3]. In particular, we want to
-highlight the following facts:
-
-1. The sinppets of top-level code are only one-screen long. At the same time, it
-   allows the programmer to change every aspect of the experiment by connecting
-   stages and tweaking their parameters.
-2. StagedML caches the results of running stages by creating immutable objects
-   in the Pylightnix storage. Configurations and results of such objects are
-   accessible to users via [Pylightnix][4].
-   API.
-3. The final report may be generated from scrath by running a `Makefile` in this
-   directory. The steps of downloading datasets and training the models is
-   handled by the StagedML. (Installing StagedML systemwide does require running
-   additional `sudo -H make install` command inside the Docker container)
-
-The secondary goal is to evaluate the
+The primary goal of this work is to demonstrate the features of [StagedML
+library][3]. The secondary goal is to evaluate the
 [NL2BASH](https://github.com/stagedml/nl2bash_essence/tree/master/src/data/bash)
 dataset.
 
-Sources of this report are
+In particular, we want to highlight the following facts:
+
+1. The sinppets of top-level code are only one-screen long. At the same time, it
+   allows the programmer to change every aspect of the experiment by connecting
+   stages together and tweaking their parameters.
+2. StagedML caches the results of running stages by creating immutable objects
+   in the Pylightnix storage. Configurations and training results are
+   accessible to users via [Pylightnix][4] API.
+3. Consequently, the rendering of the experiment reports may be largely authomatized.
+   In this work, we generated reports from scrath by running a `Makefile` in the
+   [/run/nl2bash](/run/nl2bash) directory.
+
+The source files of this report are
 [available](https://github.com/stagedml/stagedml/tree/master/run/nl2bash/Report.md.in)
-in StagedML repository. We use [PWeave](http://mpastell.com/pweave) report
-generator to render this report.
+in StagedML repository. We used [PWeave](http://mpastell.com/pweave) to render
+this report.
 
-### Model
+### The Model
 
-In this experiment, we trained a cusomized official Transformer of the TensorFlow
-on the
-[NL2BASH](https://github.com/stagedml/nl2bash_essence/tree/master/src/data/bash)
-dataset described in the paper.
+In this work, we trained an close copy of official Transformer of the
+TensorFlow, using the [NL2BASH
+dataset](https://github.com/stagedml/nl2bash_essence/tree/master/src/data/bash)
+inroduced by the [NL2BASH paper][2].
+
+The TensorFlow code of the model is located in the
+[transformer_wmt.py](/src/stagedml/stages/transformer_wmt.py) file. The model
+consists of the `TransformerBuild` class for storing the mutable state and of
+the number of operations, including `build`, `train`, `evaluate` and others.
+Every operation typically accepts `TransformerBuild` object and the index of the
+model instance.
+
+Finally, we define Pylightnix stage in the `transformer_wmt` function. It's
+arguments are:
+
+- `m` Pylightnix dependency resolution context.
+- `wmt:WmtSubtok` reference to the upstream stage providing a tokenizer and a
+  dataset
+- `num_instances:int=1` the number of instances to train.
 
 ### Metrics
 
-We used BLEU metrics as defined by TensorFlow official Trnasformer model to
-report the results. This metric may differs from the version of BLEU
-which were used by the authors of NL2BASH paper[2][2].
+To report the model performance we used BLEU metrics, as implemented in
+TensorFlow official Trnasformer model. This metric may differs from the version
+of BLEU which were used by the authors of NL2BASH paper[2][2], so we can't
+compare results directly.
 
+We applied the metrics to the evaluation subset of the NL2Bash dataset which is
+a `0.1` part of the original dataset.
+
+### Experiments
+
+
+1. [Baseline Transformer](#baseline-transformer) -  use default upstream settings
+2. [Unshuffled Transformer](#unshuffled-transformer) -  don't shuffle the dataset
+3. [Bash specific tokens](#bash-specific-tokens) - add all commands and flags to
+   the list of subtokens
+4. [Changing vocabulary size](#changing-vocabulary-size) - try different target
+   sizes of vocabulary
+5. [Single-char punctuation tokens](#single-char-punctuation-tokens) - suppress
+   multichar punktuation subtokens
 
 Imports
 -------
@@ -56,12 +83,14 @@ Imports
 import numpy as np
 import matplotlib.pyplot as plt
 
-from stagedml.imports import environ, join, makedirs
+from logging import getLogger
+
 from pylightnix import (
     RRef, Path, realize, instantiate, redefine, mkconfig, promise, rref2dref,
     mksymlink, rref2path, mklens )
+
+from stagedml.imports import environ, join, environ, makedirs
 from stagedml.stages.all import transformer_wmt, all_nl2bashsubtok
-from logging import getLogger
 from analyze import read_tensorflow_log
 
 getLogger('tensorflow').setLevel('INFO')
@@ -70,40 +99,58 @@ getLogger('tensorflow').setLevel('INFO')
 Baseline transformer
 --------------------
 
+Below we define the top-level code which sets task-specific parameters of the
+`transformer_wmt` stage.
+
 ```python
 from pylightnix import ( RRef, realizeMany, instantiate, redefine, mkconfig,
     mksymlink, match_some )
 from stagedml.stages.all import transformer_wmt, all_nl2bashsubtok
 
-def run0()->RRef:
-  def mysubtok(m):
-    return all_nl2bashsubtok(m, shuffle=True,
-                                with_bash_charset=False,
-                                with_bash_subtokens=False)
+def baseline_subtok(m):
+  return all_nl2bashsubtok(m, shuffle=True,
+                              with_bash_charset=False,
+                              with_bash_subtokens=False)
 
-  def mytransformer(m):
-    def _config(c):
-      c['train_steps']=6*5000
-      c['params']['beam_size']=3 # As in Tellina paper
-      return mkconfig(c)
-    return redefine(transformer_wmt,
-                    new_config=_config,
-                    new_matcher=match_some())(m, mysubtok(m), num_instances=5)
+def baseline_transformer(m):
+  def _config(c):
+    c['train_steps']=6*5000
+    c['params']['beam_size']=3 # As in Tellina paper
+    return mkconfig(c)
+  return redefine(transformer_wmt,
+                  new_config=_config,
+                  new_matcher=match_some())(m, baseline_subtok(m), num_instances=5)
 
-  return realizeMany(instantiate(mytransformer))
 ```
+
+### Model size
+
+The size of the model is not saved as a specieal part of the model output, but
+we have defined a small function which reads it via Keras API.
+
+```python, evaluate=False
+from analyze import model_size
+```
+
+The number of trainable weights of baseline model is
+<% model_size(baseline_transformer) %> parameters.
+
+
+### Evaluation
+
+We now display the BLEU metrics of the model during first 6 training epoches.
 
 ```python
 plt.figure(1)
 plt.xlabel("Training steps")
-plt.title("BLEU-cased")
+plt.title("BLEU-cased, Baseline transformer")
 
 out=join(environ['STAGEDML_ROOT'],'_experiments','nl2bash0')
 makedirs(out, exist_ok=True)
-mksymlink(rref, out, 'result', withtime=False)
-for rref in run0():
+for i,rref in enumerate(realizeMany(instantiate(baseline_transformer))):
+  mksymlink(rref, out, f'run-{i}', withtime=False)
   baseline_bleu=read_tensorflow_log(join(rref2path(rref),'eval'), 'bleu_cased')
-  plt.plot(range(len(baseline_bleu)), baseline_bleu, label=f'Baseline transformer', color='blue')
+  plt.plot(range(len(baseline_bleu)), baseline_bleu, label=f'run-{i}', color='blue')
 
 plt.legend(loc='upper left', frameon=True)
 plt.grid(True)
@@ -111,6 +158,8 @@ plt.grid(True)
 
 Unshuffled dataset
 ------------------
+
+This experiment
 
 ```python
 from pylightnix import RRef, realize, instantiate, redefine, mkconfig, mksymlink
@@ -142,20 +191,20 @@ plt.title("BLEU-cased")
 
 rref=runU(join(environ['STAGEDML_ROOT'],'_experiments','nl2bash0'))
 unshuffled_bleu=read_tensorflow_log(join(rref2path(rref),'eval'), 'bleu_cased')
-plt.plot(range(len(unshuffled_bleu)), unshuffled_bleu, label=f'Unshaffled transformer')
+plt.plot(range(len(unshuffled_bleu)), unshuffled_bleu, label=f'Unshuffled transformer')
 
 plt.legend(loc='upper left', frameon=True)
 plt.grid(True)
 ```
 
 
-Experiment 1
-------------
+Bash-specific tokens
+--------------------
 
 We define the model running funtion `run1` using the following StagedML
 _stages_:
 
- * `nl2bashsubtok` which performs the sub-tokenization. 
+ * `nl2bashsubtok` which performs the sub-tokenization.
  * `transformer_wmt` where the Transformer model is defined. The model is very
    similar to the Official Transformer of TensorFlow.
 
@@ -169,7 +218,9 @@ def run1(vsize:int)->RRef:
       d['target_vocab_size']=vsize
       d['vocab_file'] = [promise, 'vocab.%d' % vsize]
       return mkconfig(d)
-    return redefine(all_nl2bashsubtok,_config)(m)
+    return all_nl2bashsubtok(m, shuffle=True,
+                                with_bash_charset=True,
+                                with_bash_subtokens=True)
 
   def mytransformer(m):
     def _config(c):
@@ -195,7 +246,7 @@ plt.figure(2)
 plt.xlabel("Training steps")
 plt.title("BLEU")
 
-plt.plot(range(len(unshuffled_bleu)), unshuffled_bleu, label=f'Unshaffled transformer', color='red')
+plt.plot(range(len(unshuffled_bleu)), unshuffled_bleu, label=f'Unshuffled transformer', color='red')
 plt.plot(range(len(baseline_bleu)), baseline_bleu, label=f'Baseline transformer', color='orange')
 
 for i,vsize in enumerate([ 30000, 25000, 20000, 15000, 10000, 5000, 1000, 500 ]) :
@@ -208,8 +259,8 @@ plt.grid(True)
 ```
 
 
-Experiment 2
-------------
+Changing vocabulary size
+------------------------
 
 Customisations touch the Subtokenizer which were used to split both the input
 sentences and output Bash commands into subtokens. They are:
@@ -253,7 +304,7 @@ plt.figure(3)
 plt.xlabel("Training steps")
 plt.title("BLEU")
 
-plt.plot(range(len(unshuffled_bleu)), unshuffled_bleu, label=f'Unshaffled transformer', color='red')
+plt.plot(range(len(unshuffled_bleu)), unshuffled_bleu, label=f'Unshuffled transformer', color='red')
 plt.plot(range(len(baseline_bleu)), baseline_bleu, label=f'Baseline transformer', color='orange')
 
 for i,vsize in enumerate([ 15000, 10000, 5000, 1700 ]) :
@@ -265,8 +316,8 @@ plt.legend(loc='upper left', frameon=True)
 plt.grid(True)
 ```
 
-Experiment 3
-------------
+Single-char punctuation tokens
+------------------------------
 
 ```python
 from pylightnix import match_some, realizeMany, instantiate, redefine, mkconfig, mksymlink
@@ -274,7 +325,7 @@ from stagedml.stages.all import transformer_wmt, all_nl2bashsubtok
 ```
 
 In addition to the modifications that we made in Experiment 2, we now attempt to
-force the tokenizer to produce one-char tokens for punktuation.
+force the tokenizer to produce single-char tokens for punctuation.
 
 ```python
 def exp3_mysubtok(m, vsize=10000):
@@ -304,10 +355,10 @@ Results:
 
 ```python
 plt.figure(4)
-plt.xlabel("Suppressed punctuation")
+plt.xlabel("Single-char punctuation tokens")
 plt.title("BLEU")
 
-plt.plot(range(len(unshuffled_bleu)), unshuffled_bleu, label=f'Unshaffled transformer', color='red')
+plt.plot(range(len(unshuffled_bleu)), unshuffled_bleu, label=f'Unshuffled transformer', color='red')
 plt.plot(range(len(baseline_bleu)), baseline_bleu, label=f'Baseline transformer', color='orange')
 
 out=join(environ['STAGEDML_ROOT'],'_experiments','nl2bash3')
@@ -332,15 +383,3 @@ References
 [2]: https://arxiv.org/abs/1802.08979
 [3]: https://github.com/stagedml/stagedml
 [4]: https://github.com/stagedml/pylightnix
-
-sdasdasda
-
-Print?
-<%print('Hiiiiiii1'); y=42 %>
-
-Print?
-<%=print('Hiiiiii2'); x=33 %>
-
-
-1111111
-oooz

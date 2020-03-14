@@ -34,14 +34,22 @@ def read_tensorflow_log(path:str, tag:str):
     y[i] = _accl2float(data[i])
   return y
 
-    # plt.plot(x, y[:,0], label='bleu_cased')
-    # plt.plot(x, y[:,1], label='bleu_uncased')
 
-    # plt.xlabel("Steps")
-    # plt.title("Training Progress")
-    # plt.legend(loc='upper right', frameon=True)
-    # # plt.savefig('fig1.png')
-    # plt.show()
+
+from pylightnix import repl_realize, repl_build, repl_cancel, instantiate
+import stagedml.stages.transformer_wmt as twmt
+
+def model_size(stage)->int:
+  th=repl_realize(instantiate(stage))
+  b=repl_build(th)
+  try:
+    build_setoutpaths(b,1)
+    twmt.build(b,0)
+    model_size=len(b.train_model.trainable_weights())
+    # print(f'The size of the model is: {model_size} parameters')
+    return model_size
+  finally:
+    repl_cancelBuild(b,th)
 
 
 
