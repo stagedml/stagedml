@@ -201,26 +201,31 @@ plt.grid(True)
 Bash-specific tokens
 --------------------
 
-We define the model running funtion `run1` using the following StagedML
-_stages_:
+Originally this experiment was intended to run the model with bash-specific
+tokens _and_ different vocabulary sizes. Unfortunately, due to subtokenizer API
+misuse, we in face measure the performance of the model on the same target
+vocabulary size of `8192` tokens. We will make the corrections in the next
+experiment and here we display just the effect of adding bash-specific tokens.
 
- * `nl2bashsubtok` which performs the sub-tokenization.
- * `transformer_wmt` where the Transformer model is defined. The model is very
-   similar to the Official Transformer of TensorFlow.
+Adding the bash-specifics include:
 
-`nl2bashsubtok` stage uses lower-level stages like `fetchnl2bash` but we hide
-this fact by using top-level wrapper `all_nl2bashsubtok`.
+1. Changing the Master Character Set of the Subtokenizer by adding
+   `['-','+',',','.']` to the default list of Alphanumeric characters
+2. Pre-parsing the train part of BASH dataset and generating the list of
+   reserved subtokens. The list includes:
+    - First words of every command. Often those are command names.
+    - All words starting from `-`. Often those are flags of bash commands.
 
 ```python
 def run1(vsize:int)->RRef:
+
   def mysubtok(m):
     def _config(d):
       d['target_vocab_size']=vsize
       d['vocab_file'] = [promise, 'vocab.%d' % vsize]
       return mkconfig(d)
-    return all_nl2bashsubtok(m, shuffle=True,
-                                with_bash_charset=True,
-                                with_bash_subtokens=True)
+    return redefine(all_nl2bashsubtok, _config)(m,
+                    shuffle=True, with_bash_charset=True, with_bash_subtokens=True)
 
   def mytransformer(m):
     def _config(c):
@@ -229,17 +234,10 @@ def run1(vsize:int)->RRef:
       return mkconfig(c)
     return redefine(transformer_wmt,_config)(m, mysubtok(m))
 
-  return realize(instantiate(mytransformer))
+  return mysubtok, mytransformer
 ```
 
-
-The model's parameters are
-
-```python, wrap=False, evaluate=False
-from pprint import PrettyPrinter
-PrettyPrinter(indent=4, compact=True).pprint(mklens(run1(15000)).as_dict())
-```
-
+Results:
 
 ```python
 plt.figure(2)
@@ -250,7 +248,8 @@ plt.plot(range(len(unshuffled_bleu)), unshuffled_bleu, label=f'Unshuffled transf
 plt.plot(range(len(baseline_bleu)), baseline_bleu, label=f'Baseline transformer', color='orange')
 
 for i,vsize in enumerate([ 30000, 25000, 20000, 15000, 10000, 5000, 1000, 500 ]) :
-  rref=run1(vsize)
+  mysubtok,mytransformer=run1(vsize)
+  rref=realize(instantiate(mytransformer))
   bleu=read_tensorflow_log(join(rref2path(rref),'eval'), 'bleu_cased')
   plt.plot(range(len(bleu)), bleu, label=f'run-{i}', color='blue')
 
@@ -262,21 +261,13 @@ plt.grid(True)
 Changing vocabulary size
 ------------------------
 
-Customisations touch the Subtokenizer which were used to split both the input
-sentences and output Bash commands into subtokens. They are:
+We set the target size of the subtoken vocabulary to different values in range
+`[1000, 15000]`.
 
-1. We changed the Master Character Set of the Subtokenizer by adding
-   `['-','+',',','.']` to the default list of Alphanumeric characters
-2. We pre-parsed the train part of BASH dataset and generated the list of
-   pre-defined subtokens. We include there:
-    - First words of every sentences. Often those are command names.
-    - All words starting from `-`. Often those are flags of bash commands.
-3. We set the target size of the subtoken vocabulary to different values in
-   range `[1000, 15000]`. The results are reported below.
-
+Model config:
 
 ```python
-def run2(vsize:int, out:str)->None:
+def run2(vsize:int)->None:
   def mysubtok(m):
     def _config(d):
       d['target_vocab_size']=vsize
@@ -293,11 +284,10 @@ def run2(vsize:int, out:str)->None:
       return mkconfig(c)
     return redefine(transformer_wmt,_config)(m, mysubtok(m))
 
-  rref=realize(instantiate(mytransformer))
-  makedirs(out, exist_ok=True)
-  mksymlink(rref, out, vsize, withtime=False)
-  return rref
+  return mysubtok, mytransformer
 ```
+
+Results:
 
 ```python
 plt.figure(3)
@@ -307,8 +297,12 @@ plt.title("BLEU")
 plt.plot(range(len(unshuffled_bleu)), unshuffled_bleu, label=f'Unshuffled transformer', color='red')
 plt.plot(range(len(baseline_bleu)), baseline_bleu, label=f'Baseline transformer', color='orange')
 
+out=join(environ['STAGEDML_ROOT'],'_experiments','nl2bash2')
+makedirs(out, exist_ok=True)
 for i,vsize in enumerate([ 15000, 10000, 5000, 1700 ]) :
-  rref=run2(vsize, join(environ['STAGEDML_ROOT'],'_experiments','nl2bash2'))
+  mysubtok,mytransformer=run2(vsize)
+  rref=realize(instantiate(mytransformer))
+  mksymlink(rref, out, vsize, withtime=False)
   bleu=read_tensorflow_log(join(rref2path(rref),'eval'), 'bleu_cased')
   plt.plot(range(len(bleu)), bleu, label=f'vsize-{vsize}', color='blue')
 

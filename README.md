@@ -333,5 +333,5 @@ do apply here:
 
 ### Experiment reports
 
-* [NL2BASH](https://htmlpreview.github.io/?https://github.com/stagedml/stagedml/blob/master/run/nl2bash/out/Report.html)
+* [NL2BASH](/run/nl2bash/out/Report.md)
 
