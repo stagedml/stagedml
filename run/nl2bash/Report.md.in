@@ -148,7 +148,7 @@ from analyze import model_size
 ```
 
 The number of trainable weights of baseline model is
-<% model_size(baseline_transformer) %> parameters.
+`model_size(baseline_transformer)` parameters.
 
 
 ### Evaluation
