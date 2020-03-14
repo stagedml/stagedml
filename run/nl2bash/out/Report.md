@@ -18,7 +18,7 @@ import matplotlib.pyplot as plt
 from itertools import islice
 from pylightnix import (
     RRef, Path, realize, instantiate, redefine, mkconfig, promise, rref2dref,
-    mksymlink, rref2path, mklens )
+    mksymlink, rref2path, mklens, match_best )
 from stagedml.imports import ( environ, join, environ, makedirs )
 from stagedml.stages.all import ( transformer_wmt, all_nl2bashsubtok,
     all_fetchnl2bash )
@@ -248,6 +248,18 @@ plt.grid(True)
 ![](figures/Report.md_figure5_1.png)\
 
 
+
+We now select the best baseline transformer
+
+
+```python
+rref=realize(instantiate(redefine(baseline_transformer,new_matcher=match_best('bleu.txt'))))
+baseline_bleu=read_tensorflow_log(join(rref2path(rref),'eval'), 'bleu_cased')
+```
+
+
+
+
 Unshuffled dataset
 ------------------
 
@@ -289,7 +301,7 @@ plt.legend(loc='upper left', frameon=True)
 plt.grid(True)
 ```
 
-![](figures/Report.md_figure7_1.png)\
+![](figures/Report.md_figure8_1.png)\
 
 
 
@@ -359,7 +371,7 @@ plt.legend(loc='upper left', frameon=True)
 plt.grid(True)
 ```
 
-![](figures/Report.md_figure9_1.png)\
+![](figures/Report.md_figure10_1.png)\
 
 
 
@@ -419,7 +431,7 @@ plt.legend(loc='upper left', frameon=True)
 plt.grid(True)
 ```
 
-![](figures/Report.md_figure11_1.png)\
+![](figures/Report.md_figure12_1.png)\
 
 
 Single-char punctuation tokens
@@ -488,7 +500,7 @@ plt.legend(loc='upper left', frameon=True)
 plt.grid(True)
 ```
 
-![](figures/Report.md_figure15_1.png)\
+![](figures/Report.md_figure16_1.png)\
 
 
 Unfortunately, suppressing punktuation seems to have no effect or the effect is

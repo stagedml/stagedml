@@ -17,7 +17,7 @@ import matplotlib.pyplot as plt
 from itertools import islice
 from pylightnix import (
     RRef, Path, realize, instantiate, redefine, mkconfig, promise, rref2dref,
-    mksymlink, rref2path, mklens )
+    mksymlink, rref2path, mklens, match_best )
 from stagedml.imports import ( environ, join, environ, makedirs )
 from stagedml.stages.all import ( transformer_wmt, all_nl2bashsubtok,
     all_fetchnl2bash )
@@ -170,6 +170,15 @@ for i,rref in enumerate(realizeMany(instantiate(baseline_transformer))):
 plt.legend(loc='upper left', frameon=True)
 plt.grid(True)
 ```
+
+
+We now select the best baseline transformer
+
+```python, results='hidden'
+rref=realize(instantiate(redefine(baseline_transformer,new_matcher=match_best('bleu.txt'))))
+baseline_bleu=read_tensorflow_log(join(rref2path(rref),'eval'), 'bleu_cased')
+```
+
 
 Unshuffled dataset
 ------------------
