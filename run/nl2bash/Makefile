@@ -1,5 +1,5 @@
 .DEFAULT_GOAL = out/Report.html
-SRC = $(shell find $(STAGEDML_ROOT)/src -name '*\.py')
+SRC = $(shell find $(STAGEDML_ROOT)/src -name '*\.py') $(STAGEDML_ROOT)/run/nl2bash/analyze.py
 TESTS = $(shell find $(STAGEDML_ROOT)/tests -name '*\.py')
 
 .stamp_check: $(SRC) $(TESTS)

@@ -1,11 +1,31 @@
 NL2Bash experiment
 ==================
 
-This document describes the results of applying Official Trnasformer of the
-TensorFlow ([link][1])
-to the NL2Bash dataset described in the [NL2Bash: A Corpus and Semantic Parser
-for Natural Language Interface to the Linux Operating
-System][2].
+This document describes the results of applying [TensorFlow official
+Trnasformer][1] of the to the [NL2Bash][5] dataset introduced by Xi Victoria Lin
+et al. in their paper [Nl2Bash: Corpus and Semantic Parser for Natural Language
+Interface to the Linux Operating System][2]. We use [StagedML][3] library for
+experiment management.
+
+The primary goal of this work is to demonstrate the features of StagedML
+library. The secondary goal is to evaluate the NL2BASH dataset.
+
+We would like to highlight the following facts:
+
+1. The sinppets of top-level code are only one-screen long. At the same time, it
+   allows the programmer to change every aspect of the experiment by connecting
+   stages together and tweaking their parameters.
+2. StagedML caches the results of running stages by creating immutable objects
+   in the Pylightnix storage. Configurations and training results are
+   accessible to users via [Pylightnix][4] API.
+3. Consequently, the rendering of the experiment reports may be largely authomatized.
+   In this work, we generated reports from scrath by running a `Makefile` in the
+   [/run/nl2bash](/run/nl2bash) directory.
+
+The source code of this report is
+[available](https://github.com/stagedml/stagedml/tree/master/run/nl2bash/Report.md.in)
+in the StagedML repository. We use [PWeave](http://mpastell.com/pweave) to
+render this report.
 
 Imports
 -------
@@ -23,84 +43,54 @@ from stagedml.stages.all import ( transformer_wmt, all_nl2bashsubtok,
     all_fetchnl2bash )
 from analyze import ( read_tensorflow_log )
 
-from logging import getLogger
-getLogger('tensorflow').setLevel('FATAL')
 ```
 
 
-Intro
------
-
-The primary goal of this work is to demonstrate the features of [StagedML
-library][3]. The secondary goal is to evaluate the
-[NL2BASH](https://github.com/stagedml/nl2bash_essence/tree/master/src/data/bash)
-dataset.
-
-In particular, we want to highlight the following facts:
-
-1. The sinppets of top-level code are only one-screen long. At the same time, it
-   allows the programmer to change every aspect of the experiment by connecting
-   stages together and tweaking their parameters.
-2. StagedML caches the results of running stages by creating immutable objects
-   in the Pylightnix storage. Configurations and training results are
-   accessible to users via [Pylightnix][4] API.
-3. Consequently, the rendering of the experiment reports may be largely authomatized.
-   In this work, we generated reports from scrath by running a `Makefile` in the
-   [/run/nl2bash](/run/nl2bash) directory.
-
-The source files of this report are
-[available](https://github.com/stagedml/stagedml/tree/master/run/nl2bash/Report.md.in)
-in StagedML repository. We used [PWeave](http://mpastell.com/pweave) to render
-this report.
-
 ### The Model
 
-In this work, we trained an close copy of official Transformer of the
-TensorFlow, using the [NL2BASH
-dataset](https://github.com/stagedml/nl2bash_essence/tree/master/src/data/bash)
-inroduced by the [NL2BASH paper][2].
+In this work, we trained a close copy of TensorFlow Official Transformer model.
+The model is defined using top-level Keras API and is located in the
+[transformer_wmt.py](/src/stagedml/stages/transformer_wmt.py) file. There we
+define the `TransformerBuild` class for storing the mutable state and the number
+of operations, including `build`, `train`, `evaluate`, etc for actions of the
+same name.  Every operation typically accepts `TransformerBuild` object and the
+index of the model instance.
 
-The TensorFlow code of the model is located in the
-[transformer_wmt.py](/src/stagedml/stages/transformer_wmt.py) file. We define
-the `TransformerBuild` class for storing the mutable state and the number of
-operations, including `build`, `train`, `evaluate`, etc for actions of the same
-name.  Every operation typically accepts `TransformerBuild` object and the index
-of the model instance.
-
-Finally, we define Pylightnix Stage function `transformer_wmt` which wraps those
-actions. It's arguments are:
+Finally, we define `transformer_wmt` which wraps those actions into Pylightnix
+Stage entity. Experiments also use other stages for fetching raw dataset and
+encoding it using Subtokenizer. Arguments of the `transformer_wmt` stage are:
 
 - `m` Pylightnix dependency resolution context.
-- `wmt:WmtSubtok` reference to an upstream stage providing a tokenizer and a
-  dataset
-- `num_instances:int=1` the number of instances to train.
+- `wmt:WmtSubtok` reference to upstream stage providing a tokenizer. This stage
+  is in fact depends on `all_fetchnl2bash` stage which deploys raw dataset.
+- `num_instances:int=1` the number of model instances to train.
 
 
 ### Dataset
 
-We print top 10 lines of input and target sentences of the Dataset.
+We print top 5 lines of input and target sentences of the Dataset.
 
-```python
+```python, wrap=False
 rref=realize(instantiate(all_fetchnl2bash))
 
 with open(mklens(rref).train_input_combined.syspath) as inp, \
      open(mklens(rref).train_target_combined.syspath) as tgt:
-  for i, (iline, tline) in islice(enumerate(zip(inp,tgt)),10):
-    print(f"\n#{i}\nInput: {iline.strip()}\n\nTarget: {tline.strip()}")
+  for i, (iline, tline) in islice(enumerate(zip(inp,tgt)),5):
+    print(f"#{i}\t[I] {iline.strip()}\n\t[T] {tline.strip()}")
 ```
 
 ### Metrics
 
-To report the model performance we used BLEU metrics, as implemented in
-TensorFlow official Trnasformer model. This metric may differs from the version
-of BLEU which were used by the authors of NL2BASH paper[2][2], so we can't
+We use BLEU metrics to report the model performance. Bleu implementation is
+taken in from official Trnasformer model. This metric may differs from the
+version of BLEU which were used by the authors of NL2BASH paper, so we can't
 compare results directly.
 
 We applied the metrics to the evaluation subset of the NL2Bash dataset which is
 a `0.1` part of the original dataset.
 
-### Experiments
-
+Experiments
+-----------
 
 1. [Baseline Transformer](#baseline-transformer) -  use default upstream settings
 2. [Unshuffled Transformer](#unshuffled-transformer) -  don't shuffle the dataset
@@ -111,8 +101,7 @@ a `0.1` part of the original dataset.
 5. [Single-char punctuation tokens](#single-char-punctuation-tokens) - suppress
    multichar punktuation subtokens
 
-Baseline transformer
---------------------
+### Baseline transformer
 
 Below we define the top-level code which sets task-specific parameters of the
 `transformer_wmt` stage.
@@ -138,7 +127,7 @@ def baseline_transformer(m):
 
 ```
 
-### Model size
+#### Model size
 
 The size of the model is not saved as a specieal part of the model output, but
 we have defined a small function which reads it via Keras API.
@@ -148,14 +137,14 @@ from analyze import model_size
 ```
 
 The number of trainable weights of baseline model is
-`model_size(baseline_transformer)` parameters.
+<%= model_size(baseline_transformer) %> parameters.
 
 
-### Evaluation
+#### Evaluation
 
 We now display the BLEU metrics of the model during first 6 training epoches.
 
-```python
+```python, f_size = (6,4)
 plt.figure(1)
 plt.xlabel("Training steps")
 plt.title("BLEU-cased, Baseline transformer")
@@ -180,8 +169,8 @@ baseline_bleu=read_tensorflow_log(join(rref2path(rref),'eval'), 'bleu_cased')
 ```
 
 
-Unshuffled dataset
-------------------
+### Unshuffled dataset
+
 
 This experiment
 
@@ -202,7 +191,7 @@ def unshuffled_transformer(m):
 
 Results:
 
-```python
+```python, f_size = (6,4)
 plt.figure(2)
 plt.xlabel("Training steps")
 plt.title("BLEU, Unshuffled transformer")
@@ -219,8 +208,7 @@ plt.grid(True)
 ```
 
 
-Bash-specific tokens
---------------------
+### Bash-specific tokens
 
 Originally this experiment was intended to run the model with bash-specific
 tokens _and_ different vocabulary sizes. Unfortunately, due to subtokenizer API
@@ -260,7 +248,7 @@ def run1(vsize:int)->RRef:
 
 Results:
 
-```python
+```python, f_size = (6,4)
 plt.figure(2)
 plt.xlabel("Training steps")
 plt.title("BLEU, Bash-specific tokens")
@@ -282,8 +270,7 @@ plt.grid(True)
 ```
 
 
-Changing vocabulary size
-------------------------
+### Changing vocabulary size
 
 We set the target size of the subtoken vocabulary to different values in range
 `[1000, 15000]`.
@@ -313,7 +300,7 @@ def run2(vsize:int)->None:
 
 Results:
 
-```python
+```python, f_size = (6,4)
 plt.figure(3)
 plt.xlabel("Training steps")
 plt.title("BLEU")
@@ -334,8 +321,7 @@ plt.legend(loc='upper left', frameon=True)
 plt.grid(True)
 ```
 
-Single-char punctuation tokens
-------------------------------
+### Single-char punctuation tokens
 
 ```python
 from pylightnix import match_some, realizeMany, instantiate, redefine, mkconfig, mksymlink
@@ -372,7 +358,7 @@ def singlechar_transformer(m):
 
 Results:
 
-```python
+```python, f_size = (6,4)
 plt.figure(4)
 plt.xlabel("Single-char punctuation tokens")
 plt.title("BLEU")
@@ -395,10 +381,8 @@ Unfortunately, suppressing punktuation seems to have no effect or the effect is
 negative.
 
 
-References
-----------
-
 [1]: https://github.com/tensorflow/models/tree/master/official/nlp/transformer
 [2]: https://arxiv.org/abs/1802.08979
 [3]: https://github.com/stagedml/stagedml
 [4]: https://github.com/stagedml/pylightnix
+[5]: https://github.com/stagedml/nl2bash_essence/tree/master/src/data/bash

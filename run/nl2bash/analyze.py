@@ -36,13 +36,19 @@ def read_tensorflow_log(path:str, tag:str):
 
 
 
-from pylightnix import ( repl_realize, repl_build, repl_cancel, instantiate,
+from os import environ
+from pylightnix import ( repl_realize, repl_buildargs, repl_cancel, instantiate,
     build_setoutpaths,repl_cancelBuild )
 import stagedml.stages.transformer_wmt as twmt
+import tensorflow as tf
+from logging import getLogger
+getLogger('tensorflow').setLevel('FATAL')
+tf.autograph.set_verbosity(3, False)
 
 def model_size(stage)->int:
+
   th=repl_realize(instantiate(stage))
-  b=repl_build(th)
+  b=twmt.TransformerBuild(repl_buildargs(th))
   try:
     build_setoutpaths(b,1)
     twmt.build(b,0)
@@ -56,25 +62,3 @@ def model_size(stage)->int:
   finally:
     repl_cancelBuild(b,th)
 
-
-
-# O="_pylightnix/experiments/nl2bash/10000/eval"
-# plot_tensorflow_log(O)
-
-
-
-
-# import tensorflow as tf
-
-# from tensorflow.compat.v1.train import summary_iterator
-
-# def method2(p):
-#   for e in tf.compat.v1.train.summary_iterator(p):
-#       for v in e.summary.value:
-#         if v.tag == 'bleu_cased':
-#           print(v.simple_value)
-
-
-# from pylightnix import *
-# rref=path2rref(O)
-# from stagedm import *

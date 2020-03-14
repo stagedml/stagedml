@@ -51,7 +51,7 @@ def compute_missing_params(b, instance_idx:int):
   vocab_contents = tryread(me.vocab_refpath.syspath)
   assert vocab_contents is not None
   c.params["vocab_size"] = len(vocab_contents.split('\n'))
-  print(f'Setting vocab_size to {c.params["vocab_size"]}')
+  # print(f'Setting vocab_size to {c.params["vocab_size"]}')
 
 
 def build(b:TransformerBuild, instance_idx:int)->None:
@@ -65,10 +65,10 @@ def build(b:TransformerBuild, instance_idx:int)->None:
 
   b.train_model = create_train_model(c.params)
   b.train_model.compile(create_optimizer(c.params))
-  b.train_model.summary()
+  # b.train_model.summary()
 
   b.eval_model = create_eval_model(c.params)
-  b.eval_model.summary()
+  # b.eval_model.summary()
   b.epoch = None
   b.filewriter = create_file_writer(join(o,'eval'))
   b.tbcallback = TensorBoard(log_dir=o, profile_batch=0, write_graph=False)
@@ -89,7 +89,7 @@ def evaluate(b:TransformerBuild, instance_idx:int)->None:
   me = mklens(b,o=build_outpaths(b)[instance_idx])
   input_txt:Path=me.eval_input_refpath.syspath
   target_src_txt:Path=me.eval_target_refpath.syspath
-  print('Evaluating')
+  # print('Evaluating')
   epoch=b.epoch if b.epoch is not None else 0
   ds = eval_ds(b.subtokenizer,
                input_txt,
@@ -186,7 +186,7 @@ def transformer_wmt(m:Manager, wmt:WmtSubtok, num_instances:int=1)->TransWmt:
   def _realize(b:TransformerBuild)->None:
     build_setoutpaths(b,num_instances)
     for instance_idx in range(num_instances):
-      print(f'Building Transformer instance {instance_idx+1} of {num_instances}')
+      # print(f'Building Transformer instance {instance_idx+1} of {num_instances}')
       build(b,instance_idx)
       train(b,instance_idx)
 

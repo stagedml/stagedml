@@ -447,8 +447,8 @@ class PrePostProcessingWrapper(Layer):
     # Preprocessing: apply layer normalization
     training = kwargs["training"]
 
-    print(type(x), x.dtype)
-    print(x.shape)
+    # print(type(x), x.dtype)
+    # print(x.shape)
     y = self.layer_norm(x)
 
     # Get layer output
