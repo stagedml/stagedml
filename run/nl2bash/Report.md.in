@@ -7,6 +7,27 @@ to the NL2Bash dataset described in the [NL2Bash: A Corpus and Semantic Parser
 for Natural Language Interface to the Linux Operating
 System][2].
 
+Imports
+-------
+
+```python
+import numpy as np
+import matplotlib.pyplot as plt
+
+from itertools import islice
+from pylightnix import (
+    RRef, Path, realize, instantiate, redefine, mkconfig, promise, rref2dref,
+    mksymlink, rref2path, mklens )
+from stagedml.imports import ( environ, join, environ, makedirs )
+from stagedml.stages.all import ( transformer_wmt, all_nl2bashsubtok,
+    all_fetchnl2bash )
+from analyze import ( read_tensorflow_log )
+
+from logging import getLogger
+getLogger('tensorflow').setLevel('FATAL')
+```
+
+
 Intro
 -----
 
@@ -40,19 +61,33 @@ dataset](https://github.com/stagedml/nl2bash_essence/tree/master/src/data/bash)
 inroduced by the [NL2BASH paper][2].
 
 The TensorFlow code of the model is located in the
-[transformer_wmt.py](/src/stagedml/stages/transformer_wmt.py) file. The model
-consists of the `TransformerBuild` class for storing the mutable state and of
-the number of operations, including `build`, `train`, `evaluate` and others.
-Every operation typically accepts `TransformerBuild` object and the index of the
-model instance.
+[transformer_wmt.py](/src/stagedml/stages/transformer_wmt.py) file. We define
+the `TransformerBuild` class for storing the mutable state and the number of
+operations, including `build`, `train`, `evaluate`, etc for actions of the same
+name.  Every operation typically accepts `TransformerBuild` object and the index
+of the model instance.
 
-Finally, we define Pylightnix stage in the `transformer_wmt` function. It's
-arguments are:
+Finally, we define Pylightnix Stage function `transformer_wmt` which wraps those
+actions. It's arguments are:
 
 - `m` Pylightnix dependency resolution context.
-- `wmt:WmtSubtok` reference to the upstream stage providing a tokenizer and a
+- `wmt:WmtSubtok` reference to an upstream stage providing a tokenizer and a
   dataset
 - `num_instances:int=1` the number of instances to train.
+
+
+### Dataset
+
+We print top 10 lines of input and target sentences of the Dataset.
+
+```python
+rref=realize(instantiate(all_fetchnl2bash))
+
+with open(mklens(rref).train_input_combined.syspath) as inp, \
+     open(mklens(rref).train_target_combined.syspath) as tgt:
+  for i, (iline, tline) in islice(enumerate(zip(inp,tgt)),10):
+    print(f"\n#{i}\nInput: {iline.strip()}\n\nTarget: {tline.strip()}")
+```
 
 ### Metrics
 
@@ -75,26 +110,6 @@ a `0.1` part of the original dataset.
    sizes of vocabulary
 5. [Single-char punctuation tokens](#single-char-punctuation-tokens) - suppress
    multichar punktuation subtokens
-
-Imports
--------
-
-```python
-import numpy as np
-import matplotlib.pyplot as plt
-
-from logging import getLogger
-
-from pylightnix import (
-    RRef, Path, realize, instantiate, redefine, mkconfig, promise, rref2dref,
-    mksymlink, rref2path, mklens )
-
-from stagedml.imports import environ, join, environ, makedirs
-from stagedml.stages.all import transformer_wmt, all_nl2bashsubtok
-from analyze import read_tensorflow_log
-
-getLogger('tensorflow').setLevel('INFO')
-```
 
 Baseline transformer
 --------------------
@@ -128,7 +143,7 @@ def baseline_transformer(m):
 The size of the model is not saved as a specieal part of the model output, but
 we have defined a small function which reads it via Keras API.
 
-```python, evaluate=False
+```python
 from analyze import model_size
 ```
 
@@ -145,7 +160,7 @@ plt.figure(1)
 plt.xlabel("Training steps")
 plt.title("BLEU-cased, Baseline transformer")
 
-out=join(environ['STAGEDML_ROOT'],'_experiments','nl2bash0')
+out=join(environ['STAGEDML_ROOT'],'_experiments','nl2bash','baseline')
 makedirs(out, exist_ok=True)
 for i,rref in enumerate(realizeMany(instantiate(baseline_transformer))):
   mksymlink(rref, out, f'run-{i}', withtime=False)
@@ -162,36 +177,33 @@ Unshuffled dataset
 This experiment
 
 ```python
-from pylightnix import RRef, realize, instantiate, redefine, mkconfig, mksymlink
-from stagedml.stages.all import transformer_wmt, all_nl2bashsubtok
+def unshuffled_subtok(m):
+  return all_nl2bashsubtok(m, shuffle=False,
+                              with_bash_charset=False,
+                              with_bash_subtokens=False)
 
-def runU(out)->RRef:
-  def mysubtok(m):
-    return all_nl2bashsubtok(m, shuffle=False,
-                                with_bash_charset=False,
-                                with_bash_subtokens=False)
+def unshuffled_transformer(m):
+  def _config(c):
+    c['train_steps']=6*5000
+    c['params']['beam_size']=3 # As in Tellina paper
+    return mkconfig(c)
+  return redefine(transformer_wmt,_config)(m, unshuffled_subtok(m))
 
-  def mytransformer(m):
-    def _config(c):
-      c['train_steps']=6*5000
-      c['params']['beam_size']=3 # As in Tellina paper
-      return mkconfig(c)
-    return redefine(transformer_wmt,_config)(m, mysubtok(m))
-
-  rref=realize(instantiate(mytransformer))
-  makedirs(out, exist_ok=True)
-  mksymlink(rref, out, 'result', withtime=False)
-  return rref
 ```
 
-```python
-plt.figure(1)
-plt.xlabel("Training steps")
-plt.title("BLEU-cased")
+Results:
 
-rref=runU(join(environ['STAGEDML_ROOT'],'_experiments','nl2bash0'))
+```python
+plt.figure(2)
+plt.xlabel("Training steps")
+plt.title("BLEU, Unshuffled transformer")
+
+out=join(environ['STAGEDML_ROOT'],'_experiments','nl2bash','unshuffled')
+makedirs(out, exist_ok=True)
+rref=realize(instantiate(unshuffled_transformer))
+mksymlink(rref, out, 'result', withtime=False)
 unshuffled_bleu=read_tensorflow_log(join(rref2path(rref),'eval'), 'bleu_cased')
-plt.plot(range(len(unshuffled_bleu)), unshuffled_bleu, label=f'Unshuffled transformer')
+plt.plot(range(len(unshuffled_bleu)), unshuffled_bleu, label=f'run', color='red')
 
 plt.legend(loc='upper left', frameon=True)
 plt.grid(True)
@@ -242,14 +254,17 @@ Results:
 ```python
 plt.figure(2)
 plt.xlabel("Training steps")
-plt.title("BLEU")
+plt.title("BLEU, Bash-specific tokens")
 
 plt.plot(range(len(unshuffled_bleu)), unshuffled_bleu, label=f'Unshuffled transformer', color='red')
 plt.plot(range(len(baseline_bleu)), baseline_bleu, label=f'Baseline transformer', color='orange')
 
+out=join(environ['STAGEDML_ROOT'],'_experiments','nl2bash','bashspec')
+makedirs(out, exist_ok=True)
 for i,vsize in enumerate([ 30000, 25000, 20000, 15000, 10000, 5000, 1000, 500 ]) :
   mysubtok,mytransformer=run1(vsize)
   rref=realize(instantiate(mytransformer))
+  mksymlink(rref, out, f'run-{i}', withtime=False)
   bleu=read_tensorflow_log(join(rref2path(rref),'eval'), 'bleu_cased')
   plt.plot(range(len(bleu)), bleu, label=f'run-{i}', color='blue')
 
@@ -297,7 +312,7 @@ plt.title("BLEU")
 plt.plot(range(len(unshuffled_bleu)), unshuffled_bleu, label=f'Unshuffled transformer', color='red')
 plt.plot(range(len(baseline_bleu)), baseline_bleu, label=f'Baseline transformer', color='orange')
 
-out=join(environ['STAGEDML_ROOT'],'_experiments','nl2bash2')
+out=join(environ['STAGEDML_ROOT'],'_experiments','nl2bash','vsize')
 makedirs(out, exist_ok=True)
 for i,vsize in enumerate([ 15000, 10000, 5000, 1700 ]) :
   mysubtok,mytransformer=run2(vsize)
@@ -322,7 +337,8 @@ In addition to the modifications that we made in Experiment 2, we now attempt to
 force the tokenizer to produce single-char tokens for punctuation.
 
 ```python
-def exp3_mysubtok(m, vsize=10000):
+def singlechar_subtok(m):
+  vsize=10000
   def _config(d):
     d['target_vocab_size']=vsize
     d['vocab_file'] = [promise, 'vocab.%d' % vsize]
@@ -334,14 +350,14 @@ def exp3_mysubtok(m, vsize=10000):
 
 
 ```python
-def exp3_mytransformer(m):
+def singlechar_transformer(m):
   def _config(c):
     c['train_steps']=6*5000
     c['params']['beam_size']=3 # As in Tellina paper
     return mkconfig(c)
   return redefine(transformer_wmt,
                   new_config=_config,
-                  new_matcher=match_some())(m, exp3_mysubtok(m), num_instances=5)
+                  new_matcher=match_some())(m, singlechar_subtok(m), num_instances=5)
 
 ```
 
@@ -355,9 +371,9 @@ plt.title("BLEU")
 plt.plot(range(len(unshuffled_bleu)), unshuffled_bleu, label=f'Unshuffled transformer', color='red')
 plt.plot(range(len(baseline_bleu)), baseline_bleu, label=f'Baseline transformer', color='orange')
 
-out=join(environ['STAGEDML_ROOT'],'_experiments','nl2bash3')
+out=join(environ['STAGEDML_ROOT'],'_experiments','nl2bash','singlechar')
 makedirs(out, exist_ok=True)
-for i,rref in enumerate(realizeMany(instantiate(exp3_mytransformer))):
+for i,rref in enumerate(realizeMany(instantiate(singlechar_transformer))):
   mksymlink(rref, out, f'run-{i}', withtime=False)
   bleu=read_tensorflow_log(join(rref2path(rref),'eval'), 'bleu_cased')
   plt.plot(range(len(bleu)), bleu, label=f'run-{i}', color='blue')

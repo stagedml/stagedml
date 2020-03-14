@@ -36,7 +36,8 @@ def read_tensorflow_log(path:str, tag:str):
 
 
 
-from pylightnix import repl_realize, repl_build, repl_cancel, instantiate
+from pylightnix import ( repl_realize, repl_build, repl_cancel, instantiate,
+    build_setoutpaths,repl_cancelBuild )
 import stagedml.stages.transformer_wmt as twmt
 
 def model_size(stage)->int:
@@ -45,9 +46,13 @@ def model_size(stage)->int:
   try:
     build_setoutpaths(b,1)
     twmt.build(b,0)
-    model_size=len(b.train_model.trainable_weights())
-    # print(f'The size of the model is: {model_size} parameters')
-    return model_size
+    msize=0
+    for p in b.train_model.trainable_weights:
+      sz=1
+      for dim in p.shape:
+        sz*=dim
+      msize+=sz
+    return msize
   finally:
     repl_cancelBuild(b,th)
 

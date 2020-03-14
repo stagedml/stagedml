@@ -19,5 +19,5 @@ out/Report.md: Report.md.in Makefile $(SRC) $(TESTS) .stamp_check
 	! grep 'Traceback (most recent call last)' $@
 
 out/Report.html: Report.md.in Makefile $(SRC) $(TESTS) .stamp_check
-	PYTHONPATH=. pweave --cache-results -i markdown -f md2html -o $@ $<
+	PYTHONPATH=. pweave -i markdown -f md2html -o $@ $<
 	! grep 'Traceback (most recent call last)' $@

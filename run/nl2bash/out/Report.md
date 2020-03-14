@@ -7,6 +7,30 @@ to the NL2Bash dataset described in the [NL2Bash: A Corpus and Semantic Parser
 for Natural Language Interface to the Linux Operating
 System][2].
 
+Imports
+-------
+
+
+```python
+import numpy as np
+import matplotlib.pyplot as plt
+
+from itertools import islice
+from pylightnix import (
+    RRef, Path, realize, instantiate, redefine, mkconfig, promise, rref2dref,
+    mksymlink, rref2path, mklens )
+from stagedml.imports import ( environ, join, environ, makedirs )
+from stagedml.stages.all import ( transformer_wmt, all_nl2bashsubtok,
+    all_fetchnl2bash )
+from analyze import ( read_tensorflow_log )
+
+from logging import getLogger
+getLogger('tensorflow').setLevel('FATAL')
+```
+
+
+
+
 Intro
 -----
 
@@ -40,19 +64,98 @@ dataset](https://github.com/stagedml/nl2bash_essence/tree/master/src/data/bash)
 inroduced by the [NL2BASH paper][2].
 
 The TensorFlow code of the model is located in the
-[transformer_wmt.py](/src/stagedml/stages/transformer_wmt.py) file. The model
-consists of the `TransformerBuild` class for storing the mutable state and of
-the number of operations, including `build`, `train`, `evaluate` and others.
-Every operation typically accepts `TransformerBuild` object and the index of the
-model instance.
+[transformer_wmt.py](/src/stagedml/stages/transformer_wmt.py) file. We define
+the `TransformerBuild` class for storing the mutable state and the number of
+operations, including `build`, `train`, `evaluate`, etc for actions of the same
+name.  Every operation typically accepts `TransformerBuild` object and the index
+of the model instance.
 
-Finally, we define Pylightnix stage in the `transformer_wmt` function. It's
-arguments are:
+Finally, we define Pylightnix Stage function `transformer_wmt` which wraps those
+actions. It's arguments are:
 
 - `m` Pylightnix dependency resolution context.
-- `wmt:WmtSubtok` reference to the upstream stage providing a tokenizer and a
+- `wmt:WmtSubtok` reference to an upstream stage providing a tokenizer and a
   dataset
 - `num_instances:int=1` the number of instances to train.
+
+
+### Dataset
+
+We print top 10 lines of input and target sentences of the Dataset.
+
+
+```python
+rref=realize(instantiate(all_fetchnl2bash))
+
+with open(mklens(rref).train_input_combined.syspath) as inp, \
+     open(mklens(rref).train_target_combined.syspath) as tgt:
+  for i, (iline, tline) in islice(enumerate(zip(inp,tgt)),10):
+    print(f"\n#{i}\nInput: {iline.strip()}\n\nTarget: {tline.strip()}")
+```
+
+```
+
+#0
+Input: Pass numbers 1 to 100000 as arguments to "/bin/true"
+
+Target: /bin/true $(seq 1 100000)
+
+#1
+Input: Replace "foo" with "bar" in all PHP files in the current
+directory tree
+
+Target: find . -name "*.php" -exec sed -i 's/foo/bar/g' {} \;
+
+#2
+Input: Search the entire file hierarchy for files ending in '.old' and
+delete them.
+
+Target: find / -name "*.old" -delete
+
+#3
+Input: Find all directories under /path/to/Dir and set their
+permission to 755
+
+Target: sudo find /path/to/Dir -type d -print0 | xargs -0 sudo chmod
+755
+
+#4
+Input: run "tar -xzvf ..." as user $username
+
+Target: su $username -c tar xzvf ..
+
+#5
+Input: Test if a file named 'file' in the current directory is more
+than 1 hour old
+
+Target: find file -chour +1 -exit 0 -o -exit 1
+
+#6
+Input: display ten files in the tmp directory
+
+Target: find /tmp  | head
+
+#7
+Input: Saves exit statuses of piped commands in a system variable
+PIPESTATUS='([0]="0" [1]="0" [2]="1" [3]="0" [4]="1")'
+
+Target: true | true | false | true | false
+
+#8
+Input: Print lines of 'file' reverted order, and reverted
+characterwise
+
+Target: tac file | rev
+
+#9
+Input: Find all files/directories under current directory tree that
+start with 'test' in their names without descending into directories
+with the same name pattern
+
+Target: find . -name 'test*' -prune
+```
+
+
 
 ### Metrics
 
@@ -75,29 +178,6 @@ a `0.1` part of the original dataset.
    sizes of vocabulary
 5. [Single-char punctuation tokens](#single-char-punctuation-tokens) - suppress
    multichar punktuation subtokens
-
-Imports
--------
-
-
-```python
-import numpy as np
-import matplotlib.pyplot as plt
-
-from logging import getLogger
-
-from pylightnix import (
-    RRef, Path, realize, instantiate, redefine, mkconfig, promise, rref2dref,
-    mksymlink, rref2path, mklens )
-
-from stagedml.imports import environ, join, environ, makedirs
-from stagedml.stages.all import transformer_wmt, all_nl2bashsubtok
-from analyze import read_tensorflow_log
-
-getLogger('tensorflow').setLevel('INFO')
-```
-
-
 
 Baseline transformer
 --------------------
@@ -141,9 +221,243 @@ from analyze import model_size
 
 
 The number of trainable weights of baseline model is
----------------------------------------------------------------------------NameError                                 Traceback (most recent call last)<ipython-input-1-1a49f203f0af> in <module>
-----> 1 model_size(baseline_transformer)
-NameError: name 'model_size' is not defined parameters.
+Setting vocab_size to 5834
+<class 'tensorflow.python.framework.ops.Tensor'> <dtype: 'float32'>
+(None, None, 512)
+<class 'tensorflow.python.framework.ops.Tensor'> <dtype: 'float32'>
+(None, None, 512)
+<class 'tensorflow.python.framework.ops.Tensor'> <dtype: 'float32'>
+(None, None, 512)
+<class 'tensorflow.python.framework.ops.Tensor'> <dtype: 'float32'>
+(None, None, 512)
+<class 'tensorflow.python.framework.ops.Tensor'> <dtype: 'float32'>
+(None, None, 512)
+<class 'tensorflow.python.framework.ops.Tensor'> <dtype: 'float32'>
+(None, None, 512)
+<class 'tensorflow.python.framework.ops.Tensor'> <dtype: 'float32'>
+(None, None, 512)
+<class 'tensorflow.python.framework.ops.Tensor'> <dtype: 'float32'>
+(None, None, 512)
+<class 'tensorflow.python.framework.ops.Tensor'> <dtype: 'float32'>
+(None, None, 512)
+<class 'tensorflow.python.framework.ops.Tensor'> <dtype: 'float32'>
+(None, None, 512)
+<class 'tensorflow.python.framework.ops.Tensor'> <dtype: 'float32'>
+(None, None, 512)
+<class 'tensorflow.python.framework.ops.Tensor'> <dtype: 'float32'>
+(None, None, 512)
+<class 'tensorflow.python.framework.ops.Tensor'> <dtype: 'float32'>
+(None, None, 512)
+<class 'tensorflow.python.framework.ops.Tensor'> <dtype: 'float32'>
+(None, None, 512)
+<class 'tensorflow.python.framework.ops.Tensor'> <dtype: 'float32'>
+(None, None, 512)
+<class 'tensorflow.python.framework.ops.Tensor'> <dtype: 'float32'>
+(None, None, 512)
+<class 'tensorflow.python.framework.ops.Tensor'> <dtype: 'float32'>
+(None, None, 512)
+<class 'tensorflow.python.framework.ops.Tensor'> <dtype: 'float32'>
+(None, None, 512)
+<class 'tensorflow.python.framework.ops.Tensor'> <dtype: 'float32'>
+(None, None, 512)
+<class 'tensorflow.python.framework.ops.Tensor'> <dtype: 'float32'>
+(None, None, 512)
+<class 'tensorflow.python.framework.ops.Tensor'> <dtype: 'float32'>
+(None, None, 512)
+<class 'tensorflow.python.framework.ops.Tensor'> <dtype: 'float32'>
+(None, None, 512)
+<class 'tensorflow.python.framework.ops.Tensor'> <dtype: 'float32'>
+(None, None, 512)
+<class 'tensorflow.python.framework.ops.Tensor'> <dtype: 'float32'>
+(None, None, 512)
+<class 'tensorflow.python.framework.ops.Tensor'> <dtype: 'float32'>
+(None, None, 512)
+<class 'tensorflow.python.framework.ops.Tensor'> <dtype: 'float32'>
+(None, None, 512)
+<class 'tensorflow.python.framework.ops.Tensor'> <dtype: 'float32'>
+(None, None, 512)
+<class 'tensorflow.python.framework.ops.Tensor'> <dtype: 'float32'>
+(None, None, 512)
+<class 'tensorflow.python.framework.ops.Tensor'> <dtype: 'float32'>
+(None, None, 512)
+<class 'tensorflow.python.framework.ops.Tensor'> <dtype: 'float32'>
+(None, None, 512)
+Model: "model"
+__________________________________________________________________________________________________
+Layer (type)                    Output Shape         Param #     Connected to                     
+==================================================================================================
+inputs (InputLayer)             [(None, None)]       0                                            
+__________________________________________________________________________________________________
+targets (InputLayer)            [(None, None)]       0                                            
+__________________________________________________________________________________________________
+transformerv2 (TransformerLayer (None, None, 5834)   47090688    inputs[0][0]                     
+                                                                 targets[0][0]                    
+__________________________________________________________________________________________________
+metrics (Metrics)               (None, None, 5834)   8           transformerv2[0][0]              
+__________________________________________________________________________________________________
+logits (Lambda)                 (None, None, 5834)   0           metrics[0][0]                    
+__________________________________________________________________________________________________
+tf_op_layer_Shape (TensorFlowOp [(3,)]               0           logits[0][0]                     
+__________________________________________________________________________________________________
+tf_op_layer_Shape_1 (TensorFlow [(2,)]               0           targets[0][0]                    
+__________________________________________________________________________________________________
+tf_op_layer_strided_slice (Tens [()]                 0           tf_op_layer_Shape[0][0]          
+__________________________________________________________________________________________________
+tf_op_layer_strided_slice_1 (Te [()]                 0           tf_op_layer_Shape_1[0][0]        
+__________________________________________________________________________________________________
+tf_op_layer_Maximum (TensorFlow [()]                 0           tf_op_layer_strided_slice[0][0]  
+                                                                 tf_op_layer_strided_slice_1[0][0]
+__________________________________________________________________________________________________
+tf_op_layer_sub_1 (TensorFlowOp [()]                 0           tf_op_layer_Maximum[0][0]        
+                                                                 tf_op_layer_strided_slice_1[0][0]
+__________________________________________________________________________________________________
+tf_op_layer_Pad_1/paddings/1 (T [(2,)]               0           tf_op_layer_sub_1[0][0]          
+__________________________________________________________________________________________________
+tf_op_layer_sub (TensorFlowOpLa [()]                 0           tf_op_layer_Maximum[0][0]        
+                                                                 tf_op_layer_strided_slice[0][0]  
+__________________________________________________________________________________________________
+tf_op_layer_Pad_1/paddings (Ten [(2, 2)]             0           tf_op_layer_Pad_1/paddings/1[0][0
+__________________________________________________________________________________________________
+tf_op_layer_Pad/paddings/1 (Ten [(2,)]               0           tf_op_layer_sub[0][0]            
+__________________________________________________________________________________________________
+tf_op_layer_Pad_1 (TensorFlowOp [(None, None)]       0           targets[0][0]                    
+                                                                 tf_op_layer_Pad_1/paddings[0][0] 
+__________________________________________________________________________________________________
+tf_op_layer_Pad/paddings (Tenso [(3, 2)]             0           tf_op_layer_Pad/paddings/1[0][0] 
+__________________________________________________________________________________________________
+tf_op_layer_Cast (TensorFlowOpL [(None, None)]       0           tf_op_layer_Pad_1[0][0]          
+__________________________________________________________________________________________________
+tf_op_layer_Pad (TensorFlowOpLa [(None, None, None)] 0           logits[0][0]                     
+                                                                 tf_op_layer_Pad/paddings[0][0]   
+__________________________________________________________________________________________________
+tf_op_layer_one_hot (TensorFlow [(None, None, 5834)] 0           tf_op_layer_Cast[0][0]           
+__________________________________________________________________________________________________
+tf_op_layer_softmax_cross_entro [(3,)]               0           tf_op_layer_Pad[0][0]            
+__________________________________________________________________________________________________
+tf_op_layer_softmax_cross_entro [(3,)]               0           tf_op_layer_one_hot[0][0]        
+__________________________________________________________________________________________________
+tf_op_layer_softmax_cross_entro [(1,)]               0           tf_op_layer_softmax_cross_entropy
+__________________________________________________________________________________________________
+tf_op_layer_softmax_cross_entro [(1,)]               0           tf_op_layer_softmax_cross_entropy
+__________________________________________________________________________________________________
+tf_op_layer_softmax_cross_entro [(2,)]               0           tf_op_layer_softmax_cross_entropy
+__________________________________________________________________________________________________
+tf_op_layer_softmax_cross_entro [(2,)]               0           tf_op_layer_softmax_cross_entropy
+__________________________________________________________________________________________________
+tf_op_layer_softmax_cross_entro [(None, None)]       0           tf_op_layer_Pad[0][0]            
+                                                                 tf_op_layer_softmax_cross_entropy
+__________________________________________________________________________________________________
+tf_op_layer_softmax_cross_entro [(None, None)]       0           tf_op_layer_one_hot[0][0]        
+                                                                 tf_op_layer_softmax_cross_entropy
+__________________________________________________________________________________________________
+tf_op_layer_softmax_cross_entro [(3,)]               0           tf_op_layer_Pad[0][0]            
+__________________________________________________________________________________________________
+tf_op_layer_softmax_cross_entro [(None,), (None, Non 0           tf_op_layer_softmax_cross_entropy
+                                                                 tf_op_layer_softmax_cross_entropy
+__________________________________________________________________________________________________
+tf_op_layer_softmax_cross_entro [(2,)]               0           tf_op_layer_softmax_cross_entropy
+__________________________________________________________________________________________________
+tf_op_layer_softmax_cross_entro [(None, None)]       0           tf_op_layer_softmax_cross_entropy
+                                                                 tf_op_layer_softmax_cross_entropy
+__________________________________________________________________________________________________
+tf_op_layer_NotEqual (TensorFlo [(None, None)]       0           tf_op_layer_Pad_1[0][0]          
+__________________________________________________________________________________________________
+tf_op_layer_sub_2 (TensorFlowOp [(None, None)]       0           tf_op_layer_softmax_cross_entropy
+__________________________________________________________________________________________________
+tf_op_layer_Cast_1 (TensorFlowO [(None, None)]       0           tf_op_layer_NotEqual[0][0]       
+__________________________________________________________________________________________________
+tf_op_layer_mul (TensorFlowOpLa [(None, None)]       0           tf_op_layer_sub_2[0][0]          
+                                                                 tf_op_layer_Cast_1[0][0]         
+__________________________________________________________________________________________________
+tf_op_layer_Sum (TensorFlowOpLa [()]                 0           tf_op_layer_mul[0][0]            
+__________________________________________________________________________________________________
+tf_op_layer_Sum_1 (TensorFlowOp [()]                 0           tf_op_layer_Cast_1[0][0]         
+__________________________________________________________________________________________________
+tf_op_layer_truediv (TensorFlow [()]                 0           tf_op_layer_Sum[0][0]            
+                                                                 tf_op_layer_Sum_1[0][0]          
+__________________________________________________________________________________________________
+add_loss (AddLoss)              ()                   0           tf_op_layer_truediv[0][0]        
+==================================================================================================
+Total params: 47,090,696
+Trainable params: 47,090,688
+Non-trainable params: 8
+__________________________________________________________________________________________________
+<class 'tensorflow.python.framework.ops.Tensor'> <dtype: 'float32'>
+(None, None, 512)
+<class 'tensorflow.python.framework.ops.Tensor'> <dtype: 'float32'>
+(None, None, 512)
+<class 'tensorflow.python.framework.ops.Tensor'> <dtype: 'float32'>
+(None, None, 512)
+<class 'tensorflow.python.framework.ops.Tensor'> <dtype: 'float32'>
+(None, None, 512)
+<class 'tensorflow.python.framework.ops.Tensor'> <dtype: 'float32'>
+(None, None, 512)
+<class 'tensorflow.python.framework.ops.Tensor'> <dtype: 'float32'>
+(None, None, 512)
+<class 'tensorflow.python.framework.ops.Tensor'> <dtype: 'float32'>
+(None, None, 512)
+<class 'tensorflow.python.framework.ops.Tensor'> <dtype: 'float32'>
+(None, None, 512)
+<class 'tensorflow.python.framework.ops.Tensor'> <dtype: 'float32'>
+(None, None, 512)
+<class 'tensorflow.python.framework.ops.Tensor'> <dtype: 'float32'>
+(None, None, 512)
+<class 'tensorflow.python.framework.ops.Tensor'> <dtype: 'float32'>
+(None, None, 512)
+<class 'tensorflow.python.framework.ops.Tensor'> <dtype: 'float32'>
+(None, None, 512)
+WARNING: AutoGraph could not transform <bound method TransformerLayer._get_symbols_to_logits_fn of <stagedml.models.transformer.model.TransformerLayer object at 0x7f1c104ae240>> and will run it as-is.
+Please report this to the TensorFlow team. When filing the bug, set the verbosity to 10 (on Linux, `export AUTOGRAPH_VERBOSITY=10`) and attach the full output.
+Cause: unindent does not match any outer indentation level (<unknown>, line 29)
+<class 'tensorflow.python.framework.ops.Tensor'> <dtype: 'float32'>
+(None, None, 512)
+<class 'tensorflow.python.framework.ops.Tensor'> <dtype: 'float32'>
+(None, None, 512)
+<class 'tensorflow.python.framework.ops.Tensor'> <dtype: 'float32'>
+(None, None, 512)
+<class 'tensorflow.python.framework.ops.Tensor'> <dtype: 'float32'>
+(None, None, 512)
+<class 'tensorflow.python.framework.ops.Tensor'> <dtype: 'float32'>
+(None, None, 512)
+<class 'tensorflow.python.framework.ops.Tensor'> <dtype: 'float32'>
+(None, None, 512)
+<class 'tensorflow.python.framework.ops.Tensor'> <dtype: 'float32'>
+(None, None, 512)
+<class 'tensorflow.python.framework.ops.Tensor'> <dtype: 'float32'>
+(None, None, 512)
+<class 'tensorflow.python.framework.ops.Tensor'> <dtype: 'float32'>
+(None, None, 512)
+<class 'tensorflow.python.framework.ops.Tensor'> <dtype: 'float32'>
+(None, None, 512)
+<class 'tensorflow.python.framework.ops.Tensor'> <dtype: 'float32'>
+(None, None, 512)
+<class 'tensorflow.python.framework.ops.Tensor'> <dtype: 'float32'>
+(None, None, 512)
+<class 'tensorflow.python.framework.ops.Tensor'> <dtype: 'float32'>
+(None, None, 512)
+<class 'tensorflow.python.framework.ops.Tensor'> <dtype: 'float32'>
+(None, None, 512)
+<class 'tensorflow.python.framework.ops.Tensor'> <dtype: 'float32'>
+(None, None, 512)
+<class 'tensorflow.python.framework.ops.Tensor'> <dtype: 'float32'>
+(None, None, 512)
+<class 'tensorflow.python.framework.ops.Tensor'> <dtype: 'float32'>
+(None, None, 512)
+<class 'tensorflow.python.framework.ops.Tensor'> <dtype: 'float32'>
+(None, None, 512)
+Model: "model_1"
+_________________________________________________________________
+Layer (type)                 Output Shape              Param #   
+=================================================================
+inputs (InputLayer)          [(None, None)]            0         
+_________________________________________________________________
+transformer_v2 (TransformerL {'outputs': (None, None), 47090688  
+=================================================================
+Total params: 47,090,688
+Trainable params: 47,090,688
+Non-trainable params: 0
+_________________________________________________________________
+47090688 parameters.
 
 
 ### Evaluation
@@ -156,7 +470,7 @@ plt.figure(1)
 plt.xlabel("Training steps")
 plt.title("BLEU-cased, Baseline transformer")
 
-out=join(environ['STAGEDML_ROOT'],'_experiments','nl2bash0')
+out=join(environ['STAGEDML_ROOT'],'_experiments','nl2bash','baseline')
 makedirs(out, exist_ok=True)
 for i,rref in enumerate(realizeMany(instantiate(baseline_transformer))):
   mksymlink(rref, out, f'run-{i}', withtime=False)
@@ -167,7 +481,7 @@ plt.legend(loc='upper left', frameon=True)
 plt.grid(True)
 ```
 
-![](figures/Report.md_figure4_1.png)\
+![](figures/Report.md_figure5_1.png)\
 
 
 Unshuffled dataset
@@ -177,45 +491,41 @@ This experiment
 
 
 ```python
-from pylightnix import RRef, realize, instantiate, redefine, mkconfig, mksymlink
-from stagedml.stages.all import transformer_wmt, all_nl2bashsubtok
+def unshuffled_subtok(m):
+  return all_nl2bashsubtok(m, shuffle=False,
+                              with_bash_charset=False,
+                              with_bash_subtokens=False)
 
-def runU(out)->RRef:
-  def mysubtok(m):
-    return all_nl2bashsubtok(m, shuffle=False,
-                                with_bash_charset=False,
-                                with_bash_subtokens=False)
-
-  def mytransformer(m):
-    def _config(c):
-      c['train_steps']=6*5000
-      c['params']['beam_size']=3 # As in Tellina paper
-      return mkconfig(c)
-    return redefine(transformer_wmt,_config)(m, mysubtok(m))
-
-  rref=realize(instantiate(mytransformer))
-  makedirs(out, exist_ok=True)
-  mksymlink(rref, out, 'result', withtime=False)
-  return rref
+def unshuffled_transformer(m):
+  def _config(c):
+    c['train_steps']=6*5000
+    c['params']['beam_size']=3 # As in Tellina paper
+    return mkconfig(c)
+  return redefine(transformer_wmt,_config)(m, unshuffled_subtok(m))
 ```
 
 
 
+Results:
+
 
 ```python
-plt.figure(1)
+plt.figure(2)
 plt.xlabel("Training steps")
-plt.title("BLEU-cased")
+plt.title("BLEU, Unshuffled transformer")
 
-rref=runU(join(environ['STAGEDML_ROOT'],'_experiments','nl2bash0'))
+out=join(environ['STAGEDML_ROOT'],'_experiments','nl2bash','unshuffled')
+makedirs(out, exist_ok=True)
+rref=realize(instantiate(unshuffled_transformer))
+mksymlink(rref, out, 'result', withtime=False)
 unshuffled_bleu=read_tensorflow_log(join(rref2path(rref),'eval'), 'bleu_cased')
-plt.plot(range(len(unshuffled_bleu)), unshuffled_bleu, label=f'Unshuffled transformer')
+plt.plot(range(len(unshuffled_bleu)), unshuffled_bleu, label=f'run', color='red')
 
 plt.legend(loc='upper left', frameon=True)
 plt.grid(True)
 ```
 
-![](figures/Report.md_figure6_1.png)\
+![](figures/Report.md_figure7_1.png)\
 
 
 
@@ -267,14 +577,17 @@ Results:
 ```python
 plt.figure(2)
 plt.xlabel("Training steps")
-plt.title("BLEU")
+plt.title("BLEU, Bash-specific tokens")
 
 plt.plot(range(len(unshuffled_bleu)), unshuffled_bleu, label=f'Unshuffled transformer', color='red')
 plt.plot(range(len(baseline_bleu)), baseline_bleu, label=f'Baseline transformer', color='orange')
 
+out=join(environ['STAGEDML_ROOT'],'_experiments','nl2bash','bashspec')
+makedirs(out, exist_ok=True)
 for i,vsize in enumerate([ 30000, 25000, 20000, 15000, 10000, 5000, 1000, 500 ]) :
   mysubtok,mytransformer=run1(vsize)
   rref=realize(instantiate(mytransformer))
+  mksymlink(rref, out, f'run-{i}', withtime=False)
   bleu=read_tensorflow_log(join(rref2path(rref),'eval'), 'bleu_cased')
   plt.plot(range(len(bleu)), bleu, label=f'run-{i}', color='blue')
 
@@ -282,7 +595,7 @@ plt.legend(loc='upper left', frameon=True)
 plt.grid(True)
 ```
 
-![](figures/Report.md_figure8_1.png)\
+![](figures/Report.md_figure9_1.png)\
 
 
 
@@ -329,7 +642,7 @@ plt.title("BLEU")
 plt.plot(range(len(unshuffled_bleu)), unshuffled_bleu, label=f'Unshuffled transformer', color='red')
 plt.plot(range(len(baseline_bleu)), baseline_bleu, label=f'Baseline transformer', color='orange')
 
-out=join(environ['STAGEDML_ROOT'],'_experiments','nl2bash2')
+out=join(environ['STAGEDML_ROOT'],'_experiments','nl2bash','vsize')
 makedirs(out, exist_ok=True)
 for i,vsize in enumerate([ 15000, 10000, 5000, 1700 ]) :
   mysubtok,mytransformer=run2(vsize)
@@ -342,7 +655,7 @@ plt.legend(loc='upper left', frameon=True)
 plt.grid(True)
 ```
 
-![](figures/Report.md_figure10_1.png)\
+![](figures/Report.md_figure11_1.png)\
 
 
 Single-char punctuation tokens
@@ -361,7 +674,8 @@ force the tokenizer to produce single-char tokens for punctuation.
 
 
 ```python
-def exp3_mysubtok(m, vsize=10000):
+def singlechar_subtok(m):
+  vsize=10000
   def _config(d):
     d['target_vocab_size']=vsize
     d['vocab_file'] = [promise, 'vocab.%d' % vsize]
@@ -376,14 +690,14 @@ def exp3_mysubtok(m, vsize=10000):
 
 
 ```python
-def exp3_mytransformer(m):
+def singlechar_transformer(m):
   def _config(c):
     c['train_steps']=6*5000
     c['params']['beam_size']=3 # As in Tellina paper
     return mkconfig(c)
   return redefine(transformer_wmt,
                   new_config=_config,
-                  new_matcher=match_some())(m, exp3_mysubtok(m), num_instances=5)
+                  new_matcher=match_some())(m, singlechar_subtok(m), num_instances=5)
 ```
 
 
@@ -399,9 +713,9 @@ plt.title("BLEU")
 plt.plot(range(len(unshuffled_bleu)), unshuffled_bleu, label=f'Unshuffled transformer', color='red')
 plt.plot(range(len(baseline_bleu)), baseline_bleu, label=f'Baseline transformer', color='orange')
 
-out=join(environ['STAGEDML_ROOT'],'_experiments','nl2bash3')
+out=join(environ['STAGEDML_ROOT'],'_experiments','nl2bash','singlechar')
 makedirs(out, exist_ok=True)
-for i,rref in enumerate(realizeMany(instantiate(exp3_mytransformer))):
+for i,rref in enumerate(realizeMany(instantiate(singlechar_transformer))):
   mksymlink(rref, out, f'run-{i}', withtime=False)
   bleu=read_tensorflow_log(join(rref2path(rref),'eval'), 'bleu_cased')
   plt.plot(range(len(bleu)), bleu, label=f'run-{i}', color='blue')
@@ -410,7 +724,7 @@ plt.legend(loc='upper left', frameon=True)
 plt.grid(True)
 ```
 
-![](figures/Report.md_figure14_1.png)\
+![](figures/Report.md_figure15_1.png)\
 
 
 Unfortunately, suppressing punktuation seems to have no effect or the effect is
