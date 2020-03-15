@@ -128,18 +128,14 @@ def predict(b:TransformerBuild, instance_idx:int)->None:
        open(target_txt,'w') as ftgt:
     neols=0
     for ids in outputs:
-      reply=b.subtokenizer.decode(ids[:tryindex(list(ids),EOS_ID)])
+      reply=' '.join(b.subtokenizer.decode(ids[:tryindex(list(ids),EOS_ID)]).splitlines())
       target=ftgt_src.readline().strip()
-      if '\n' in reply:
-        neols+=1
-        reply=' '.join(reply.split('\n'))
       fhyp.write(reply); fhyp.write('\n')
       ftgt.write(target); ftgt.write('\n')
 
   bleu_uncased = bleu_wrapper(target_txt, output_txt, False)
   bleu_cased = bleu_wrapper(target_txt, output_txt, True)
-  print(f'Spurious EOLs seen: {neols}\n'
-        f'BLEU (uncased): {bleu_uncased}\n'
+  print(f'BLEU (uncased): {bleu_uncased}\n'
         f'BLEU (cased): {bleu_cased}\n')
   with b.filewriter.as_default():
     tf.summary.scalar('bleu_cased',bleu_cased,step=epoch)
