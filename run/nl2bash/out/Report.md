@@ -79,20 +79,20 @@ rref=realize(instantiate(all_fetchnl2bash))
 with open(mklens(rref).train_input_combined.syspath) as inp, \
      open(mklens(rref).train_target_combined.syspath) as tgt:
   for i, (iline, tline) in islice(enumerate(zip(inp,tgt)),5):
-    print(f"#{i}\tInput: {iline.strip()}\n\tTarget: {tline.strip()}")
+    print(f"#{i}\t[I] {iline.strip()}\n\t[T] {tline.strip()}")
 ```
 
 ```
-#0	Input: Pass numbers 1 to 100000 as arguments to "/bin/true"
-	Target: /bin/true $(seq 1 100000)
-#1	Input: Replace "foo" with "bar" in all PHP files in the current directory tree
-	Target: find . -name "*.php" -exec sed -i 's/foo/bar/g' {} \;
-#2	Input: Search the entire file hierarchy for files ending in '.old' and delete them.
-	Target: find / -name "*.old" -delete
-#3	Input: Find all directories under /path/to/Dir and set their permission to 755
-	Target: sudo find /path/to/Dir -type d -print0 | xargs -0 sudo chmod 755
-#4	Input: run "tar -xzvf ..." as user $username
-	Target: su $username -c tar xzvf ..
+#0	[I] Pass numbers 1 to 100000 as arguments to "/bin/true"
+	[T] /bin/true $(seq 1 100000)
+#1	[I] Replace "foo" with "bar" in all PHP files in the current directory tree
+	[T] find . -name "*.php" -exec sed -i 's/foo/bar/g' {} \;
+#2	[I] Search the entire file hierarchy for files ending in '.old' and delete them.
+	[T] find / -name "*.old" -delete
+#3	[I] Find all directories under /path/to/Dir and set their permission to 755
+	[T] sudo find /path/to/Dir -type d -print0 | xargs -0 sudo chmod 755
+#4	[I] run "tar -xzvf ..." as user $username
+	[T] su $username -c tar xzvf ..
 ```
 
 
@@ -147,6 +147,22 @@ def baseline_transformer(m):
 
 
 
+#### Vocabulary size
+
+Vocabulary size of the baseline model:
+
+
+```python
+from analyze import vocab_size
+vocab_size(baseline_transformer)
+```
+
+```
+5833
+```
+
+
+
 #### Model size
 
 The size of the model is not saved as a specieal part of the model output, but
@@ -184,7 +200,7 @@ plt.legend(loc='upper left', frameon=True)
 plt.grid(True)
 ```
 
-![](figures/Report.md_figure5_1.png)\
+![](figures/Report.md_figure6_1.png)\
 
 
 
@@ -240,7 +256,7 @@ plt.legend(loc='upper left', frameon=True)
 plt.grid(True)
 ```
 
-![](figures/Report.md_figure8_1.png)\
+![](figures/Report.md_figure9_1.png)\
 
 
 
@@ -309,7 +325,7 @@ plt.legend(loc='upper left', frameon=True)
 plt.grid(True)
 ```
 
-![](figures/Report.md_figure10_1.png)\
+![](figures/Report.md_figure11_1.png)\
 
 
 
@@ -330,7 +346,8 @@ def run2(vsize:int)->None:
       d['train_data_min_count']=None
       d['file_byte_limit'] = 1e6 if vsize > 5000 else 1e5
       return mkconfig(d)
-    return redefine(all_nl2bashsubtok,_config)(m)
+    return redefine(all_nl2bashsubtok,_config)(m,
+      shuffle=True, with_bash_charset=True, with_bash_subtokens=True)
 
   def mytransformer(m):
     def _config(c):
@@ -350,7 +367,7 @@ Results:
 ```python
 plt.figure(3)
 plt.xlabel("Training steps")
-plt.title("BLEU")
+plt.title("BLEU, Changing vocabulary size")
 
 plt.plot(range(len(unshuffled_bleu)), unshuffled_bleu, label=f'Unshuffled transformer', color='red')
 plt.plot(range(len(baseline_bleu)), baseline_bleu, label=f'Baseline transformer', color='orange')
@@ -362,13 +379,72 @@ for i,vsize in enumerate([ 15000, 10000, 5000, 1700 ]) :
   rref=realize(instantiate(mytransformer))
   mksymlink(rref, out, vsize, withtime=False)
   bleu=read_tensorflow_log(join(rref2path(rref),'eval'), 'bleu_cased')
-  plt.plot(range(len(bleu)), bleu, label=f'vsize-{vsize}', color='blue')
+  plt.plot(range(len(bleu)), bleu, label=f'vsize-{vocab_size(mytransformer)}')
 
 plt.legend(loc='upper left', frameon=True)
 plt.grid(True)
 ```
 
-![](figures/Report.md_figure12_1.png)\
+![](figures/Report.md_figure13_1.png)\
+
+
+### Changing vocabulary size for baseline model
+
+We set the target size of the subtoken vocabulary to different values in range
+`[1000, 15000]`.
+
+Model config:
+
+
+```python
+def run(vsize:int):
+  def mysubtok(m):
+    def _config(d):
+      d['target_vocab_size']=vsize
+      d['vocab_file'] = [promise, 'vocab.%d' % vsize]
+      d['train_data_min_count']=None
+      d['file_byte_limit'] = 1e6 if vsize > 5000 else 1e5
+      return mkconfig(d)
+    return redefine(all_nl2bashsubtok,_config)(m,
+      shuffle=True, with_bash_charset=False, with_bash_subtokens=False)
+
+  def mytransformer(m):
+    def _config(c):
+      c['train_steps']=6*5000
+      c['params']['beam_size']=3 # As in Tellina paper
+      return mkconfig(c)
+    return redefine(transformer_wmt,_config)(m, mysubtok(m))
+
+  return mysubtok, mytransformer
+```
+
+
+
+Results:
+
+
+```python
+plt.figure(3)
+plt.xlabel("Training steps")
+plt.title("BLEU, Changing vocabulary size of Baseline model")
+
+plt.plot(range(len(unshuffled_bleu)), unshuffled_bleu, label=f'Unshuffled transformer', color='red')
+plt.plot(range(len(baseline_bleu)), baseline_bleu, label=f'Baseline transformer', color='orange')
+
+out=join(environ['STAGEDML_ROOT'],'_experiments','nl2bash','vsizebl')
+makedirs(out, exist_ok=True)
+for i,vsize in enumerate([ 15000, 10000, 5000, 1700 ]) :
+  mysubtok,mytransformer=run(vsize)
+  rref=realize(instantiate(mytransformer))
+  mksymlink(rref, out, vsize, withtime=False)
+  bleu=read_tensorflow_log(join(rref2path(rref),'eval'), 'bleu_cased')
+  plt.plot(range(len(bleu)), bleu, label=f'vsize-{vocab_size(mytransformer)}')
+
+plt.legend(loc='upper left', frameon=True)
+plt.grid(True)
+```
+
+![](figures/Report.md_figure15_1.png)\
 
 
 ### Single-char punctuation tokens
@@ -436,7 +512,7 @@ plt.legend(loc='upper left', frameon=True)
 plt.grid(True)
 ```
 
-![](figures/Report.md_figure16_1.png)\
+![](figures/Report.md_figure19_1.png)\
 
 
 Unfortunately, suppressing punktuation seems to have no effect or the effect is

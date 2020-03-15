@@ -62,3 +62,28 @@ def model_size(stage)->int:
   finally:
     repl_cancelBuild(b,th)
 
+from pylightnix import ( realize, mklens, match_only, promise, build_wrapper, mkconfig, mkdrv )
+from stagedml.utils import flines
+
+def vocab_size(stage)->int:
+  def vocab_size_stage(m):
+    def _realize(b):
+      with open(mklens(b).output.syspath,'w') as f:
+        f.write(str(flines(mklens(b).input.vocab_refpath.syspath)))
+
+    return mkdrv(m,
+        mkconfig({'name':'vocab_size',
+                  'input':stage(m),
+                  'output':[promise,'vocab_size.txt']}),
+        match_only(),
+        build_wrapper(_realize))
+
+  rref=realize(instantiate(vocab_size_stage))
+  with open(mklens(rref).output.syspath,'r') as f:
+    return int(f.read())
+
+
+
+
+
+
