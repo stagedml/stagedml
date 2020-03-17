@@ -1,26 +1,15 @@
-NL2Bash experiment
-==================
+NL2Bash Transformer
+===================
 
-This document describes the results of applying [TensorFlow official
-Trnasformer][1] of the to the [NL2Bash][5] dataset introduced by Xi Victoria Lin
+This document describes the results of training [TensorFlow official
+Trnasformer][1] on the [NL2Bash][5] dataset introduced by Xi Victoria Lin
 et al. in their paper [Nl2Bash: Corpus and Semantic Parser for Natural Language
-Interface to the Linux Operating System][2]. We use [StagedML][3] library for
-experiment management.
+Interface to the Linux Operating System][2]. We use [StagedML][3] library to
+generate this report.
 
-The primary goal of this work is to demonstrate the features of StagedML
-library. The secondary goal is to evaluate the NL2BASH dataset.
-
-We would like to highlight the following facts:
-
-1. The sinppets of top-level code are only one-screen long. At the same time, it
-   allows the programmer to change every aspect of the experiment by connecting
-   stages together and tweaking their parameters.
-2. StagedML caches the results of running stages by creating immutable objects
-   in the Pylightnix storage. Configurations and training results are
-   accessible to users via [Pylightnix][4] API.
-3. Consequently, the rendering of the experiment reports may be largely authomatized.
-   In this work, we generated reports from scrath by running a `Makefile` in the
-   [/run/nl2bash](/run/nl2bash) directory.
+The primary goal of this work is to demonstrate the features of [StagedML][3]
+library which we used to run experiments and generate this report. The secondary
+goal is to evaluate the NL2BASH dataset on the stock transformer model.
 
 The source code of this report is
 [available](https://github.com/stagedml/stagedml/tree/master/run/nl2bash/Report.md.in)
@@ -47,32 +36,57 @@ from analyze import ( read_tensorflow_log,  vocab_size, model_size )
 
 
 
-```
+### Model
+
+In this work, we train a close copy of TensorFlow Official Transformer model.
+This model is intended for machine translation task. Typical use case is EN-DE
+translation. The model uses shared vocabulary of subtokens for both input and
+target languages. In this work we pretend that Bash is the target language of
+the model.
 
 
-### The Model
+The model is defined in TensorFlow Keras API and is located in the
+[transformer_wmt.py](/src/stagedml/stages/transformer_wmt.py). In this file we
+define the following entities:
 
-In this work, we trained a close copy of TensorFlow Official Transformer model.
-The model is defined using top-level Keras API and is located in the
-[transformer_wmt.py](/src/stagedml/stages/transformer_wmt.py) file. There we
-define the `TransformerBuild` class for storing the mutable state and the number
-of operations, including `build`, `train`, `evaluate`, etc for actions of the
-same name.  Every operation typically accepts `TransformerBuild` object and the
-index of the model instance.
+ - `TransformerBuild` class for storing the mutable state of the model
+ - Set of operations, which includes `build`, `train`, `evaluate` and `predict`
+   operations. Operations tupically accept the mutable state and do the named
+   modification: `build` builds the Keras model, `train` trains it, and so on.
+ - `transformer_wmt` functions wraps the above actions into Pylightnix entity
+   called _Stage_. The stage function is an "entry point" of the whole module.
+   It takes the following stage-level arguments:
+    * `m` is a technical argument representing Pylightnix dependency resolution context.
+    * `wmt:WmtSubtok` is a reference to the upstream stage which provides access to
+      the database and to Subtokenizer.
+    * `num_instances:int=1` is the number of model instances to train. Setting this
+      argument to value greater than one will result in training several independent
+      instances of the model which shares the configuration.
 
-Finally, we define `transformer_wmt` which wraps those actions into Pylightnix
-Stage entity. Experiments also use other stages for fetching raw dataset and
-encoding it using Subtokenizer. Arguments of the `transformer_wmt` stage are:
+   Stage function returns the _Derivation reference_ handler which could be used in
+   downstream stages. Typically, we pass stage functions to
+   `realizeMany(instantiate(.))` functions of Pylightnix API. The result of such
+   calls is a list of _Realization references_ which may be used to directly access
+   the instance artifacts.
 
-- `m` Pylightnix dependency resolution context.
-- `wmt:WmtSubtok` reference to upstream stage providing a tokenizer. This stage
-  is in fact depends on `all_fetchnl2bash` stage which deploys raw dataset.
-- `num_instances:int=1` the number of model instances to train.
+`transformer_wmt` defines rather generic version of Transformer which has no
+NL2Bash-specific settings. We will change some of it's configuration parameters in
+the top-level code snippets before running the model.
 
+
+### Metrics
+
+We use BLEU metrics to report the model performance. Bleu implementation is
+taken in from official Trnasformer model. This metric may differs from the
+version of BLEU which were used by the authors of NL2BASH paper, so we can't
+compare results directly.
+
+We applied the metrics to the evaluation subset of the NL2Bash dataset which is
+a `0.1` part of the original dataset.
 
 ### Dataset
 
-We print top 5 lines of input and target sentences of the Dataset.
+We print top 5 lines of input and target sentences of the [NL2Bash][5] dataset.
 
 
 ```python
@@ -99,27 +113,26 @@ with open(mklens(rref).train_input_combined.syspath) as inp, \
 
 
 
-### Metrics
-
-We use BLEU metrics to report the model performance. Bleu implementation is
-taken in from official Trnasformer model. This metric may differs from the
-version of BLEU which were used by the authors of NL2BASH paper, so we can't
-compare results directly.
-
-We applied the metrics to the evaluation subset of the NL2Bash dataset which is
-a `0.1` part of the original dataset.
 
 Experiments
 -----------
 
-1. [Baseline Transformer](#baseline-transformer) -  use default upstream settings
-2. [Unshuffled Transformer](#unshuffled-transformer) -  don't shuffle the dataset
-3. [Bash specific tokens](#bash-specific-tokens) - add all commands and flags to
-   the list of subtokens
-4. [Changing vocabulary size](#changing-vocabulary-size) - try different target
-   sizes of vocabulary
-5. [Single-char punctuation tokens](#single-char-punctuation-tokens) - suppress
-   multichar punktuation subtokens
+We evalueate BLEU metrics in the following experiments:
+
+1. [Baseline model](#baseline-transformer) Run the Transformer with default
+   settings.
+5. [Unshuffled](#unshuffled-transformer) Occasional experiment where we passed
+   unshuffled dataset to the baseline model
+3. [Bashtokens](#bash-specific-tokens) In this runs we pre-parse the training
+   dataset and force tokenizer to issue bash-specific subtokens which include
+   commands and flags names.
+4. [Baseline+vocab_sizes](#changing-vocabulary-size-of-baseline-model) We try
+   different target vocabulary sizes of the baseline vocabulary
+4. [Bashtoken+vocab_sizes](#changing-vocabulary-size-of-bashtoken-model) We try
+   different target vocabulary sizes of the Bashtoken model
+5. [Bashtoken+1punct](#single-char-punctuation-tokens) We suppress
+   multicharacter punktuation subtokens.
+6. [Summary](#summary-and-conclusion)
 
 ### Baseline transformer
 
@@ -389,15 +402,24 @@ Results:
 ![](figures/Report.md_figure15_1.png)\
 
 
-### Summary
+### Summary and conclusion
+
+Below we plot BLEU, as seen after `5` epoches for different vocabulary sizes in
+the above experiments.
 
 
 ![](figures/Report.md_figure16_1.png)\
 
 
+- BLEU metrics of a model may differ significantly from run to run. We see
+  difference of more than 2 BlEU points.
+- We see best performance if `vocab_size` is in range `6000..8000`.
+- Default vocabulary size setting of the Transofrmer model
+  (5833) is probably good enough.
+- Shuffling of the dataset is absolutely necessary.
+- Forcing vocabulary to contain bash-specific subtokens may be a good decision.
+- Forbidding multi-character punctuation subtokens probably reduces the accuracy
 
-Unfortunately, suppressing punktuation seems to have no effect or the effect is
-negative.
 
 
 [1]: https://github.com/tensorflow/models/tree/master/official/nlp/transformer
