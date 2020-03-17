@@ -45,25 +45,34 @@ from logging import getLogger
 getLogger('tensorflow').setLevel('FATAL')
 tf.autograph.set_verbosity(3, False)
 
-def model_size(stage)->int:
+from pylightnix import ( realize, mklens, match_only, promise, build_wrapper,
+    mkconfig, mkdrv, readstr, mkbuildargs )
+from stagedml.utils import flines
 
-  th=repl_realize(instantiate(stage))
-  b=twmt.TransformerBuild(repl_buildargs(th))
-  try:
-    build_setoutpaths(b,1)
-    twmt.build(b,0)
+
+def model_size(stage)->int:
+  def _realize(b):
+    b2=twmt.TransformerBuild(mkbuildargs(
+      mklens(b).input.dref, b.context, b.timeprefix, {}, {}))
+    build_setoutpaths(b2,1)
+    twmt.build(b2,0)
     msize=0
-    for p in b.train_model.trainable_weights:
+    for p in b2.train_model.trainable_weights:
       sz=1
       for dim in p.shape:
         sz*=dim
       msize+=sz
-    return msize
-  finally:
-    repl_cancelBuild(b,th)
+    with open(mklens(b).output.syspath,'w') as f:
+      f.write(str(msize))
 
-from pylightnix import ( realize, mklens, match_only, promise, build_wrapper, mkconfig, mkdrv )
-from stagedml.utils import flines
+  def _stage(m):
+    return mkdrv(m, mkconfig({'name':'model_size', 'input':stage(m),
+                              'output':[promise,'model_size.txt']}),
+                    match_only(),
+                    build_wrapper(_realize))
+
+  return int(readstr(mklens(realize(instantiate(_stage))).output.syspath))
+
 
 def vocab_size(stage)->int:
   def vocab_size_stage(m):
@@ -72,8 +81,7 @@ def vocab_size(stage)->int:
         f.write(str(flines(mklens(b).input.vocab_refpath.syspath)))
 
     return mkdrv(m,
-        mkconfig({'name':'vocab_size',
-                  'input':stage(m),
+        mkconfig({'name':'vocab_size', 'input':stage(m),
                   'output':[promise,'vocab_size.txt']}),
         match_only(),
         build_wrapper(_realize))

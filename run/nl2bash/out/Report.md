@@ -42,10 +42,12 @@ from pylightnix import (
 from stagedml.imports import ( environ, join, environ, makedirs )
 from stagedml.stages.all import ( transformer_wmt, all_nl2bashsubtok,
     all_fetchnl2bash )
-from analyze import ( read_tensorflow_log )
+from analyze import ( read_tensorflow_log,  vocab_size, model_size )
 ```
 
 
+
+```
 
 
 ### The Model
@@ -149,31 +151,12 @@ def baseline_transformer(m):
 
 #### Vocabulary size
 
-Vocabulary size of the baseline model:
-
-
-```python
-from analyze import vocab_size
-vocab_size(baseline_transformer)
-```
-
-```
-5833
-```
-
-
+Vocabulary size of the baseline model is 5833.
 
 #### Model size
 
 The size of the model is not saved as a specieal part of the model output, but
 we have defined a small function which reads it via Keras API.
-
-
-```python
-from analyze import model_size
-```
-
-
 
 The number of trainable weights of baseline model is
 47090688 parameters.
@@ -191,20 +174,22 @@ plt.title("BLEU-cased, Baseline transformer")
 
 out=join(environ['STAGEDML_ROOT'],'_experiments','nl2bash','baseline')
 makedirs(out, exist_ok=True)
+summary_baseline_bleu=[]
 for i,rref in enumerate(realizeMany(instantiate(baseline_transformer))):
   mksymlink(rref, out, f'run-{i}', withtime=False)
   baseline_bleu=read_tensorflow_log(join(rref2path(rref),'eval'), 'bleu_cased')
   plt.plot(range(len(baseline_bleu)), baseline_bleu, label=f'run-{i}', color='blue')
+  summary_baseline_bleu.append((vocab_size(baseline_transformer),baseline_bleu[4]))
 
 plt.legend(loc='upper left', frameon=True)
 plt.grid(True)
 ```
 
-![](figures/Report.md_figure6_1.png)\
+![](figures/Report.md_figure4_1.png)\
 
 
-
-We now select the best baseline transformer
+The evaluation code blocks are much similar from experiment to experiment, so we
+don't include it in the rendered version of the report. We now select the best baseline transformer
 
 
 ```python
@@ -217,8 +202,9 @@ baseline_bleu=read_tensorflow_log(join(rref2path(rref),'eval'), 'bleu_cased')
 
 ### Unshuffled dataset
 
-
-This experiment
+This experiment was in fact a first attempt to run the model. As we can see,
+unshuffled dataset reduces the model's performance significantly. All other runs
+of the model do use shuffled dataset.
 
 
 ```python
@@ -237,26 +223,8 @@ def unshuffled_transformer(m):
 
 
 
-Results:
 
-
-```python
-plt.figure(2)
-plt.xlabel("Training steps")
-plt.title("BLEU, Unshuffled transformer")
-
-out=join(environ['STAGEDML_ROOT'],'_experiments','nl2bash','unshuffled')
-makedirs(out, exist_ok=True)
-rref=realize(instantiate(unshuffled_transformer))
-mksymlink(rref, out, 'result', withtime=False)
-unshuffled_bleu=read_tensorflow_log(join(rref2path(rref),'eval'), 'bleu_cased')
-plt.plot(range(len(unshuffled_bleu)), unshuffled_bleu, label=f'run', color='red')
-
-plt.legend(loc='upper left', frameon=True)
-plt.grid(True)
-```
-
-![](figures/Report.md_figure9_1.png)\
+![](figures/Report.md_figure7_1.png)\
 
 
 
@@ -264,9 +232,9 @@ plt.grid(True)
 
 Originally this experiment was intended to run the model with bash-specific
 tokens _and_ different vocabulary sizes. Unfortunately, due to subtokenizer API
-misuse, we in face measure the performance of the model on the same target
-vocabulary size of `8192` tokens. We will make the corrections in the next
-experiment and here we display just the effect of adding bash-specific tokens.
+misuse, we in fact measured the performance on the same target vocabulary. We
+will make the corrections in the next experiment and here we display just the
+effect of adding bash-specific tokens.
 
 Adding the bash-specifics include:
 
@@ -283,7 +251,7 @@ def run1(vsize:int)->RRef:
 
   def mysubtok(m):
     def _config(d):
-      d['target_vocab_size']=vsize
+      d['target_vocab_size']=vsize  # Doesn't in fact depend on this parameter
       d['vocab_file'] = [promise, 'vocab.%d' % vsize]
       return mkconfig(d)
     return redefine(all_nl2bashsubtok, _config)(m,
@@ -304,91 +272,11 @@ def run1(vsize:int)->RRef:
 Results:
 
 
-```python
-plt.figure(2)
-plt.xlabel("Training steps")
-plt.title("BLEU, Bash-specific tokens")
-
-plt.plot(range(len(unshuffled_bleu)), unshuffled_bleu, label=f'Unshuffled transformer', color='red')
-plt.plot(range(len(baseline_bleu)), baseline_bleu, label=f'Baseline transformer', color='orange')
-
-out=join(environ['STAGEDML_ROOT'],'_experiments','nl2bash','bashspec')
-makedirs(out, exist_ok=True)
-for i,vsize in enumerate([ 30000, 25000, 20000, 15000, 10000, 5000, 1000, 500 ]) :
-  mysubtok,mytransformer=run1(vsize)
-  rref=realize(instantiate(mytransformer))
-  mksymlink(rref, out, f'run-{i}', withtime=False)
-  bleu=read_tensorflow_log(join(rref2path(rref),'eval'), 'bleu_cased')
-  plt.plot(range(len(bleu)), bleu, label=f'run-{i}', color='blue')
-
-plt.legend(loc='upper left', frameon=True)
-plt.grid(True)
-```
-
-![](figures/Report.md_figure11_1.png)\
+![](figures/Report.md_figure9_1.png)\
 
 
 
-### Changing vocabulary size
-
-We set the target size of the subtoken vocabulary to different values in range
-`[1000, 15000]`.
-
-Model config:
-
-
-```python
-def run2(vsize:int)->None:
-  def mysubtok(m):
-    def _config(d):
-      d['target_vocab_size']=vsize
-      d['vocab_file'] = [promise, 'vocab.%d' % vsize]
-      d['train_data_min_count']=None
-      d['file_byte_limit'] = 1e6 if vsize > 5000 else 1e5
-      return mkconfig(d)
-    return redefine(all_nl2bashsubtok,_config)(m,
-      shuffle=True, with_bash_charset=True, with_bash_subtokens=True)
-
-  def mytransformer(m):
-    def _config(c):
-      c['train_steps']=6*5000
-      c['params']['beam_size']=3 # As in Tellina paper
-      return mkconfig(c)
-    return redefine(transformer_wmt,_config)(m, mysubtok(m))
-
-  return mysubtok, mytransformer
-```
-
-
-
-Results:
-
-
-```python
-plt.figure(3)
-plt.xlabel("Training steps")
-plt.title("BLEU, Changing vocabulary size")
-
-plt.plot(range(len(unshuffled_bleu)), unshuffled_bleu, label=f'Unshuffled transformer', color='red')
-plt.plot(range(len(baseline_bleu)), baseline_bleu, label=f'Baseline transformer', color='orange')
-
-out=join(environ['STAGEDML_ROOT'],'_experiments','nl2bash','vsize')
-makedirs(out, exist_ok=True)
-for i,vsize in enumerate([ 15000, 10000, 5000, 1700 ]) :
-  mysubtok,mytransformer=run2(vsize)
-  rref=realize(instantiate(mytransformer))
-  mksymlink(rref, out, vsize, withtime=False)
-  bleu=read_tensorflow_log(join(rref2path(rref),'eval'), 'bleu_cased')
-  plt.plot(range(len(bleu)), bleu, label=f'vsize-{vocab_size(mytransformer)}')
-
-plt.legend(loc='upper left', frameon=True)
-plt.grid(True)
-```
-
-![](figures/Report.md_figure13_1.png)\
-
-
-### Changing vocabulary size for baseline model
+### Changing vocabulary size of Baseline model
 
 We set the target size of the subtoken vocabulary to different values in range
 `[1000, 15000]`.
@@ -423,42 +311,53 @@ def run(vsize:int):
 Results:
 
 
+![](figures/Report.md_figure11_1.png)\
+
+
+### Changing vocabulary size of Bashtoken model
+
+We set the target size of the subtoken vocabulary to different values in range
+`[1000, 15000]`.
+
+Model config:
+
+
 ```python
-plt.figure(3)
-plt.xlabel("Training steps")
-plt.title("BLEU, Changing vocabulary size of Baseline model")
+def run2(vsize:int)->None:
+  def mysubtok(m):
+    def _config(d):
+      d['target_vocab_size']=vsize
+      d['vocab_file'] = [promise, 'vocab.%d' % vsize]
+      d['train_data_min_count']=None
+      d['file_byte_limit'] = 1e6 if vsize > 5000 else 1e5
+      return mkconfig(d)
+    return redefine(all_nl2bashsubtok,_config)(m,
+      shuffle=True, with_bash_charset=True, with_bash_subtokens=True)
 
-plt.plot(range(len(unshuffled_bleu)), unshuffled_bleu, label=f'Unshuffled transformer', color='red')
-plt.plot(range(len(baseline_bleu)), baseline_bleu, label=f'Baseline transformer', color='orange')
+  def mytransformer(m):
+    def _config(c):
+      c['train_steps']=6*5000
+      c['params']['beam_size']=3 # As in Tellina paper
+      return mkconfig(c)
+    return redefine(transformer_wmt,_config)(m, mysubtok(m))
 
-out=join(environ['STAGEDML_ROOT'],'_experiments','nl2bash','vsizebl')
-makedirs(out, exist_ok=True)
-for i,vsize in enumerate([ 15000, 10000, 5000, 1700 ]) :
-  mysubtok,mytransformer=run(vsize)
-  rref=realize(instantiate(mytransformer))
-  mksymlink(rref, out, vsize, withtime=False)
-  bleu=read_tensorflow_log(join(rref2path(rref),'eval'), 'bleu_cased')
-  plt.plot(range(len(bleu)), bleu, label=f'vsize-{vocab_size(mytransformer)}')
-
-plt.legend(loc='upper left', frameon=True)
-plt.grid(True)
+  return mysubtok, mytransformer
 ```
 
-![](figures/Report.md_figure15_1.png)\
+
+
+Results:
+
+
+![](figures/Report.md_figure13_1.png)\
+
 
 
 ### Single-char punctuation tokens
 
-
-```python
-from pylightnix import match_some, realizeMany, instantiate, redefine, mkconfig, mksymlink
-from stagedml.stages.all import transformer_wmt, all_nl2bashsubtok
-```
-
-
-
-In addition to the modifications that we made in Experiment 2, we now attempt to
-force the tokenizer to produce single-char tokens for punctuation.
+We now attempt to force the tokenizer to produce single-char tokens for
+punctuation chars. This would result in no complex tokens like `'; /` in the
+vocabulary.
 
 
 ```python
@@ -471,13 +370,7 @@ def singlechar_subtok(m):
     d['train_data_min_count']=None
     return mkconfig(d)
   return redefine(all_nl2bashsubtok,_config)(m)
-```
 
-
-
-
-
-```python
 def singlechar_transformer(m):
   def _config(c):
     c['train_steps']=6*5000
@@ -493,26 +386,14 @@ def singlechar_transformer(m):
 Results:
 
 
-```python
-plt.figure(4)
-plt.xlabel("Single-char punctuation tokens")
-plt.title("BLEU")
+![](figures/Report.md_figure15_1.png)\
 
-plt.plot(range(len(unshuffled_bleu)), unshuffled_bleu, label=f'Unshuffled transformer', color='red')
-plt.plot(range(len(baseline_bleu)), baseline_bleu, label=f'Baseline transformer', color='orange')
 
-out=join(environ['STAGEDML_ROOT'],'_experiments','nl2bash','singlechar')
-makedirs(out, exist_ok=True)
-for i,rref in enumerate(realizeMany(instantiate(singlechar_transformer))):
-  mksymlink(rref, out, f'run-{i}', withtime=False)
-  bleu=read_tensorflow_log(join(rref2path(rref),'eval'), 'bleu_cased')
-  plt.plot(range(len(bleu)), bleu, label=f'run-{i}', color='blue')
+### Summary
 
-plt.legend(loc='upper left', frameon=True)
-plt.grid(True)
-```
 
-![](figures/Report.md_figure19_1.png)\
+![](figures/Report.md_figure16_1.png)\
+
 
 
 Unfortunately, suppressing punktuation seems to have no effect or the effect is
