@@ -8,16 +8,13 @@ Interface to the Linux Operating System][2]. We use [StagedML][3] library to
 generate this report.
 
 The primary goal of this work is to demonstrate the features of [StagedML][3]
-library which we used to run experiments and generate this report. The secondary
-goal is to evaluate the NL2BASH dataset on the stock transformer model.
+library which was used to run experiments and generate this report. The
+secondary goal is to evaluate the NL2BASH dataset on the stock transformer
+model.
 
-The source code of this report is
-[available](https://github.com/stagedml/stagedml/tree/master/run/nl2bash/Report.md.in)
-in the StagedML repository. We use [PWeave](http://mpastell.com/pweave) to
-render this report.
-
-Imports
--------
+* [Source code of this report](../Report.md.in). We use
+  [PWeave](http://mpastell.com/pweave) to render this report.
+* [Combined python code used in the report](Report.py)
 
 
 ```python
@@ -36,6 +33,34 @@ from analyze import ( read_tensorflow_log,  vocab_size, model_size )
 ```
 
 
+
+
+Contents
+--------
+
+1. [Definitions](#definitions)
+    * [Model](#model)
+    * [Metrics](#metrics)
+    * [Dataset](#dataset)
+2. [Experiments](#experiments)
+    * [Baseline model](#baseline-transformer) Run the Transformer with default
+       settings.
+    * [Unshuffled](#unshuffled-transformer) Occasional experiment where we passed
+      unshuffled dataset to the baseline model
+    * [Bashtokens](#bash-specific-tokens) In this runs we pre-parse the training
+      dataset and force tokenizer to issue bash-specific subtokens which include
+      commands and flags names.
+    * [Baseline+vocab_sizes](#changing-vocabulary-size-of-baseline-model) We try
+      different target vocabulary sizes of the baseline vocabulary
+    * [Bashtoken+vocab_sizes](#changing-vocabulary-size-of-bashtoken-model) We try
+      different target vocabulary sizes of the Bashtoken model
+    * [Bashtoken+1punct](#single-char-punctuation-tokens) We suppress
+      multicharacter punktuation subtokens.
+3. [Conclusions](#conclusion)
+
+
+Definitions
+-----------
 
 ### Model
 
@@ -149,23 +174,6 @@ with open(mklens(rref).train_input_combined.syspath) as inp, \
 
 Experiments
 -----------
-
-We evalueate BLEU metrics in the following experiments:
-
-1. [Baseline model](#baseline-transformer) Run the Transformer with default
-   settings.
-5. [Unshuffled](#unshuffled-transformer) Occasional experiment where we passed
-   unshuffled dataset to the baseline model
-3. [Bashtokens](#bash-specific-tokens) In this runs we pre-parse the training
-   dataset and force tokenizer to issue bash-specific subtokens which include
-   commands and flags names.
-4. [Baseline+vocab_sizes](#changing-vocabulary-size-of-baseline-model) We try
-   different target vocabulary sizes of the baseline vocabulary
-4. [Bashtoken+vocab_sizes](#changing-vocabulary-size-of-bashtoken-model) We try
-   different target vocabulary sizes of the Bashtoken model
-5. [Bashtoken+1punct](#single-char-punctuation-tokens) We suppress
-   multicharacter punktuation subtokens.
-6. [Summary](#summary-and-conclusion)
 
 ### Baseline transformer
 
@@ -406,7 +414,8 @@ Results:
 ![](figures/Report.md_figure16_1.png)\
 
 
-### Summary and conclusion
+Conclusion
+----------
 
 Below we plot BLEU, as seen after `5` epoches for different vocabulary sizes in
 the above experiments.

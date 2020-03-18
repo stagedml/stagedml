@@ -1,4 +1,4 @@
-.DEFAULT_GOAL = out/Report.md
+.DEFAULT_GOAL = all
 SRC = $(shell find $(STAGEDML_ROOT)/src -name '*\.py') $(STAGEDML_ROOT)/run/nl2bash/analyze.py
 TESTS = $(shell find $(STAGEDML_ROOT)/tests -name '*\.py')
 
@@ -24,3 +24,10 @@ out_html/Report.html: Report.md.in Makefile $(SRC) $(TESTS) .stamp_check
 	-rm `dirname $@`/figures/*png
 	REPORT_OUTPATH=`dirname $@` PYTHONPATH=. pweave -i markdown -f md2html -o $@ $<
 	! grep 'Traceback (most recent call last)' $@
+
+out/Report.py: Report.md.in Makefile $(SRC) $(TESTS) .stamp_check
+	ptangle $<
+	mv Report.md.py $@
+
+.PHONY: all
+all: out/Report.md out/Report.py

@@ -3,7 +3,7 @@ dist/
 .*
 _*
 !__*
-_*egg-info
+*egg-info/
 *\.log
 *\.pyc
 tags
