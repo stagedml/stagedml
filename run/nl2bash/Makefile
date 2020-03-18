@@ -26,7 +26,7 @@ out_html/Report.html: Report.md.in Makefile $(SRC) $(TESTS) .stamp_check
 	! grep 'Traceback (most recent call last)' $@
 
 out/Report.py: Report.md.in Makefile $(SRC) $(TESTS) .stamp_check
-	ptangle $<
+	ptangle -i markdown $<
 	mv Report.md.py $@
 
 .PHONY: all

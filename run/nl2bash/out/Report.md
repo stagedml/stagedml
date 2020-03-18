@@ -12,9 +12,10 @@ library which was used to run experiments and generate this report. The
 secondary goal is to evaluate the NL2BASH dataset on the stock transformer
 model.
 
-* [Source code of this report](../Report.md.in). We use
-  [PWeave](http://mpastell.com/pweave) to render this report.
+* [Source code of this report](../Report.md.in)
 * [Combined python code used in the report](Report.py)
+
+We used [PWeave](http://mpastell.com/pweave) to render this report.
 
 
 ```python
