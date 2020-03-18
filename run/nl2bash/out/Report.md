@@ -24,6 +24,7 @@ Imports
 import numpy as np
 import matplotlib.pyplot as plt
 
+from shutil import copyfile
 from itertools import islice
 from pylightnix import (
     RRef, Path, realize, instantiate, redefine, mkconfig, promise, rref2dref,
@@ -38,12 +39,11 @@ from analyze import ( read_tensorflow_log,  vocab_size, model_size )
 
 ### Model
 
-In this work, we train a close copy of TensorFlow Official Transformer model.
+In this work, we train a copy of TensorFlow Official Transformer model.
 This model is intended for machine translation task. Typical use case is EN-DE
 translation. The model uses shared vocabulary of subtokens for both input and
 target languages. In this work we pretend that Bash is the target language of
 the model.
-
 
 The model is defined in TensorFlow Keras API and is located in the
 [transformer_wmt.py](/src/stagedml/stages/transformer_wmt.py). In this file we
@@ -70,74 +70,9 @@ define the following entities:
    the instance artifacts.
 
 `transformer_wmt` defines rather generic version of Transformer which has no
-NL2Bash-specific settings. We will change some of it's configuration parameters in
-the top-level code snippets before running the model.
-
-
-### Metrics
-
-We use BLEU metrics to report the model performance. Bleu implementation is
-taken in from official Trnasformer model. This metric may differs from the
-version of BLEU which were used by the authors of NL2BASH paper, so we can't
-compare results directly.
-
-We applied the metrics to the evaluation subset of the NL2Bash dataset which is
-a `0.1` part of the original dataset.
-
-### Dataset
-
-We print top 5 lines of input and target sentences of the [NL2Bash][5] dataset.
-
-
-```python
-rref=realize(instantiate(all_fetchnl2bash))
-
-with open(mklens(rref).train_input_combined.syspath) as inp, \
-     open(mklens(rref).train_target_combined.syspath) as tgt:
-  for i, (iline, tline) in islice(enumerate(zip(inp,tgt)),5):
-    print(f"#{i}\t[I] {iline.strip()}\n\t[T] {tline.strip()}")
-```
-
-```
-#0	[I] Pass numbers 1 to 100000 as arguments to "/bin/true"
-	[T] /bin/true $(seq 1 100000)
-#1	[I] Replace "foo" with "bar" in all PHP files in the current directory tree
-	[T] find . -name "*.php" -exec sed -i 's/foo/bar/g' {} \;
-#2	[I] Search the entire file hierarchy for files ending in '.old' and delete them.
-	[T] find / -name "*.old" -delete
-#3	[I] Find all directories under /path/to/Dir and set their permission to 755
-	[T] sudo find /path/to/Dir -type d -print0 | xargs -0 sudo chmod 755
-#4	[I] run "tar -xzvf ..." as user $username
-	[T] su $username -c tar xzvf ..
-```
-
-
-
-
-Experiments
------------
-
-We evalueate BLEU metrics in the following experiments:
-
-1. [Baseline model](#baseline-transformer) Run the Transformer with default
-   settings.
-5. [Unshuffled](#unshuffled-transformer) Occasional experiment where we passed
-   unshuffled dataset to the baseline model
-3. [Bashtokens](#bash-specific-tokens) In this runs we pre-parse the training
-   dataset and force tokenizer to issue bash-specific subtokens which include
-   commands and flags names.
-4. [Baseline+vocab_sizes](#changing-vocabulary-size-of-baseline-model) We try
-   different target vocabulary sizes of the baseline vocabulary
-4. [Bashtoken+vocab_sizes](#changing-vocabulary-size-of-bashtoken-model) We try
-   different target vocabulary sizes of the Bashtoken model
-5. [Bashtoken+1punct](#single-char-punctuation-tokens) We suppress
-   multicharacter punktuation subtokens.
-6. [Summary](#summary-and-conclusion)
-
-### Baseline transformer
-
-Below we define the top-level code which sets task-specific parameters of the
-`transformer_wmt` stage.
+NL2Bash-specific settings. We change some of it's configuration parameters in
+top-level code snippets before running every experiment. Top-level code of the
+baseline model looks like the following:
 
 
 ```python
@@ -162,22 +97,80 @@ def baseline_transformer(m):
 
 
 
-#### Vocabulary size
+* `train_steps` is the total number of batches to train the model. One epoch is
+  defined to contain `5000` steps by default.
+* The model uses beam_size of `3`.
+* The model uses shared vocabulary, it's final size is 5833.
+* The number of trainable weights of baseline model is 47090688.
 
-Vocabulary size of the baseline model is 5833.
+### Metrics
 
-#### Model size
+We use BLEU metrics to report the model performance. Bleu implementation is
+taken in from official Trnasformer model. This metric may differs from the
+version of BLEU which were used by the authors of NL2BASH paper, so we can't
+compare results directly.
 
-The size of the model is not saved as a specieal part of the model output, but
-we have defined a small function which reads it via Keras API.
+We applied the metrics to the evaluation subset of the NL2Bash dataset which is
+a `0.1` part of the original dataset.
 
-The number of trainable weights of baseline model is
-47090688 parameters.
+### Dataset
+
+We print top 5 lines of input and target sentences of the [NL2Bash][5] dataset.
 
 
-#### Evaluation
+```python
+rref=realize(instantiate(all_fetchnl2bash))
+copyfile(mklens(rref).eval_input_combined.syspath, join(environ['REPORT_OUTPATH'],'eval_input.txt'))
+copyfile(mklens(rref).eval_target_combined.syspath, join(environ['REPORT_OUTPATH'],'eval_target.txt'))
 
-We now display the BLEU metrics of the model during first 6 training epoches.
+with open(mklens(rref).train_input_combined.syspath) as inp, \
+     open(mklens(rref).train_target_combined.syspath) as tgt:
+  for i, (iline, tline) in islice(enumerate(zip(inp,tgt)),5):
+    print(f"#{i}\t[I] {iline.strip()}\n\t[T] {tline.strip()}")
+```
+
+```
+#0	[I] Pass numbers 1 to 100000 as arguments to "/bin/true"
+	[T] /bin/true $(seq 1 100000)
+#1	[I] Replace "foo" with "bar" in all PHP files in the current directory tree
+	[T] find . -name "*.php" -exec sed -i 's/foo/bar/g' {} \;
+#2	[I] Search the entire file hierarchy for files ending in '.old' and delete them.
+	[T] find / -name "*.old" -delete
+#3	[I] Find all directories under /path/to/Dir and set their permission to 755
+	[T] sudo find /path/to/Dir -type d -print0 | xargs -0 sudo chmod 755
+#4	[I] run "tar -xzvf ..." as user $username
+	[T] su $username -c tar xzvf ..
+```
+
+
+
+* [Evaluation inputs](./eval_input.txt)
+* [Evaluation targets](./eval_target.txt)
+
+Experiments
+-----------
+
+We evalueate BLEU metrics in the following experiments:
+
+1. [Baseline model](#baseline-transformer) Run the Transformer with default
+   settings.
+5. [Unshuffled](#unshuffled-transformer) Occasional experiment where we passed
+   unshuffled dataset to the baseline model
+3. [Bashtokens](#bash-specific-tokens) In this runs we pre-parse the training
+   dataset and force tokenizer to issue bash-specific subtokens which include
+   commands and flags names.
+4. [Baseline+vocab_sizes](#changing-vocabulary-size-of-baseline-model) We try
+   different target vocabulary sizes of the baseline vocabulary
+4. [Bashtoken+vocab_sizes](#changing-vocabulary-size-of-bashtoken-model) We try
+   different target vocabulary sizes of the Bashtoken model
+5. [Bashtoken+1punct](#single-char-punctuation-tokens) We suppress
+   multicharacter punktuation subtokens.
+6. [Summary](#summary-and-conclusion)
+
+### Baseline transformer
+
+We display the BLEU metrics of the baseline model defined above. We train the
+model for 6 epoches.
 
 
 ```python
@@ -201,8 +194,8 @@ plt.grid(True)
 ![](figures/Report.md_figure4_1.png)\
 
 
-The evaluation code blocks are much similar from experiment to experiment, so we
-don't include it in the rendered version of the report. We now select the best baseline transformer
+In subsequent experiments we plot BLEU of the best instance of baseline
+model.
 
 
 ```python
@@ -213,11 +206,22 @@ baseline_bleu=read_tensorflow_log(join(rref2path(rref),'eval'), 'bleu_cased')
 
 
 
+```python
+rref=realize(instantiate(redefine(baseline_transformer,new_matcher=match_best('bleu.txt'))))
+copyfile(join(rref2path(rref),'output-5.txt'), join(environ['REPORT_OUTPATH'],'baseline_output.txt'))
+```
+
+
+
+* [Evaluation inputs](./eval_input.txt)
+* [Evaluation targets](./eval_target.txt)
+* [Model prediction](./baseline_output.txt)
+
+
 ### Unshuffled dataset
 
-This experiment was in fact a first attempt to run the model. As we can see,
-unshuffled dataset reduces the model's performance significantly. All other runs
-of the model do use shuffled dataset.
+We occasionally trained the model on unshuffled dataset. As we can see,
+unshuffled dataset reduces the model's performance significantly.
 
 
 ```python
@@ -237,7 +241,7 @@ def unshuffled_transformer(m):
 
 
 
-![](figures/Report.md_figure7_1.png)\
+![](figures/Report.md_figure8_1.png)\
 
 
 
@@ -285,7 +289,7 @@ def run1(vsize:int)->RRef:
 Results:
 
 
-![](figures/Report.md_figure9_1.png)\
+![](figures/Report.md_figure10_1.png)\
 
 
 
@@ -324,7 +328,7 @@ def run(vsize:int):
 Results:
 
 
-![](figures/Report.md_figure11_1.png)\
+![](figures/Report.md_figure12_1.png)\
 
 
 ### Changing vocabulary size of Bashtoken model
@@ -362,7 +366,7 @@ def run2(vsize:int)->None:
 Results:
 
 
-![](figures/Report.md_figure13_1.png)\
+![](figures/Report.md_figure14_1.png)\
 
 
 
@@ -399,7 +403,7 @@ def singlechar_transformer(m):
 Results:
 
 
-![](figures/Report.md_figure15_1.png)\
+![](figures/Report.md_figure16_1.png)\
 
 
 ### Summary and conclusion
@@ -408,7 +412,7 @@ Below we plot BLEU, as seen after `5` epoches for different vocabulary sizes in
 the above experiments.
 
 
-![](figures/Report.md_figure16_1.png)\
+![](figures/Report.md_figure17_1.png)\
 
 
 - BLEU metrics of a model may differ significantly from run to run. We see

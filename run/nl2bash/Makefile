@@ -16,12 +16,11 @@ endif
 
 out/Report.md: Report.md.in Makefile $(SRC) $(TESTS) .stamp_check
 	-rm `dirname $@`/figures/*png
-	PYTHONPATH=. pweave -i markdown -f markdown -o $@.tmp $<
+	REPORT_OUTPATH=`dirname $@` PYTHONPATH=. pweave -i markdown -f markdown -o $@.tmp $<
 	! grep 'Traceback (most recent call last)' $@.tmp
 	mv $@.tmp $@
 
 out_html/Report.html: Report.md.in Makefile $(SRC) $(TESTS) .stamp_check
 	-rm `dirname $@`/figures/*png
-	PYTHONPATH=. pweave -i markdown -f md2html -o $@.tmp $<
-	! grep 'Traceback (most recent call last)' $@.tmp
-	mv $@.tmp $@
+	REPORT_OUTPATH=`dirname $@` PYTHONPATH=. pweave -i markdown -f md2html -o $@ $<
+	! grep 'Traceback (most recent call last)' $@

@@ -23,6 +23,7 @@ Imports
 import numpy as np
 import matplotlib.pyplot as plt
 
+from shutil import copyfile
 from itertools import islice
 from pylightnix import (
     RRef, Path, realize, instantiate, redefine, mkconfig, promise, rref2dref,
@@ -35,12 +36,11 @@ from analyze import ( read_tensorflow_log,  vocab_size, model_size )
 
 ### Model
 
-In this work, we train a close copy of TensorFlow Official Transformer model.
+In this work, we train a copy of TensorFlow Official Transformer model.
 This model is intended for machine translation task. Typical use case is EN-DE
 translation. The model uses shared vocabulary of subtokens for both input and
 target languages. In this work we pretend that Bash is the target language of
 the model.
-
 
 The model is defined in TensorFlow Keras API and is located in the
 [transformer_wmt.py](/src/stagedml/stages/transformer_wmt.py). In this file we
@@ -67,9 +67,36 @@ define the following entities:
    the instance artifacts.
 
 `transformer_wmt` defines rather generic version of Transformer which has no
-NL2Bash-specific settings. We will change some of it's configuration parameters in
-the top-level code snippets before running the model.
+NL2Bash-specific settings. We change some of it's configuration parameters in
+top-level code snippets before running every experiment. Top-level code of the
+baseline model looks like the following:
 
+```python
+from pylightnix import ( RRef, realizeMany, instantiate, redefine, mkconfig,
+    mksymlink, match_some )
+from stagedml.stages.all import transformer_wmt, all_nl2bashsubtok
+
+def baseline_subtok(m):
+  return all_nl2bashsubtok(m, shuffle=True,
+                              with_bash_charset=False,
+                              with_bash_subtokens=False)
+
+def baseline_transformer(m):
+  def _config(c):
+    c['train_steps']=6*5000
+    c['params']['beam_size']=3 # As in Tellina paper
+    return mkconfig(c)
+  return redefine(transformer_wmt,
+                  new_config=_config,
+                  new_matcher=match_some())(m, baseline_subtok(m), num_instances=5)
+
+```
+
+* `train_steps` is the total number of batches to train the model. One epoch is
+  defined to contain `5000` steps by default.
+* The model uses beam_size of `3`.
+* The model uses shared vocabulary, it's final size is <%= vocab_size(baseline_transformer) %>.
+* The number of trainable weights of baseline model is <%= model_size(baseline_transformer) %>.
 
 ### Metrics
 
@@ -87,6 +114,8 @@ We print top 5 lines of input and target sentences of the [NL2Bash][5] dataset.
 
 ```python, wrap=False
 rref=realize(instantiate(all_fetchnl2bash))
+copyfile(mklens(rref).eval_input_combined.syspath, join(environ['REPORT_OUTPATH'],'eval_input.txt'))
+copyfile(mklens(rref).eval_target_combined.syspath, join(environ['REPORT_OUTPATH'],'eval_target.txt'))
 
 with open(mklens(rref).train_input_combined.syspath) as inp, \
      open(mklens(rref).train_target_combined.syspath) as tgt:
@@ -94,6 +123,8 @@ with open(mklens(rref).train_input_combined.syspath) as inp, \
     print(f"#{i}\t[I] {iline.strip()}\n\t[T] {tline.strip()}")
 ```
 
+* [Evaluation inputs](./eval_input.txt)
+* [Evaluation targets](./eval_target.txt)
 
 Experiments
 -----------
@@ -117,46 +148,8 @@ We evalueate BLEU metrics in the following experiments:
 
 ### Baseline transformer
 
-Below we define the top-level code which sets task-specific parameters of the
-`transformer_wmt` stage.
-
-```python
-from pylightnix import ( RRef, realizeMany, instantiate, redefine, mkconfig,
-    mksymlink, match_some )
-from stagedml.stages.all import transformer_wmt, all_nl2bashsubtok
-
-def baseline_subtok(m):
-  return all_nl2bashsubtok(m, shuffle=True,
-                              with_bash_charset=False,
-                              with_bash_subtokens=False)
-
-def baseline_transformer(m):
-  def _config(c):
-    c['train_steps']=6*5000
-    c['params']['beam_size']=3 # As in Tellina paper
-    return mkconfig(c)
-  return redefine(transformer_wmt,
-                  new_config=_config,
-                  new_matcher=match_some())(m, baseline_subtok(m), num_instances=5)
-
-```
-
-#### Vocabulary size
-
-Vocabulary size of the baseline model is <%= vocab_size(baseline_transformer) %>.
-
-#### Model size
-
-The size of the model is not saved as a specieal part of the model output, but
-we have defined a small function which reads it via Keras API.
-
-The number of trainable weights of baseline model is
-<%= model_size(baseline_transformer) %> parameters.
-
-
-#### Evaluation
-
-We now display the BLEU metrics of the model during first 6 training epoches.
+We display the BLEU metrics of the baseline model defined above. We train the
+model for 6 epoches.
 
 ```python, f_size = (6,4)
 plt.figure(1)
@@ -176,20 +169,28 @@ plt.legend(loc='upper left', frameon=True)
 plt.grid(True)
 ```
 
-The evaluation code blocks are much similar from experiment to experiment, so we
-don't include it in the rendered version of the report. We now select the best baseline transformer
+In subsequent experiments we plot BLEU of the best instance of baseline
+model.
 
 ```python, results='hidden'
 rref=realize(instantiate(redefine(baseline_transformer,new_matcher=match_best('bleu.txt'))))
 baseline_bleu=read_tensorflow_log(join(rref2path(rref),'eval'), 'bleu_cased')
 ```
 
+```python, results='hidden'
+rref=realize(instantiate(redefine(baseline_transformer,new_matcher=match_best('bleu.txt'))))
+copyfile(join(rref2path(rref),'output-5.txt'), join(environ['REPORT_OUTPATH'],'baseline_output.txt'))
+```
+
+* [Evaluation inputs](./eval_input.txt)
+* [Evaluation targets](./eval_target.txt)
+* [Model prediction](./baseline_output.txt)
+
 
 ### Unshuffled dataset
 
-This experiment was in fact a first attempt to run the model. As we can see,
-unshuffled dataset reduces the model's performance significantly. All other runs
-of the model do use shuffled dataset.
+We occasionally trained the model on unshuffled dataset. As we can see,
+unshuffled dataset reduces the model's performance significantly.
 
 ```python
 def unshuffled_subtok(m):
