@@ -127,9 +127,9 @@ def baseline_transformer(m):
 ### Metrics
 
 We use BLEU metrics to report the model performance. Bleu implementation is
-taken in from official Trnasformer model. This metric may differs from the
-version of BLEU which were used by the authors of NL2BASH paper, so we can't
-compare results directly.
+taken from the sources of the official Trnasformer model. This metric may
+differs from the version of BLEU which were used by the authors of NL2BASH
+paper, so we can't compare results directly.
 
 We applied the metrics to the evaluation subset of the NL2Bash dataset which is
 a `0.1` part of the original dataset.
@@ -186,7 +186,9 @@ rref=realize(instantiate(redefine(baseline_transformer,new_matcher=match_best('b
 baseline_bleu=read_tensorflow_log(join(rref2path(rref),'eval'), 'bleu_cased')
 ```
 
-```python, results='hidden'
+Below we output predictions of the model.
+
+```python, echo=False
 rref=realize(instantiate(redefine(baseline_transformer,new_matcher=match_best('bleu.txt'))))
 copyfile(join(rref2path(rref),'output-5.txt'), join(environ['REPORT_OUTPATH'],'baseline_output.txt'))
 ```
