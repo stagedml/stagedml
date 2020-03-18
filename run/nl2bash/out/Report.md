@@ -183,7 +183,7 @@ model for 6 epoches.
 
 ```python
 plt.figure(1)
-plt.xlabel("Training steps")
+plt.xlabel("Epoches")
 plt.title("BLEU-cased, Baseline transformer")
 
 out=join(environ['STAGEDML_ROOT'],'_experiments','nl2bash','baseline')
@@ -422,13 +422,14 @@ the above experiments.
 
 
 - BLEU metrics of a model may differ significantly from run to run. We see
-  difference of more than 2 BlEU points.
+  more than 2 BLEU points of delta on the same configurations.
 - We see best performance if `vocab_size` is in range `6000..8000`.
-- Default vocabulary size setting of the Transofrmer model
+- Default vocabulary size of the Transofrmer model
   (5833) is probably good enough.
 - Shuffling of the dataset is absolutely necessary.
 - Forcing vocabulary to contain bash-specific subtokens may be a good decision.
-- Forbidding multi-character punctuation subtokens probably reduces the accuracy
+- Forbidding multi-character punctuation subtokens probably reduces the
+  accuracy.
 
 
 

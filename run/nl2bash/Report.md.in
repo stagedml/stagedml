@@ -161,7 +161,7 @@ model for 6 epoches.
 
 ```python, f_size = (6,4)
 plt.figure(1)
-plt.xlabel("Training steps")
+plt.xlabel("Epoches")
 plt.title("BLEU-cased, Baseline transformer")
 
 out=join(environ['STAGEDML_ROOT'],'_experiments','nl2bash','baseline')
@@ -219,7 +219,7 @@ def unshuffled_transformer(m):
 
 ```python, f_size = (6,4), echo=False
 plt.figure(2)
-plt.xlabel("Training steps")
+plt.xlabel("Epoches")
 plt.title("BLEU, Unshuffled transformer")
 
 out=join(environ['STAGEDML_ROOT'],'_experiments','nl2bash','unshuffled')
@@ -277,7 +277,7 @@ Results:
 
 ```python, f_size = (6,4), echo=False
 plt.figure(2)
-plt.xlabel("Training steps")
+plt.xlabel("Epoches")
 plt.title("BLEU, Bash-specific tokens")
 
 plt.plot(range(len(unshuffled_bleu)), unshuffled_bleu, label=f'Unshuffled transformer', color='red')
@@ -332,7 +332,7 @@ Results:
 
 ```python, f_size = (6,4), echo=False
 plt.figure(3)
-plt.xlabel("Training steps")
+plt.xlabel("Epoches")
 plt.title("BLEU, Changing vocabulary size of Baseline model")
 
 plt.plot(range(len(unshuffled_bleu)), unshuffled_bleu, label=f'Unshuffled transformer', color='red')
@@ -385,7 +385,7 @@ Results:
 
 ```python, f_size = (6,4), echo=False
 plt.figure(3)
-plt.xlabel("Training steps")
+plt.xlabel("Epoches")
 plt.title("BLEU, Changing vocabulary size")
 
 plt.plot(range(len(unshuffled_bleu)), unshuffled_bleu, label=f'Unshuffled transformer', color='red')
@@ -438,7 +438,7 @@ Results:
 
 ```python, f_size = (6,4), echo=False
 plt.figure(4)
-plt.xlabel("Training steps")
+plt.xlabel("Epoches")
 plt.title("BLEU, Single-char punctuation tokens")
 
 plt.plot(range(len(unshuffled_bleu)), unshuffled_bleu, label=f'Unshuffled transformer', color='red')
@@ -478,13 +478,14 @@ plt.grid(True)
 ```
 
 - BLEU metrics of a model may differ significantly from run to run. We see
-  difference of more than 2 BlEU points.
+  more than 2 BLEU points of delta on the same configurations.
 - We see best performance if `vocab_size` is in range `6000..8000`.
-- Default vocabulary size setting of the Transofrmer model
+- Default vocabulary size of the Transofrmer model
   (<%= vocab_size(baseline_transformer) %>) is probably good enough.
 - Shuffling of the dataset is absolutely necessary.
 - Forcing vocabulary to contain bash-specific subtokens may be a good decision.
-- Forbidding multi-character punctuation subtokens probably reduces the accuracy
+- Forbidding multi-character punctuation subtokens probably reduces the
+  accuracy.
 
 
 
