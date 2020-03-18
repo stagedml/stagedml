@@ -216,44 +216,6 @@ baseline_bleu=read_tensorflow_log(join(rref2path(rref),'eval'), 'bleu_cased')
 Below we output predictions of the model.
 
 
-```
-Overwriting either the matcher or the realizer of
-'dref:24370364e421c1b670929c13b1f7ac8d-transformer-nmt-subtok-
-fetchnl2bash'. RConfig:
-Config({'eval_target_refpath':
-['dref:33eb08f2c22e503c77a589ca5eae287c-splitfile', 'eval_cm.txt'],
-'eval_input_refpath':
-['dref:a487f5a6b308ff408dda25f5b98631b5-splitfile', 'eval_nl.txt'],
-'checkpoint_refpath': ['__claim__', 'checkpoint.ckpt'],
-'bleu_refpath': ['__promise__', 'bleu.txt'], 'params':
-{'default_batch_size': 2048, 'default_batch_size_tpu': 32768,
-'max_length': 256, 'initializer_gain': 1.0, 'vocab_size': 33708,
-'hidden_size': 512, 'num_hidden_layers': 6, 'num_heads': 8,
-'filter_size': 2048, 'layer_postprocess_dropout': 0.1,
-'attention_dropout': 0.1, 'relu_dropout': 0.1, 'label_smoothing': 0.1,
-'learning_rate': 2.0, 'learning_rate_decay_rate': 1.0,
-'learning_rate_warmup_steps': 16000, 'optimizer_adam_beta1': 0.9,
-'optimizer_adam_beta2': 0.997, 'optimizer_adam_epsilon': 1e-09,
-'extra_decode_length': 50, 'beam_size': 3, 'alpha': 0.6, 'use_tpu':
-False, 'static_batch': False, 'allow_ffn_pad': True, 'num_gpus': 1,
-'use_ctl': False, 'decode_batch_size': 32, 'decode_max_length': 128,
-'padded_decode': False, 'num_parallel_calls': 4, 'use_synthetic_data':
-False, 'batch_size': 2048, 'repeat_dataset': None,
-'enable_metrics_in_training': True}, 'eval_batch_size': 30,
-'eval_steps': None, 'steps_between_evals': 5000, 'dtype': 'fp32',
-'vocab_refpath': ['dref:ce8947c1884adab57a8b17595754ffa0-subtok-
-fetchnl2bash', 'vocab.8192'], 'data_dir':
-['dref:ce8947c1884adab57a8b17595754ffa0-subtok-fetchnl2bash'],
-'num_gpus': 1, 'enable_xla': False, 'version': 1, 'name':
-'transformer-nmt-subtok-fetchnl2bash', 'wmt':
-'dref:ce8947c1884adab57a8b17595754ffa0-subtok-fetchnl2bash',
-'train_steps': 30000})
-```
-
-```
-'out/baseline_output.txt'
-```
-
 
 
 * [Evaluation inputs](./eval_input.txt)

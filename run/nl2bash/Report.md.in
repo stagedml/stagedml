@@ -187,7 +187,7 @@ baseline_bleu=read_tensorflow_log(join(rref2path(rref),'eval'), 'bleu_cased')
 
 Below we output predictions of the model.
 
-```python, echo=False
+```python, results='hidden', echo=False
 rref=realize(instantiate(redefine(baseline_transformer,new_matcher=match_best('bleu.txt'))))
 copyfile(join(rref2path(rref),'output-5.txt'), join(environ['REPORT_OUTPATH'],'baseline_output.txt'))
 ```
