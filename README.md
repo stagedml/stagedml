@@ -81,9 +81,8 @@ Features
        > mklens(rref5).learning_rate.val
        1e-05
        ```
-     See
-     [Nl2bash parameter search experiment runner](./src/stagedml/run/nl2bash_dictsearch.sh)
-     for the real-world illustration.
+     [NL2bash report](/run/nl2bash/out/Report.md) illustrates how to review and
+     change stage configurations.
   8. Thanks to the
      [REPL
      API](https://github.com/stagedml/pylightnix/blob/master/docs/Reference.md#pylightnix.repl),
