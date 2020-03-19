@@ -43,7 +43,7 @@ Contents
 2. [Experiments](#experiments)
     * [Baseline model](#baseline-transformer) Run the Transformer with default
        settings.
-    * [Unshuffled](#unshuffled-transformer) This is an occasional experiment
+    * [Unshuffled](#unshuffled-dataset) An occasional experiment
       where we pass unshuffled dataset to the baseline model.
     * [Bashtokens](#bash-specific-tokens) Pre-parse the training dataset and
       force tokenizer to add a number of bash-specific subtokens, including
