@@ -25,12 +25,12 @@ import matplotlib.pyplot as plt
 from shutil import copyfile
 from itertools import islice
 from pylightnix import (
-    RRef, Path, realize, instantiate, redefine, mkconfig, promise, rref2dref,
-    mksymlink, rref2path, mklens, match_best )
+    RRef, Path, realize, realizeMany, instantiate, redefine, mkconfig, promise,
+    rref2dref, mksymlink, rref2path, mklens, match_best, match_some )
 from stagedml.imports import ( environ, join, environ, makedirs )
 from stagedml.stages.all import ( transformer_wmt, all_nl2bashsubtok,
     all_fetchnl2bash )
-from analyze import ( read_tensorflow_log,  vocab_size, model_size )
+from analyze import ( read_tensorflow_log, vocab_size, model_size )
 ```
 
 
@@ -102,10 +102,6 @@ baseline model looks like the following:
 
 
 ```python
-from pylightnix import ( RRef, realizeMany, instantiate, redefine, mkconfig,
-    mksymlink, match_some )
-from stagedml.stages.all import transformer_wmt, all_nl2bashsubtok
-
 def baseline_subtok(m):
   return all_nl2bashsubtok(m, shuffle=True,
                               with_bash_charset=False,
@@ -187,7 +183,7 @@ plt.figure(1)
 plt.xlabel("Epoches")
 plt.title("BLEU-cased, Baseline transformer")
 
-out=join(environ['STAGEDML_ROOT'],'_experiments','nl2bash','baseline')
+out=Path(join(environ['STAGEDML_ROOT'],'_experiments','nl2bash','baseline'))
 makedirs(out, exist_ok=True)
 summary_baseline_bleu=[]
 for i,rref in enumerate(realizeMany(instantiate(baseline_transformer))):
@@ -270,7 +266,7 @@ Adding the bash-specifics include:
 
 
 ```python
-def run1(vsize:int)->RRef:
+def run1(vsize:int):
 
   def mysubtok(m):
     def _config(d):
@@ -346,7 +342,7 @@ Model config:
 
 
 ```python
-def run2(vsize:int)->None:
+def run2(vsize:int):
   def mysubtok(m):
     def _config(d):
       d['target_vocab_size']=vsize

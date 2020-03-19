@@ -5,16 +5,12 @@ import matplotlib.pyplot as plt
 from shutil import copyfile
 from itertools import islice
 from pylightnix import (
-    RRef, Path, realize, instantiate, redefine, mkconfig, promise, rref2dref,
-    mksymlink, rref2path, mklens, match_best )
+    RRef, Path, realize, realizeMany, instantiate, redefine, mkconfig, promise,
+    rref2dref, mksymlink, rref2path, mklens, match_best, match_some )
 from stagedml.imports import ( environ, join, environ, makedirs )
 from stagedml.stages.all import ( transformer_wmt, all_nl2bashsubtok,
     all_fetchnl2bash )
-from analyze import ( read_tensorflow_log,  vocab_size, model_size )
-
-from pylightnix import ( RRef, realizeMany, instantiate, redefine, mkconfig,
-    mksymlink, match_some )
-from stagedml.stages.all import transformer_wmt, all_nl2bashsubtok
+from analyze import ( read_tensorflow_log, vocab_size, model_size )
 
 def baseline_subtok(m):
   return all_nl2bashsubtok(m, shuffle=True,
@@ -43,7 +39,7 @@ plt.figure(1)
 plt.xlabel("Epoches")
 plt.title("BLEU-cased, Baseline transformer")
 
-out=join(environ['STAGEDML_ROOT'],'_experiments','nl2bash','baseline')
+out=Path(join(environ['STAGEDML_ROOT'],'_experiments','nl2bash','baseline'))
 makedirs(out, exist_ok=True)
 summary_baseline_bleu=[]
 for i,rref in enumerate(realizeMany(instantiate(baseline_transformer))):
@@ -77,7 +73,7 @@ plt.figure(2)
 plt.xlabel("Epoches")
 plt.title("BLEU, Unshuffled transformer")
 
-out=join(environ['STAGEDML_ROOT'],'_experiments','nl2bash','unshuffled')
+out=Path(join(environ['STAGEDML_ROOT'],'_experiments','nl2bash','unshuffled'))
 makedirs(out, exist_ok=True)
 rref=realize(instantiate(unshuffled_transformer))
 mksymlink(rref, out, 'result', withtime=False)
@@ -88,7 +84,7 @@ summary_unshuffled_bleu=[(vocab_size(unshuffled_transformer),unshuffled_bleu[4])
 plt.legend(loc='upper left', frameon=True)
 plt.grid(True)
 
-def run1(vsize:int)->RRef:
+def run1(vsize:int):
 
   def mysubtok(m):
     def _config(d):
@@ -114,7 +110,7 @@ plt.title("BLEU, Bash-specific tokens")
 plt.plot(range(len(unshuffled_bleu)), unshuffled_bleu, label=f'Unshuffled transformer', color='red')
 plt.plot(range(len(baseline_bleu)), baseline_bleu, label=f'Baseline transformer', color='orange')
 
-out=join(environ['STAGEDML_ROOT'],'_experiments','nl2bash','bashspec')
+out=Path(join(environ['STAGEDML_ROOT'],'_experiments','nl2bash','bashspec'))
 makedirs(out, exist_ok=True)
 summary_bashtoken_bleu=[]
 for i,vsize in enumerate([ 30000, 25000, 20000, 15000, 10000, 5000, 1000, 500 ]) :
@@ -155,12 +151,12 @@ plt.title("BLEU, Changing vocabulary size of Baseline model")
 plt.plot(range(len(unshuffled_bleu)), unshuffled_bleu, label=f'Unshuffled transformer', color='red')
 plt.plot(range(len(baseline_bleu)), baseline_bleu, label=f'Baseline transformer', color='orange')
 
-out=join(environ['STAGEDML_ROOT'],'_experiments','nl2bash','vsizebl')
+out=Path(join(environ['STAGEDML_ROOT'],'_experiments','nl2bash','vsizebl'))
 makedirs(out, exist_ok=True)
 for i,vsize in enumerate([ 15000, 10000, 5000, 1700 ]) :
   mysubtok,mytransformer=run(vsize)
   rref=realize(instantiate(mytransformer))
-  mksymlink(rref, out, vsize, withtime=False)
+  mksymlink(rref, out, str(vsize), withtime=False)
   bleu=read_tensorflow_log(join(rref2path(rref),'eval'), 'bleu_cased')
   plt.plot(range(len(bleu)), bleu, label=f'vsize-{vocab_size(mytransformer)}')
   summary_baseline_bleu.append((vocab_size(mytransformer),bleu[4]))
@@ -168,7 +164,7 @@ for i,vsize in enumerate([ 15000, 10000, 5000, 1700 ]) :
 plt.legend(loc='upper left', frameon=True)
 plt.grid(True)
 
-def run2(vsize:int)->None:
+def run2(vsize:int):
   def mysubtok(m):
     def _config(d):
       d['target_vocab_size']=vsize
@@ -195,12 +191,12 @@ plt.title("BLEU, Changing vocabulary size")
 plt.plot(range(len(unshuffled_bleu)), unshuffled_bleu, label=f'Unshuffled transformer', color='red')
 plt.plot(range(len(baseline_bleu)), baseline_bleu, label=f'Baseline transformer', color='orange')
 
-out=join(environ['STAGEDML_ROOT'],'_experiments','nl2bash','vsize')
+out=Path(join(environ['STAGEDML_ROOT'],'_experiments','nl2bash','vsize'))
 makedirs(out, exist_ok=True)
 for i,vsize in enumerate([ 15000, 10000, 5000, 1700 ]) :
   mysubtok,mytransformer=run2(vsize)
   rref=realize(instantiate(mytransformer))
-  mksymlink(rref, out, vsize, withtime=False)
+  mksymlink(rref, out, str(vsize), withtime=False)
   bleu=read_tensorflow_log(join(rref2path(rref),'eval'), 'bleu_cased')
   plt.plot(range(len(bleu)), bleu, label=f'vsize-{vocab_size(mytransformer)}')
   summary_bashtoken_bleu.append((vocab_size(mytransformer),bleu[4]))
@@ -234,7 +230,7 @@ plt.title("BLEU, Single-char punctuation tokens")
 plt.plot(range(len(unshuffled_bleu)), unshuffled_bleu, label=f'Unshuffled transformer', color='red')
 plt.plot(range(len(baseline_bleu)), baseline_bleu, label=f'Baseline transformer', color='orange')
 
-out=join(environ['STAGEDML_ROOT'],'_experiments','nl2bash','singlechar')
+out=Path(join(environ['STAGEDML_ROOT'],'_experiments','nl2bash','singlechar'))
 makedirs(out, exist_ok=True)
 summary_1punct_bleu=[]
 for i,rref in enumerate(realizeMany(instantiate(singlechar_transformer))):
