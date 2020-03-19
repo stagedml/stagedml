@@ -43,17 +43,17 @@ Contents
 2. [Experiments](#experiments)
     * [Baseline model](#baseline-transformer) Run the Transformer with default
        settings.
-    * [Unshuffled](#unshuffled-transformer) Occasional experiment where we passed
-      unshuffled dataset to the baseline model
-    * [Bashtokens](#bash-specific-tokens) In this runs we pre-parse the training
-      dataset and force tokenizer to issue bash-specific subtokens which include
+    * [Unshuffled](#unshuffled-transformer) This is an occasional experiment
+      where we pass unshuffled dataset to the baseline model.
+    * [Bashtokens](#bash-specific-tokens) Pre-parse the training dataset and
+      force tokenizer to add a number of bash-specific subtokens, including
       commands and flags names.
-    * [Baseline+vocab_sizes](#changing-vocabulary-size-of-baseline-model) We try
-      different target vocabulary sizes of the baseline vocabulary
-    * [Bashtoken+vocab_sizes](#changing-vocabulary-size-of-bashtoken-model) We try
-      different target vocabulary sizes of the Bashtoken model
-    * [Bashtoken+1punct](#single-char-punctuation-tokens) We suppress
-      multicharacter punktuation subtokens.
+    * [Baseline+vocab_sizes](#changing-vocabulary-size-of-baseline-model) Vary
+      target vocabulary size of the baseline vocabulary
+    * [Bashtoken+vocab_sizes](#changing-vocabulary-size-of-bashtoken-model) Vary
+      target vocabulary sizes of the Bashtoken model
+    * [Bashtoken+1punct](#single-char-punctuation-tokens) Add bash-specific
+      subtokens and suppress multicharacter punctuation subtokens.
 3. [Conclusions](#conclusion)
 
 
