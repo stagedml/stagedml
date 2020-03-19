@@ -44,9 +44,9 @@ $(WHEEL): $(SRC) $(TESTS)
 
 .PHONY: check
 check: $(WHEEL) check_tfm
-	pip3 hash $(WHEEL) > .check-stamp
+	pip3 hash $(WHEEL) > .check-stamp-$(HOSTNAME)
 	make -C 3rdparty/pylightnix check
-	diff .check-stamp .install-stamp
+	diff .check-stamp-$(HOSTNAME) .install-stamp-$(HOSTNAME)
 
 .PHONY: wheels
 wheels: wheels_tfm $(WHEEL)
@@ -59,7 +59,7 @@ install: install_tfm
 	test -f $(WHEEL) || ( echo 'run `make wheels` first'; exit 1; )
 	make -C 3rdparty/pylightnix install
 	pip3 install --force $(WHEEL)
-	pip3 hash $(WHEEL) > .install-stamp
+	pip3 hash $(WHEEL) > .install-stamp-$(HOSTNAME)
 
 ## All
 
