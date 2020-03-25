@@ -27,6 +27,7 @@ from stagedml.stages.fetchwmt import wmtsubtok, wmtsubtokInv
 from stagedml.stages.transformer_wmt import transformer_wmt
 # from stagedml.stages.transformer2 import transformer2
 from stagedml.stages.convnn_mnist import fetchmnist, convnn_mnist
+from stagedml.stages.fetchenwiki import fetchenwiki
 
 from stagedml.types import ( Set, Tuple, List, DRef, Glue, Squad11, GlueTFR,
     Squad11TFR, BertCP, BertGlue, BertSquad, NL2Bash, TransWmt, WmtSubtok,
@@ -95,6 +96,7 @@ all_fetchmnist = fetchmnist
 def all_convnn_mnist(m:Manager)->ConvnnMnist:
   return convnn_mnist(m, fetchmnist(m))
 
+all_fetchenwiki = fetchenwiki
 
 def gc(force:bool=False)->None:
   drefs,rrefs=store_gc(keep_drefs=[], keep_rrefs=\

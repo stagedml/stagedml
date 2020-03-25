@@ -51,3 +51,5 @@ class Tr2Subtok(DRef):
 class Trans2(DRef):
   pass
 
+class Enwiki(DRef):
+  pass
