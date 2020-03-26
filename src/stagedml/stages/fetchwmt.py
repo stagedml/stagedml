@@ -1,7 +1,7 @@
 from pylightnix import ( RefPath, Build, Path, Config, Manager, RRef, DRef,
     Context, build_wrapper, build_path, build_outpath, build_cattrs, mkdrv,
     rref2path, mkbuild, mkconfig, match_only, instantiate, realize, lsref,
-    catref, store_cattrs, get_executable, fetchurl, mknode, checkpaths, mklens,
+    catref, store_cattrs, fetchurl, mknode, checkpaths, mklens,
     promise, rref2dref, store_context )
 
 from stagedml.imports import ( join )

@@ -4,7 +4,7 @@ fi
 
 export CWD="$STAGEDML_ROOT"
 export TERM=xterm-256color # TODO: check and document
-export PATH="$STAGEDML_ROOT/.nix_docker_inject.env/bin:$PATH"
+export PATH="$STAGEDML_ROOT/.nix_docker_inject.env/bin:$STAGEDML_ROOT/3rdparty/wikiextractor:$PATH"
 export PYTHONPATH=""
 export MYPYPATH=""
 for p in \

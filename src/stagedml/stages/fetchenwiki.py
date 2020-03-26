@@ -1,13 +1,48 @@
-from pylightnix import ( Manager, mknode, fetchurl, promise, mklens, get_executable )
+from pylightnix import ( Manager, mknode, fetchurl, promise, mklens,
+    get_executable, DRef, Build, mkdrv, match_only, build_wrapper,
+    build_setoutpaths, promise, build_outpath, mkconfig )
 from stagedml.imports import ( environ, join, basename, dedent, contextmanager,
-    isfile )
-from stagedml.types import Enwiki
+    isfile, find_executable )
+from stagedml.utils import system
+from stagedml.types import Wikidump
 
-def fetchenwiki(m:Manager)->Enwiki:
-  name='enwiki-20200301-pages-articles.xml.bz2'
-  return Enwiki(fetchurl(m,
+def fetchwiki(m:Manager, dumpname:str, sha1:str)->Wikidump:
+  name=f'{dumpname}-pages-articles.xml.bz2'
+  return Wikidump(fetchurl(m,
       name='fetchenwiki',
       url=f'https://dumps.wikimedia.org/enwiki/20200301/{name}',
-      sha1='852dfec9eba3c4d5ec259e60dca233b6a777a05e',
+      sha1=sha1,
       mode='asis',
       output=[promise,name]))
+
+WIKIEXTRACTOR=find_executable('WikiExtractor.py')
+
+
+def extractwiki_realize(b:Build)->None:
+  assert WIKIEXTRACTOR is not None
+  build_outpath(b)
+  system([WIKIEXTRACTOR,
+     mklens(b).wiki.syspath,
+     '--json',
+     '--processes', str(15),
+     '--templates', mklens(b).templates.syspath,
+     '--output', mklens(b).output.syspath,
+     '--bytes', '1M',
+     '--compress',
+     # '--links',
+     '--sections',
+     '--lists',
+     # '--keep_tables',
+     '--min_text_length', '0',
+     '--filter_disambig_pages'])
+
+def extractwiki(m:Manager, wiki:Wikidump)->DRef:
+  assert WIKIEXTRACTOR is not None, "Can't find `WikiExtractor.py` executable!"
+  config={
+    'name':'extractwiki',
+    'wiki':mklens(wiki).output.refpath,
+    'templates':[promise,'templates.txt'],
+    'output':[promise,'output']
+    }
+
+  return mkdrv(m,mkconfig(config),match_only(),build_wrapper(extractwiki_realize))

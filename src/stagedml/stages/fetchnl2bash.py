@@ -1,7 +1,7 @@
 from pylightnix import ( Hash, RefPath, Build, Path, Config, Manager, RRef,
     DRef, Context, build_wrapper, build_path, build_outpath, build_cattrs,
     mkdrv, rref2path, mkbuild, mkconfig, match_only, instantiate, realize,
-    lsref, catref, store_cattrs, get_executable, dirhash, fetchlocal, mknode,
+    lsref, catref, store_cattrs, dirhash, fetchlocal, mknode,
     mklens, instantiate, realize, repl_realize, repl_build, promise )
 
 from stagedml.utils.files import ( system, flines, writelines, readlines )
@@ -77,6 +77,9 @@ def collect_bash_specific_tokens(fp:str)->Set[str]:
 
 
 def fetchnl2bash(m:Manager, shuffle:bool=True)->DRef:
+  """
+  FIXME: Unhardcode '3rdparty'-based paths
+  """
   allnl=fetchlocal(m,
     path=join('3rdparty','nl2bash_essence','src','data','bash','all.nl'),
     sha256='1db0c529c350b463919624550b8f5882a97c42ad5051c7d49fbc496bc4e8b770',
