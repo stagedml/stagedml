@@ -6,11 +6,11 @@ from stagedml.imports import ( environ, join, basename, dedent, contextmanager,
 from stagedml.utils import system
 from stagedml.types import Wikidump
 
-def fetchwiki(m:Manager, dumpname:str, sha1:str)->Wikidump:
-  name=f'{dumpname}-pages-articles.xml.bz2'
+def fetchwiki(m:Manager, dumpname:str, dumpdate:str, sha1:str)->Wikidump:
+  name=f'{dumpname}-{dumpdate}-pages-articles.xml.bz2'
   return Wikidump(fetchurl(m,
       name='fetchenwiki',
-      url=f'https://dumps.wikimedia.org/enwiki/20200301/{name}',
+      url=f'https://dumps.wikimedia.org/{dumpname}/20200301/{name}',
       sha1=sha1,
       mode='asis',
       output=[promise,name]))

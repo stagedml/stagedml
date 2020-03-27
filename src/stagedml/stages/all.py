@@ -111,7 +111,20 @@ def all_convnn_mnist(m:Manager)->ConvnnMnist:
   return convnn_mnist(m, fetchmnist(m))
 
 def all_fetchenwiki(m:Manager)->DRef:
-  wikidump=fetchwiki(m, dumpname='enwiki-20200301', sha1='852dfec9eba3c4d5ec259e60dca233b6a777a05e')
+  """ Fetch and extract english wikipedia dump """
+  wikidump=fetchwiki(m, dumpname='enwiki',
+                        dumpdate='20200301',
+                        sha1='852dfec9eba3c4d5ec259e60dca233b6a777a05e')
+  return extractwiki(m,wikidump)
+
+def all_fetchruwiki(m:Manager)->DRef:
+  """ Fetch and extract russian wikipedia dump.
+
+  Ref. https://dumps.wikimedia.org/enwiki/20200301/dumpstatus.json
+  """
+  wikidump=fetchwiki(m, dumpname='ruwiki',
+                        dumpdate='20200301',
+                        sha1='9f522ccf2931497e99a12d001a3bc7910f275519')
   return extractwiki(m,wikidump)
 
 def gc(force:bool=False)->None:
