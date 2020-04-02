@@ -1,10 +1,3 @@
-
-from functools import partial
-from tensorflow import ( Tensor, random_normal_initializer )
-from tensorflow.keras.layers import ( Layer, LayerNormalization, Dense )
-from tensorflow.keras import Model
-from tensorflow.keras.optimizers import Adam
-
 from official.nlp.bert_modeling import Dense3D
 from official.nlp.transformer.model_utils import ( get_padding_bias,
     get_padding, get_position_encoding, get_decoder_self_attention_bias )

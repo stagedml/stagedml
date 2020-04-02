@@ -1,7 +1,8 @@
 import tensorflow as tf
 assert tf.version.VERSION.startswith('2.1')
 
-from stagedml.models.transformer.imports import ( Tensor, Layer, Model, Dense3D )
+from stagedml.imports import ( Tensor, Layer, Model )
+from stagedml.models.transformer.imports import Dense3D
 
 
 class Attention(Layer):

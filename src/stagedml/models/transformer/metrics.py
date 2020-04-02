@@ -1,7 +1,9 @@
 import tensorflow as tf
 assert tf.version.VERSION.startswith('2.1')
 
-from stagedml.models.transformer.imports import ( Layer, Tensor, partial,
+from stagedml.imports import ( Layer, Tensor, partial )
+
+from stagedml.models.transformer.imports import (
     padded_neg_log_perplexity, padded_accuracy, padded_accuracy_top5,
     padded_sequence_accuracy )
 

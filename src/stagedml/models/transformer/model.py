@@ -1,10 +1,12 @@
 import tensorflow as tf
 assert tf.version.VERSION.startswith('2.1')
 
-from stagedml.models.transformer.imports import ( Model, Layer, Tensor,
-    transformer_loss, LayerNormalization, get_padding_bias, get_padding,
+from stagedml.imports import ( Model, Layer, Tensor, Adam, LayerNormalization )
+
+from stagedml.models.transformer.imports import (
+    transformer_loss, get_padding_bias, get_padding,
     get_position_encoding, get_decoder_self_attention_bias,
-    sequence_beam_search, EOS_ID, LearningRateSchedule, Adam, train_input_fn,
+    sequence_beam_search, EOS_ID, LearningRateSchedule, train_input_fn,
     map_data_for_transformer_fn, compute_bleu, bleu_tokenize )
 
 from stagedml.models.transformer.metrics import Metrics

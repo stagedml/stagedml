@@ -1,7 +1,7 @@
 import tensorflow as tf
 assert tf.version.VERSION.startswith('2.1')
 
-from stagedml.models.transformer.imports import ( Layer, Tensor, Dense )
+from stagedml.imports import ( Layer, Tensor, Dense )
 
 from typing import List
 
