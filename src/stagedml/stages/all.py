@@ -28,6 +28,7 @@ from stagedml.stages.transformer_wmt import transformer_wmt
 # from stagedml.stages.transformer2 import transformer2
 from stagedml.stages.convnn_mnist import fetchmnist, convnn_mnist
 from stagedml.stages.fetchenwiki import fetchwiki, extractwiki
+from stagedml.stages.bert_pretrain import bert_pretraining_tfrecords
 
 from stagedml.types import ( Set, Tuple, List, DRef, Glue, Squad11, GlueTFR,
     Squad11TFR, BertCP, BertGlue, BertSquad, NL2Bash, TransWmt, WmtSubtok,
@@ -126,6 +127,14 @@ def all_fetchruwiki(m:Manager)->DRef:
                         dumpdate='20200301',
                         sha1='9f522ccf2931497e99a12d001a3bc7910f275519')
   return extractwiki(m,wikidump)
+
+
+def all_bert_pretraining_tfrecords(m:Manager)->DRef:
+  b=all_fetchbert(m)
+  return bert_pretraining_tfrecords(m,
+      vocab_file=mklens(b).bert_vocab.refpath,
+      wiki=all_fetchenwiki(m))
+
 
 def gc(force:bool=False)->None:
   """ Run the garbage collector. Pass `focrce=True` to actually delete
