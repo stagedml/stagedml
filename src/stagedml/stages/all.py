@@ -28,7 +28,7 @@ from stagedml.stages.transformer_wmt import transformer_wmt
 # from stagedml.stages.transformer2 import transformer2
 from stagedml.stages.convnn_mnist import fetchmnist, convnn_mnist
 from stagedml.stages.fetchenwiki import fetchwiki, extractwiki
-from stagedml.stages.bert_pretrain import bert_pretraining_tfrecords
+from stagedml.stages.bert_pretrain_wiki import bert_pretraining_tfrecords
 
 from stagedml.types import ( Set, Tuple, List, DRef, Glue, Squad11, GlueTFR,
     Squad11TFR, BertCP, BertGlue, BertSquad, NL2Bash, TransWmt, WmtSubtok,
@@ -148,13 +148,14 @@ def gc(force:bool=False)->None:
       instantiate(all_bert_finetune_squad11)
       ]])
   )
-  if not force:
+
+  if force:
+    for rref in rrefs:
+      rmref(rref)
+    for dref in drefs:
+      rmref(dref)
+  else:
     print('The following refs will be deleted:')
     print('\n'.join([str(r) for r in drefs]+[str(r) for r in rrefs]))
     print('Re-run `gc` with `force=True` to actually remove them')
-    return
 
-  for rref in rrefs:
-    rmref(rref)
-  for dref in drefs:
-    rmref(dref)

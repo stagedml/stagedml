@@ -12,15 +12,23 @@ from stagedml.types import ( Callable, List, Optional, Any, Tuple )
 from stagedml.imports.tf import ( History )
 import tensorflow as tf
 
+#: FOlder describes root of the project. Typically is the root of the local copy
+#: of the repository
 STAGEDML_ROOT=environ.get('STAGEDML_ROOT', environ.get('HOME','/tmp'))
+
+#: Folder which has meaining for garbage collector. Symlinks to pylightnix
+#: storage found here are preserved by the GC.
+STAGEDML_EXPERIMENTS=environ.get('STAGEDML_EXPERIMENTS', join(STAGEDML_ROOT,'_experiments'))
+
+
 assert isdir(STAGEDML_ROOT), (
     f"StagedML root folder doesn't exist ('{STAGEDML_ROOT}'). Consider assigning "
     f"STAGEDML_ROOT environment variable to an existing direcory path." )
 
 
 def linkrref(rref:RRef)->None:
-  """ Create a 'result-' symlink under the Pylightnix root folder """
-  mksymlink(rref, Path(STAGEDML_ROOT),
+  """ Create a 'result-' symlink under the Pylightnix experiments folder """
+  mksymlink(rref, Path(STAGEDML_EXPERIMENTS),
             name='result-'+config_name(store_config(rref)), withtime=False)
 
 
@@ -33,6 +41,7 @@ def lrealize(clo:Closure)->RRef:
 
 def borrow(rref:RRef, clo:Closure)->RRef:
   """ Borrows the contents of `rref` to cook the realization of `clo`.
+  Intended for for hot-fixes failed realizations. Use with caution!
 
   - FIXME: Maybe move `borrow` to Pylightnix.
   - FIXME: Maybe re-define `borrow` via `pylightnix.redefine`+copying
@@ -59,7 +68,8 @@ def borrow(rref:RRef, clo:Closure)->RRef:
 
 
 def tryrealize(clo:Closure, verbose:bool=False)->Optional[RRef]:
-  """ Run the realization, but deosn't allow it to run any realizers. """
+  """ Run the realization with all the realizers actually forbidden. Return
+  non-empty value if local storage already contains all the realizations. """
   try:
     return realize(clo, assert_realized=[d.dref for d in clo.derivations])
   except Exception as e:
