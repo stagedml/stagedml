@@ -10,10 +10,11 @@ rref2path(rref)
 ```
 """
 
-from pylightnix import ( RRef, Manager, mknode, fetchurl, instantiate, realize,
-    rref2path, store_initialize, shell, lsref, catref, repl_realize,
+from pylightnix import ( Path, RRef, Manager, mknode, fetchurl, instantiate,
+    realize, rref2path, store_initialize, shell, lsref, catref, repl_realize,
     repl_continueBuild, repl_build, repl_rref, repl_cancelBuild, store_gc,
-    rmref, mklens, promise, claim)
+    rmref, mklens, promise, claim, path2rref, rref2path, store_dref2path,
+    dirsize, store_config, config_name )
 
 from stagedml.stages.fetchglue import fetchglue
 from stagedml.stages.glue_tfrecords import glue_tfrecords
@@ -33,7 +34,11 @@ from stagedml.stages.bert_pretrain_wiki import bert_pretraining_tfrecords
 from stagedml.types import ( Set, Tuple, List, DRef, Glue, Squad11, GlueTFR,
     Squad11TFR, BertCP, BertGlue, BertSquad, NL2Bash, TransWmt, WmtSubtok,
     ConvnnMnist, Wikidump, Wikitext, WikiTFR )
-from stagedml.core import ( lrealize, tryrealize )
+from stagedml.core import ( lrealize, tryrealize, STAGEDML_EXPERIMENTS,
+    diskspace_h, linkrref )
+from stagedml.imports import ( walk, join, abspath, islink )
+
+from beautifultable import BeautifulTable
 
 all_fetchglue = fetchglue
 all_fetchsquad11 = fetchsquad11
@@ -136,18 +141,41 @@ def all_bert_pretraining_tfrecords(m:Manager)->WikiTFR:
       wiki=all_fetchenwiki(m))
 
 
-def gc(force:bool=False)->None:
-  """ Run the garbage collector. Pass `focrce=True` to actually delete
-  the data """
-  drefs,rrefs=store_gc(keep_drefs=[], keep_rrefs=\
-    filter(lambda x: x is not None, [tryrealize(clo) for clo in [  # type:ignore
+
+def gcfind()->Tuple[Set[DRef],Set[RRef]]:
+  """ Query the garbage collector. GC removes any model which is not under
+  STAGEDML_EXPERIMENTS folder and is not in short list of pre-defined models.
+  Return the links to be removed. Run `gc(force=True)` to actually remove the
+  links.  """
+
+  keep_rrefs=[x for x in
+    (tryrealize(clo) for clo in [
       instantiate(all_convnn_mnist),
       instantiate(all_transformer_nl2bash),
       instantiate(all_transformer_wmtenru),
       instantiate(all_bert_finetune_glue,'MRPC'),
       instantiate(all_bert_finetune_squad11)
-      ]])
-  )
+      ]) if x is not None]
+
+  for root, dirs, filenames in walk(STAGEDML_EXPERIMENTS, topdown=True):
+    for dirname in sorted(dirs):
+      a=Path(abspath(join(root, dirname)))
+      if islink(a):
+        rref=path2rref(a)
+        if rref is not None:
+          keep_rrefs.append(rref)
+
+  drefs,rrefs=store_gc(keep_drefs=[], keep_rrefs=keep_rrefs)
+  return drefs,rrefs
+
+
+def gc(force:bool=False):
+  """ Run the garbage collector. GC removes any model which is not under
+  STAGEDML_EXPERIMENTS folder and is not in short list of pre-defined models.
+
+  Pass `focrce=True` to actually delete the data. """
+
+  drefs,rrefs=gcfind()
 
   if force:
     for rref in rrefs:
@@ -156,6 +184,17 @@ def gc(force:bool=False)->None:
       rmref(dref)
   else:
     print('The following refs will be deleted:')
-    print('\n'.join([str(r) for r in drefs]+[str(r) for r in rrefs]))
-    print('Re-run `gc` with `force=True` to actually remove them')
+    t=BeautifulTable()
+    t.set_style(BeautifulTable.STYLE_MARKDOWN)
+    t.width_exceed_policy = BeautifulTable.WEP_ELLIPSIS
+    t.column_headers=['Name', 'RRef/DRef', 'Size']
+    t.column_alignments['Name']=BeautifulTable.ALIGN_LEFT
+    t.column_alignments['RRef/DRef']=BeautifulTable.ALIGN_LEFT
+    d=sorted([(rref, dirsize(rref2path(rref))) for rref in rrefs] , key=lambda x:x[1])
+    total_freed=0
+    for rref,sz in d:
+      t.append_row([config_name(store_config(rref)),rref,diskspace_h(sz)])
+      total_freed+=sz
+    print(t)
+    print(f"Run `gc(force=True)` to remove the above references and free {diskspace_h(total_freed)}.")
 

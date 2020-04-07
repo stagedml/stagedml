@@ -1,15 +1,15 @@
-
 from pylightnix import ( Context, Hash, Path, DRef, RRef, Closure, Build,
     BuildArgs, repl_realize, repl_continue, repl_build, build_outpath, realize,
     rref2path, store_config, config_name, mksymlink, isdir, dirhash, json_dumps,
     assert_serializable, assert_valid_rref, build_wrapper_, readjson,
-    store_rrefs, repl_rref, repl_cancel )
+    store_rrefs, repl_rref, repl_cancel, rmref, store_gc, instantiate )
 
 from stagedml.imports import ( join, environ, remove, copytree, copy_tree )
 from stagedml.utils import ( runtensorboard, ndhashl )
-from stagedml.types import ( Callable, List, Optional, Any, Tuple )
+from stagedml.types import ( Callable, List, Optional, Any, Tuple, Set )
 
 from stagedml.imports.tf import ( History )
+
 import tensorflow as tf
 
 #: FOlder describes root of the project. Typically is the root of the local copy
@@ -20,16 +20,31 @@ STAGEDML_ROOT=environ.get('STAGEDML_ROOT', environ.get('HOME','/tmp'))
 #: storage found here are preserved by the GC.
 STAGEDML_EXPERIMENTS=environ.get('STAGEDML_EXPERIMENTS', join(STAGEDML_ROOT,'_experiments'))
 
-
 assert isdir(STAGEDML_ROOT), (
     f"StagedML root folder doesn't exist ('{STAGEDML_ROOT}'). Consider assigning "
     f"STAGEDML_ROOT environment variable to an existing direcory path." )
+
+
+#  _   _ _   _ _
+# | | | | |_(_) |___
+# | | | | __| | / __|
+# | |_| | |_| | \__ \
+#  \___/ \__|_|_|___/
 
 
 def linkrref(rref:RRef)->None:
   """ Create a 'result-' symlink under the Pylightnix experiments folder """
   mksymlink(rref, Path(STAGEDML_EXPERIMENTS),
             name='result-'+config_name(store_config(rref)), withtime=False)
+
+def diskspace_h(sz:int)->str:
+  return f"{sz//2**10} K" if sz<2**20 else f"{sz//2**20} M" if sz<2**30 else f"{sz//2**30} G"
+
+#  ____            _ _
+# |  _ \ ___  __ _| (_)_______ _ __ ___
+# | |_) / _ \/ _` | | |_  / _ \ '__/ __|
+# |  _ <  __/ (_| | | |/ /  __/ |  \__ \
+# |_| \_\___|\__,_|_|_/___\___|_|  |___/
 
 
 def lrealize(clo:Closure)->RRef:
@@ -178,6 +193,16 @@ def protocol_add_eval(build:ProtocolBuild, name:str, metric_names:List[str], res
 def store_protocol(rref:RRef)->Protocol:
   assert_valid_rref(rref)
   return list(readjson(join(rref2path(rref), 'protocol.json')))
+
+
+
+#  __  __       _       _
+# |  \/  | __ _| |_ ___| |__   ___ _ __ ___
+# | |\/| |/ _` | __/ __| '_ \ / _ \ '__/ __|
+# | |  | | (_| | || (__| | | |  __/ |  \__ \
+# |_|  |_|\__,_|\__\___|_| |_|\___|_|  |___/
+
+
 
 def protocol_metric(p:Protocol, op_name:str, metric_name:str)->Optional[float]:
   found_ops=0
