@@ -4,7 +4,7 @@ from pylightnix import ( Manager, mknode, fetchurl, promise, mklens,
 from stagedml.imports import ( environ, join, basename, dedent, contextmanager,
     isfile, find_executable )
 from stagedml.utils import system
-from stagedml.types import Wikidump
+from stagedml.types import Wikidump, Wikitext
 
 def fetchwiki(m:Manager, dumpname:str, dumpdate:str, sha1:str)->Wikidump:
   name=f'{dumpname}-{dumpdate}-pages-articles.xml.bz2'
@@ -36,7 +36,7 @@ def extractwiki_realize(b:Build)->None:
      '--min_text_length', '0',
      '--filter_disambig_pages'])
 
-def extractwiki(m:Manager, wiki:Wikidump)->DRef:
+def extractwiki(m:Manager, wiki:Wikidump)->Wikitext:
   assert WIKIEXTRACTOR is not None, "Can't find `WikiExtractor.py` executable!"
   config={
     'name':'extractwiki',

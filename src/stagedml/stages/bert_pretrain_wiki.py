@@ -1,20 +1,19 @@
 from pylightnix import ( Manager, Lens, DRef, Build, RefPath, mklens, mkdrv,
-    build_wrapper, build_path, mkconfig, match_only, promise, build_outpath )
+    build_wrapper, build_path, mkconfig, match_only, promise, build_outpath,
+    realize, instantiate, repl_realize )
 from stagedml.imports import ( walk, abspath, join, Random, partial, cpu_count,
-    getpid, makedirs)
+    getpid, makedirs, Pool, bz2_open, json_loads )
+from stagedml.imports.tf import (Dataset, FixedLenFeature, parse_single_example )
 from stagedml.utils import ( concat, batch )
+from stagedml.types import ( List, Optional, Wikitext, WikiTFR )
+
 from official.nlp.bert.tokenization import FullTokenizer, convert_to_unicode
 from official.nlp.bert.create_pretraining_data import (
     create_instances_from_document, write_instance_to_example_files, TrainingInstance )
 
-from stagedml.types import ( List, Optional, Wikidump )
+import tensorflow as tf
 
-from bz2 import ( open as bz2_open )
-from json import ( loads as json_loads )
-
-from multiprocessing.pool import Pool
-
-TokSentence=List[int]
+TokSentence=List[str]
 TokDoc=List[TokSentence]
 
 def tokenize_file(input_file:str, tokenizer:FullTokenizer)->List[TokDoc]:
@@ -106,7 +105,7 @@ def realize_pretraining(b:Build)->None:
     print('')
 
 
-def bert_pretraining_tfrecords(m:Manager, vocab_file:RefPath, wiki:DRef)->DRef:
+def bert_pretraining_tfrecords(m:Manager, vocab_file:RefPath, wiki:Wikitext)->WikiTFR:
 
   def _config():
     name='bert_pretraining'
@@ -125,10 +124,103 @@ def bert_pretraining_tfrecords(m:Manager, vocab_file:RefPath, wiki:DRef)->DRef:
     output=[promise,'output']
     return mkconfig(locals())
 
-  return mkdrv(m,
+  return WikiTFR(mkdrv(m,
     config=_config(),
     matcher=match_only(),
-    realizer=build_wrapper(realize_pretraining))
+    realizer=build_wrapper(realize_pretraining)))
 
 
+
+def bert_pretraining_dataset(
+    tfr:WikiTFR,
+    batch_size:int,
+    is_training:bool=True,
+    input_pipeline_context=None)->Dataset:
+  """Creates input dataset from (tf)records files for pretraining."""
+
+  input_pattern=f"{mklens(tfr).output.syspath}/*.tfrecord"
+  seq_length=mklens(tfr).max_seq_length.val
+  max_predictions_per_seq=mklens(tfr).max_predictions_per_seq.val
+
+  # input_patterns=[]
+  # for root, dirs, filenames in walk(mklens(tfr).output.syspath, topdown=True):
+  #   for filename in sorted(filenames):
+  #     if filename.endswith('tfrecord'):
+  #       input_patterns.append(abspath(join(root, filename)))
+
+  # assert len(input_patterns)>0
+
+  dataset = Dataset.list_files(input_pattern, shuffle=is_training)
+
+  if input_pipeline_context and input_pipeline_context.num_input_pipelines > 1:
+    dataset = dataset.shard(input_pipeline_context.num_input_pipelines,
+                            input_pipeline_context.input_pipeline_id)
+
+  dataset = dataset.repeat()
+
+  # We set shuffle buffer to exactly match total number of
+  # training files to ensure that training data is well shuffled.
+  input_files:List[str]=tf.io.gfile.glob(input_pattern)
+  dataset = dataset.shuffle(len(input_files))
+
+  # In parallel, create tf record dataset for each train files.
+  # cycle_length = 8 means that up to 8 files will be read and deserialized in
+  # parallel. You may want to increase this number if you have a large number of
+  # CPU cores.
+  dataset = dataset.interleave(
+      partial(tf.data.TFRecordDataset, compression_type='GZIP'),
+      cycle_length=8, num_parallel_calls=tf.data.experimental.AUTOTUNE)
+
+  name_to_features = {
+      'input_ids': FixedLenFeature([seq_length], tf.int64),
+      'input_mask': FixedLenFeature([seq_length], tf.int64),
+      'segment_ids': FixedLenFeature([seq_length], tf.int64),
+      'masked_lm_positions': FixedLenFeature([max_predictions_per_seq], tf.int64),
+      'masked_lm_ids': FixedLenFeature([max_predictions_per_seq], tf.int64),
+      'masked_lm_weights': FixedLenFeature([max_predictions_per_seq], tf.float32),
+      'next_sentence_labels': FixedLenFeature([1], tf.int64),
+  }
+
+  def _decode_record(record, name_to_features):
+    """Decodes a record to a TensorFlow example."""
+    example = tf.io.parse_single_example(record, name_to_features)
+
+    # tf.Example only supports tf.int64, but the TPU only supports tf.int32.
+    # So cast all int64 to int32.
+    for name in list(example.keys()):
+      t = example[name]
+      if t.dtype == tf.int64:
+        t = tf.cast(t, tf.int32)
+      example[name] = t
+
+    return example
+
+  decode_fn = lambda record: _decode_record(record, name_to_features)
+  dataset = dataset.map(
+      decode_fn, num_parallel_calls=tf.data.experimental.AUTOTUNE)
+
+  def _select_data_from_record(record):
+    """Filter out features to use for pretraining."""
+    x = {
+        'input_word_ids': record['input_ids'],
+        'input_mask': record['input_mask'],
+        'input_type_ids': record['segment_ids'],
+        'masked_lm_positions': record['masked_lm_positions'],
+        'masked_lm_ids': record['masked_lm_ids'],
+        'masked_lm_weights': record['masked_lm_weights'],
+        'next_sentence_labels': record['next_sentence_labels'],
+    }
+    y = record['masked_lm_weights']
+    return (x, y)
+
+  dataset = dataset.map(
+      _select_data_from_record,
+      num_parallel_calls=tf.data.experimental.AUTOTUNE)
+
+  if is_training:
+    dataset = dataset.shuffle(100)
+
+  dataset = dataset.batch(batch_size, drop_remainder=True)
+  dataset = dataset.prefetch(1024)
+  return dataset
 

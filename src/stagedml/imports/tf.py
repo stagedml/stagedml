@@ -8,9 +8,13 @@ from tensorflow.keras.models import ( Sequential )
 from tensorflow.keras.layers import ( Layer, Conv2D, MaxPool2D, Dropout, Flatten, Dense )
 from tensorflow.keras.utils import ( to_categorical )
 from tensorflow.summary import ( SummaryWriter, create_file_writer )
-
 from tensorflow.keras.layers import ( Layer, LayerNormalization, Dense )
 from tensorflow.keras.optimizers import Adam
+from tensorflow import ( io, data )
+
+Dataset=data.Dataset
+FixedLenFeature=io.FixedLenFeature
+parse_single_example=io.parse_single_example
 
 def get_single_element(x):
   import tensorflow as tf

@@ -14,3 +14,7 @@ from subprocess import Popen
 from json import load as json_load
 from functools import partial
 from itertools import chain
+from bz2 import ( open as bz2_open )
+from json import ( loads as json_loads )
+from multiprocessing.pool import Pool
+

@@ -52,4 +52,14 @@ class Trans2(DRef):
   pass
 
 class Wikidump(DRef):
+  """ Raw dump of wikipedia files """
   pass
+
+class Wikitext(DRef):
+  """ Wikipedia text, extracted with WikiExtractor """
+  pass
+
+class WikiTFR(DRef):
+  """ Wikipedia data in TensorFlow Records format """
+  pass
+

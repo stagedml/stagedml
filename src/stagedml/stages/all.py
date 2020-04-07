@@ -32,7 +32,7 @@ from stagedml.stages.bert_pretrain_wiki import bert_pretraining_tfrecords
 
 from stagedml.types import ( Set, Tuple, List, DRef, Glue, Squad11, GlueTFR,
     Squad11TFR, BertCP, BertGlue, BertSquad, NL2Bash, TransWmt, WmtSubtok,
-    ConvnnMnist, Wikidump )
+    ConvnnMnist, Wikidump, Wikitext, WikiTFR )
 from stagedml.core import ( lrealize, tryrealize )
 
 all_fetchglue = fetchglue
@@ -118,7 +118,7 @@ def all_fetchenwiki(m:Manager)->DRef:
                         sha1='852dfec9eba3c4d5ec259e60dca233b6a777a05e')
   return extractwiki(m,wikidump)
 
-def all_fetchruwiki(m:Manager)->DRef:
+def all_fetchruwiki(m:Manager)->Wikitext:
   """ Fetch and extract russian wikipedia dump.
 
   Ref. https://dumps.wikimedia.org/enwiki/20200301/dumpstatus.json
@@ -129,7 +129,7 @@ def all_fetchruwiki(m:Manager)->DRef:
   return extractwiki(m,wikidump)
 
 
-def all_bert_pretraining_tfrecords(m:Manager)->DRef:
+def all_bert_pretraining_tfrecords(m:Manager)->WikiTFR:
   b=all_fetchbert(m)
   return bert_pretraining_tfrecords(m,
       vocab_file=mklens(b).bert_vocab.refpath,
