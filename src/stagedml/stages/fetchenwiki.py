@@ -45,4 +45,4 @@ def extractwiki(m:Manager, wiki:Wikidump)->Wikitext:
     'output':[promise,'output']
     }
 
-  return mkdrv(m,mkconfig(config),match_only(),build_wrapper(extractwiki_realize))
+  return Wikitext(mkdrv(m,mkconfig(config),match_only(),build_wrapper(extractwiki_realize)))

@@ -116,7 +116,7 @@ def all_convnn_mnist(m:Manager)->ConvnnMnist:
   """ Train a simple convolutional model on MNIST """
   return convnn_mnist(m, fetchmnist(m))
 
-def all_fetchenwiki(m:Manager)->DRef:
+def all_fetchenwiki(m:Manager)->Wikitext:
   """ Fetch and extract english wikipedia dump """
   wikidump=fetchwiki(m, dumpname='enwiki',
                         dumpdate='20200301',
