@@ -4,62 +4,47 @@ Mypy the static typechecker to catch errors early.
 """
 
 from typing import ( Optional, Dict, Any, List, Tuple, Union, Callable, Set,
-    Iterable, NamedTuple )
+    Iterable, NamedTuple, NewType )
 
 from pylightnix import DRef
 
-class BertCP(DRef):
-  pass
+BertCP=NewType('BertCP',DRef)
 
-class Glue(DRef):
-  pass
+Glue=NewType('Glue',DRef)
 
-class Squad11(DRef):
-  pass
+Squad11=NewType('Squad11',DRef)
 
-class GlueTFR(DRef):
-  pass
+GlueTFR=NewType('GlueTFR',DRef)
 
-class Squad11TFR(DRef):
-  pass
+Squad11TFR=NewType('Squad11TFR',DRef)
 
-class BertGlue(DRef):
-  pass
+BertGlue=NewType('BertGlue',DRef)
 
-class BertSquad(DRef):
-  pass
+BertSquad=NewType('BertSquad',DRef)
 
-class NL2Bash(DRef):
-  pass
+NL2Bash=NewType('NL2Bash',DRef)
 
-class WmtSubtok(DRef):
-  """ Datasets like Wmt En-De """
-  pass
+WmtSubtok=NewType('WmtSubtok',DRef)
 
-class TransWmt(DRef):
-  pass
+TransWmt=NewType('TransWmt',DRef)
 
-class Mnist(DRef):
-  pass
+Mnist=NewType('Mnist',DRef)
 
-class ConvnnMnist(DRef):
-  pass
+ConvnnMnist=NewType('ConvnnMnist',DRef)
 
-class Tr2Subtok(DRef):
-  pass
+Tr2Subtok=NewType('Tr2Subtok',DRef)
 
-class Trans2(DRef):
-  pass
+Trans2=NewType('Trans2',DRef)
 
-class Wikidump(DRef):
-  """ Raw dump of wikipedia files """
-  pass
+#! Raw dump of wikipedia files """
+Wikidump=NewType('Wikidump',DRef)
 
-class Wikitext(DRef):
-  """ Wikipedia text, extracted with WikiExtractor """
-  pass
+#! Wikipedia text, extracted with WikiExtractor """
+Wikitext=NewType('Wikitext',DRef)
 
-class WikiTFR(DRef):
-  """ Wikipedia data in TensorFlow Records format """
-  pass
+#! Wikipedia data in TensorFlow Records format """
+WikiTFR=NewType('WikiTFR',DRef)
+
+#! Reference to the pre-trained BERT model
+BertPretrain=NewType('BertPretrain',DRef)
 

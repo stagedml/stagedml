@@ -29,11 +29,12 @@ from stagedml.stages.transformer_wmt import transformer_wmt
 # from stagedml.stages.transformer2 import transformer2
 from stagedml.stages.convnn_mnist import fetchmnist, convnn_mnist
 from stagedml.stages.fetchenwiki import fetchwiki, extractwiki
-from stagedml.stages.bert_pretrain_wiki import bert_pretraining_tfrecords
+from stagedml.stages.bert_pretrain_wiki import ( bert_pretraining_tfrecords,
+    bert_pretrain_wiki )
 
 from stagedml.types import ( Set, Tuple, List, DRef, Glue, Squad11, GlueTFR,
     Squad11TFR, BertCP, BertGlue, BertSquad, NL2Bash, TransWmt, WmtSubtok,
-    ConvnnMnist, Wikidump, Wikitext, WikiTFR )
+    ConvnnMnist, Wikidump, Wikitext, WikiTFR, BertPretrain )
 from stagedml.core import ( lrealize, tryrealize, STAGEDML_EXPERIMENTS,
     diskspace_h, linkrref )
 from stagedml.imports import ( walk, join, abspath, islink )
@@ -133,12 +134,15 @@ def all_fetchruwiki(m:Manager)->Wikitext:
                         sha1='9f522ccf2931497e99a12d001a3bc7910f275519')
   return extractwiki(m,wikidump)
 
-
 def all_bert_pretraining_tfrecords(m:Manager)->WikiTFR:
   b=all_fetchbert(m)
   return bert_pretraining_tfrecords(m,
       vocab_file=mklens(b).bert_vocab.refpath,
       wiki=all_fetchenwiki(m))
+
+def all_bert_pretraining(m:Manager)->BertPretrain:
+  tfr=all_bert_pretraining_tfrecords(m)
+  return bert_pretrain_wiki(m,tfr)
 
 
 

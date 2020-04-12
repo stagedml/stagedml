@@ -5,6 +5,9 @@ import six
 import copy
 import math
 
+from stagedml.imports.tf import ( Tensor )
+from stagedml.types import ( Any, NamedTuple, NewType )
+
 from official.nlp.bert.configs import BertConfig
 from official.nlp.bert_modeling import ( EmbeddingLookup,
     EmbeddingPostprocessor, Dense3D, Dense2DProjection )
@@ -293,17 +296,15 @@ class CustomTransformer(tf.keras.layers.Layer):
               name=("layer_%d" % i)))
     super(CustomTransformer, self).build(unused_input_shapes)
 
-  def __call__(self, input_tensor, attention_mask=None, **kwargs):
+  def __call__(self, input_tensor:Tensor, attention_mask:bool=None, **kwargs):
     inputs = tf_utils.pack_inputs([input_tensor, attention_mask])
     return super(CustomTransformer, self).__call__(inputs=inputs, **kwargs)
 
-  def call(self, inputs, return_all_layers=False):
+  def call(self, inputs)->Any:
     """Implements call() for the layer.
 
     Args:
       inputs: packed inputs.
-      return_all_layers: bool, whether to return outputs of all layers inside
-        encoders.
     Returns:
       Output tensor of the last layer or a list of output tensors.
     """
@@ -317,12 +318,16 @@ class CustomTransformer(tf.keras.layers.Layer):
       output_tensor, attention_scores = layer(output_tensor, attention_mask)
       all_layer_outputs.append((output_tensor, attention_scores))
 
-    if return_all_layers:
-      return all_layer_outputs
+    return all_layer_outputs
 
-    return all_layer_outputs[-1]
+BertInput=NamedTuple('BertInput',[('input_word_ids',Tensor),
+                                  ('input_mask',Tensor),
+                                  ('input_type_ids',Tensor)])
 
-
+BertOutput=NamedTuple('BertOutput',[('cls_output',Tensor),
+                                    ('embedding_output',Tensor),
+                                    ('attention_output',Tensor),
+                                    ('hidden_output',Tensor)])
 
 
 class BertLayer(tf.keras.layers.Layer):
@@ -369,19 +374,14 @@ class BertLayer(tf.keras.layers.Layer):
         name="pooler_transform")
     super(BertLayer, self).build(unused_input_shapes)
 
-  def __call__(self,
-               input_word_ids,
-               input_mask=None,
-               input_type_ids=None,
-               **kwargs):
-    inputs = tf_utils.pack_inputs([input_word_ids, input_mask, input_type_ids])
-    return super(BertLayer, self).__call__(inputs, **kwargs)
+  def __call__(self, bert_input:BertInput)->BertOutput:
+    return super(BertLayer, self).__call__(bert_input)
 
   def call(self, inputs):
-    unpacked_inputs = tf_utils.unpack_inputs(inputs)
-    input_word_ids = unpacked_inputs[0]
-    input_mask = unpacked_inputs[1]
-    input_type_ids = unpacked_inputs[2]
+    # unpacked_inputs = tf_utils.unpack_inputs(inputs)
+    input_word_ids = inputs.input_word_ids #  unpacked_inputs[0]
+    input_mask = inputs.input_mask         # unpacked_inputs[1]
+    input_type_ids = inputs.input_type_ids # unpacked_inputs[2]
 
     word_embeddings = self.embedding_lookup(input_word_ids)
     embedding_tensor = self.embedding_postprocessor(
@@ -393,14 +393,14 @@ class BertLayer(tf.keras.layers.Layer):
       attention_mask = create_attention_mask_from_input_mask(
           input_word_ids, input_mask)
 
-    sequence_output = self.encoder(embedding_tensor, attention_mask, return_all_layers=True)
+    sequence_output = self.encoder(embedding_tensor, attention_mask)
     embedding_output = embedding_tensor
     hidden_output, attention_output = list(zip(*sequence_output))
 
     first_token_tensor = tf.squeeze(hidden_output[-1][:, 0:1, :], axis=1)
     pooled_output = self.pooler_transform(first_token_tensor)
 
-    return (pooled_output, embedding_output, attention_output, hidden_output)
+    return BertOutput(pooled_output, embedding_output, attention_output, hidden_output)
 
   def get_config(self):
     config = {"config": self.config.to_dict()}
@@ -414,4 +414,13 @@ def classification_logits(config, num_labels, pooled_input):
                                  activation=None,
                                  name='output')(t)
   return logits
+
+
+
+class BertModel:
+  def __init__(self, ins:BertInput, outs:BertOutput)->None:
+    self.model=tf.keras.Model(inputs=ins, outputs=outs)
+  def __call__(self, ins:BertInput)->BertOutput:
+    return BertOutput(*self.model(ins))
+
 

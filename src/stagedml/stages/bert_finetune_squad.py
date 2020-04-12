@@ -15,30 +15,12 @@ from pylightnix import ( Path, Manager, Config, DRef, RRef, Context, match_only,
     mkdrv, match_latest, mklens, build_wrapper_ )
 
 from stagedml.datasets.squad.tfrecord import tf_record_dataset
-from stagedml.models.bert import ( BertLayer )
+from stagedml.models.bert import ( BertLayer, BertInput, BertOutput, BertModel )
 from stagedml.models.bert_squad import BertSquadLogitsLayer
 from stagedml.types import ( Squad11TFR, BertSquad, Optional, Any, List, Tuple, Union )
 from stagedml.utils import ( dpurge )
 from stagedml.core import ( KerasBuild, protocol_add, keras_save, match_metric )
 
-
-def config(tfrecs:Squad11TFR)->Config:
-  name = 'bert-finetune-squad'
-
-  train_tfrecord = mklens(tfrecs).output_train.refpath
-  eval_tfrecord = mklens(tfrecs).output_eval.refpath
-  task_config = mklens(tfrecs).output_meta.refpath
-
-  bert_ckpt = mklens(tfrecs).bertref.bert_ckpt.refpath
-  bert_config = mklens(tfrecs).bertref.bert_config.refpath
-
-  lr = 2e-5
-  train_epoches = 3
-  train_batch_size = 8
-  eval_batch_size = store_cattrs(tfrecs).eval_batch_size
-  max_seq_length = store_cattrs(tfrecs).max_seq_length
-  version=2
-  return Config(locals())
 
 class Model(KerasBuild):
   model_core:tf.keras.Model
@@ -49,7 +31,6 @@ class Model(KerasBuild):
 def build(m:Model, clear_session:bool=True)->None:
   tf.keras.backend.clear_session()
   c = build_cattrs(m)
-
 
   with open(mklens(m).bert_config.syspath, "r") as f:
     bert_config = BertConfig.from_dict(json_load(f))
@@ -65,31 +46,25 @@ def build(m:Model, clear_session:bool=True)->None:
 
   m.strategy=tf.distribute.MirroredStrategy()
   with m.strategy.scope():
-    input_word_ids = tf.keras.Input(shape=(c.max_seq_length,), name='input_word_ids', dtype=tf.int32)
-    input_mask     = tf.keras.Input(shape=(c.max_seq_length,), name='input_mask', dtype=tf.int32)
-    input_type_ids = tf.keras.Input(shape=(c.max_seq_length,), name='input_type_ids', dtype=tf.int32)
-    inputs = {
-          'input_word_ids': input_word_ids,
-          'input_mask': input_mask,
-          'input_type_ids': input_type_ids
-        }
+    bert_inputs = BertInput(
+        tf.keras.Input(shape=(c.max_seq_length,), name='input_word_ids', dtype=tf.int32),
+        tf.keras.Input(shape=(c.max_seq_length,), name='input_mask', dtype=tf.int32),
+        tf.keras.Input(shape=(c.max_seq_length,), name='input_type_ids', dtype=tf.int32))
 
     bert = BertLayer(config=bert_config, float_type=tf.float32, name='bert')
-    bert_outputs = bert(input_word_ids, input_mask, input_type_ids)
-    bert_model = tf.keras.Model(inputs=inputs, outputs=bert_outputs)
-    bert_model.summary()
-
-    _,_,_,hidden_outputs = bert_model(inputs)
+    bert_model = BertModel(bert_inputs, bert(bert_inputs))
+    bert_model.model.summary()
+    bert_outputs = bert_model(bert_inputs)
 
     squad_logits_layer = BertSquadLogitsLayer(
         initializer = tf.keras.initializers.TruncatedNormal(stddev=bert_config.initializer_range))
-    start_logits, end_logits = squad_logits_layer(hidden_outputs[-1])
+    start_logits, end_logits = squad_logits_layer(bert_outputs.hidden_output[-1])
 
-    model = tf.keras.Model(inputs=inputs, outputs=[start_logits, end_logits], name='squad_model')
+    model = tf.keras.Model(inputs=bert_inputs, outputs=[start_logits, end_logits], name='squad_model')
     optimizer = create_optimizer(c.lr, c.train_steps_per_epoch*c.train_epoches, c.train_warmup_steps)
 
     m.model = model
-    m.model_core = bert_model
+    m.model_core = bert_model.model
     m.optimizer = optimizer
   return
 
@@ -186,9 +161,28 @@ def evaluate(m:Model)->Model:
 def _realize(b:Model)->None:
   build(b); cpload(b); ctrain(b);
 
-def bert_finetune_squad11(m:Manager, *args, **kwargs)->BertSquad:
+def bert_finetune_squad11(m:Manager, tfrecs:Squad11TFR)->BertSquad:
+
+  def _config()->Config:
+    name = 'bert-finetune-squad'
+
+    train_tfrecord = mklens(tfrecs).output_train.refpath
+    eval_tfrecord = mklens(tfrecs).output_eval.refpath
+    task_config = mklens(tfrecs).output_meta.refpath
+
+    bert_ckpt = mklens(tfrecs).bertref.bert_ckpt.refpath
+    bert_config = mklens(tfrecs).bertref.bert_config.refpath
+
+    lr = 2e-5
+    train_epoches = 3
+    train_batch_size = 8
+    eval_batch_size = store_cattrs(tfrecs).eval_batch_size
+    max_seq_length = store_cattrs(tfrecs).max_seq_length
+    version=4
+    return Config(locals())
+
   return BertSquad(mkdrv(m,
-    config=config(*args, **kwargs),
+    config=_config(),
     matcher=match_latest(), #match_metric('evaluate', 'eval_accuracy'),
     realizer=build_wrapper_(_realize, Model)))
 

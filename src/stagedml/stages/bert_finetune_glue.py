@@ -18,7 +18,8 @@ from pylightnix import ( Path, Config, Manager, RRef, DRef, Context,
     json_load, build_config, mklens, build_wrapper_, mkconfig )
 
 from stagedml.datasets.glue.tfdataset import ( dataset, dataset_eval, dataset_train )
-from stagedml.models.bert import ( BertLayer, classification_logits )
+from stagedml.models.bert import ( BertLayer, BertInput, BertOutput,
+    BertModel, classification_logits )
 from stagedml.utils.tf import ( runtb, runtensorboard, thash, dpurge )
 from stagedml.core import ( KerasBuild, protocol_add, protocol_add_hist,
     protocol_add_eval, match_metric, keras_save )
@@ -37,7 +38,7 @@ def config(tfrecs:GlueTFR)->Config:
   lr = 2e-5
   batch_size = 8
   train_epoches = 3
-  version = 3
+  version = 4
   return mkconfig(locals())
 
 
@@ -78,31 +79,27 @@ def build(b:ModelBuild, clear_session:bool=True):
     input_word_ids = tf.keras.Input(shape=(c.max_seq_length,), name='input_word_ids', dtype=tf.int32)
     input_mask     = tf.keras.Input(shape=(c.max_seq_length,), name='input_mask', dtype=tf.int32)
     input_type_ids = tf.keras.Input(shape=(c.max_seq_length,), name='input_type_ids', dtype=tf.int32)
-    inputs = {
-          'input_word_ids': input_word_ids,
-          'input_mask': input_mask,
-          'input_type_ids': input_type_ids
-        }
 
+
+    teacher_ins = BertInput(input_word_ids, input_mask, input_type_ids)
     teacher = BertLayer(config=bert_config, float_type=tf.float32, name='bert')
-    teacher_outs = teacher(input_word_ids, input_mask, input_type_ids)
-    teacher_model = tf.keras.Model(inputs=inputs, outputs=teacher_outs)
-    teacher_model.summary()
+    teacher_model = BertModel(teacher_ins, teacher(teacher_ins))
+    teacher_model.model.summary()
 
-    pooled_output,_,_,_ = teacher_model(inputs)
+    teacher_outs = teacher_model(teacher_ins)
     teacher_cls_logits = classification_logits(config=bert_config,
                                                num_labels=c.num_labels,
-                                               pooled_input=pooled_output)
+                                               pooled_input=teacher_outs.cls_output)
 
     teacher_cls_probs = tf.keras.layers.Activation('softmax')(teacher_cls_logits)
 
-    model = tf.keras.Model(inputs=inputs, outputs=[teacher_cls_logits])
-    model_eval = tf.keras.Model(inputs=inputs, outputs=[teacher_cls_probs])
+    model = tf.keras.Model(inputs=teacher_ins, outputs=[teacher_cls_logits])
+    model_eval = tf.keras.Model(inputs=teacher_ins, outputs=[teacher_cls_probs])
 
     b.optimizer = create_optimizer(c.lr, c.train_steps_per_epoch*c.train_epoches, c.train_warmup_steps)
 
     b.model = model
-    b.core_model = teacher_model
+    b.core_model = teacher_model.model
     b.model_eval = model_eval
   return
 
