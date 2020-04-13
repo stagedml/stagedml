@@ -6,7 +6,7 @@ import copy
 import math
 
 from stagedml.imports.tf import ( Tensor )
-from stagedml.types import ( Any, NamedTuple, NewType )
+from stagedml.types import ( Any, NamedTuple, NewType, Tuple )
 
 from official.nlp.bert.configs import BertConfig
 from official.nlp.bert_modeling import ( EmbeddingLookup,
@@ -423,4 +423,16 @@ class BertModel:
   def __call__(self, ins:BertInput)->BertOutput:
     return BertOutput(*self.model(ins))
 
+
+class BertModelPretrain:
+  def __init__(self, ins:BertInput, outs:BertOutput, embedding_weights:Tensor)->None:
+    self.embedding_weights=embedding_weights
+    self.model=tf.keras.Model(inputs=ins, outputs=outs)
+    self.inputs=self.model.inputs
+    self.outputs=self.model.outputs
+  def __call__(self, ins:BertInput)->Tuple[Tensor,Tensor]:
+    bo=BertOutput(*self.model(ins))
+    return (bo.hidden_output[-1], bo.cls_output)
+  def get_embedding_table(self)->Tensor:
+    return self.embedding_weights
 

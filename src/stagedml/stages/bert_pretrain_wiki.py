@@ -1,15 +1,26 @@
-from pylightnix import ( Manager, Lens, DRef, Build, RefPath, mklens, mkdrv,
-    build_wrapper, build_path, mkconfig, match_only, promise, build_outpath,
-    realize, instantiate, repl_realize )
+from pylightnix import ( Manager, Lens, DRef, RRef, Build, RefPath, mklens,
+    mkdrv, build_wrapper, build_path, mkconfig, match_only, promise,
+    build_outpath, realize, instantiate, repl_realize, build_wrapper_,
+    repl_buildargs, build_cattrs )
 from stagedml.imports import ( walk, abspath, join, Random, partial, cpu_count,
-    getpid, makedirs, Pool, bz2_open, json_loads )
-from stagedml.imports.tf import (Dataset, FixedLenFeature, parse_single_example )
-from stagedml.utils import ( concat, batch )
-from stagedml.types import ( List, Optional, Wikitext, WikiTFR )
+    getpid, makedirs, Pool, bz2_open, json_loads, json_load )
+from stagedml.imports.tf import ( Dataset, FixedLenFeature,
+    parse_single_example, Input, TruncatedNormal, TensorBoard )
+from stagedml.utils import ( concat, batch, flines, dpurge )
+from stagedml.core import ( KerasBuild, protocol_add, protocol_add_hist,
+    protocol_add_eval, match_metric, keras_save )
+from stagedml.types import ( List, Optional, Wikitext, WikiTFR, Any, BertPretrain )
 
 from official.nlp.bert.tokenization import FullTokenizer, convert_to_unicode
+from official.nlp.optimization import create_optimizer
 from official.nlp.bert.create_pretraining_data import (
     create_instances_from_document, write_instance_to_example_files, TrainingInstance )
+from official.nlp.modeling.networks.bert_pretrainer import ( BertPretrainer )
+from official.nlp.bert.bert_models import ( BertPretrainLossAndMetricLayer )
+from official.modeling.model_training_utils import ( run_customized_training_loop )
+from absl import logging
+
+from stagedml.models.bert import ( BertLayer, BertInput, BertOutput, BertModelPretrain )
 
 import tensorflow as tf
 
@@ -132,7 +143,7 @@ def bert_pretraining_tfrecords(m:Manager, vocab_file:RefPath, wiki:Wikitext)->Wi
 
 
 def bert_pretraining_dataset(
-    tfr:WikiTFR,
+    tfr:RRef,
     batch_size:int,
     is_training:bool=True,
     input_pipeline_context=None)->Dataset:
@@ -171,7 +182,9 @@ def bert_pretraining_dataset(
       partial(tf.data.TFRecordDataset, compression_type='GZIP'),
       cycle_length=8, num_parallel_calls=tf.data.experimental.AUTOTUNE)
 
-  name_to_features = {
+  def _decode_record(record):
+    """ Decodes a record to a TensorFlow example. """
+    example = tf.io.parse_single_example(record, {
       'input_ids': FixedLenFeature([seq_length], tf.int64),
       'input_mask': FixedLenFeature([seq_length], tf.int64),
       'segment_ids': FixedLenFeature([seq_length], tf.int64),
@@ -179,11 +192,7 @@ def bert_pretraining_dataset(
       'masked_lm_ids': FixedLenFeature([max_predictions_per_seq], tf.int64),
       'masked_lm_weights': FixedLenFeature([max_predictions_per_seq], tf.float32),
       'next_sentence_labels': FixedLenFeature([1], tf.int64),
-  }
-
-  def _decode_record(record, name_to_features):
-    """Decodes a record to a TensorFlow example."""
-    example = tf.io.parse_single_example(record, name_to_features)
+    })
 
     # tf.Example only supports tf.int64, but the TPU only supports tf.int32.
     # So cast all int64 to int32.
@@ -192,12 +201,10 @@ def bert_pretraining_dataset(
       if t.dtype == tf.int64:
         t = tf.cast(t, tf.int32)
       example[name] = t
-
     return example
 
-  decode_fn = lambda record: _decode_record(record, name_to_features)
   dataset = dataset.map(
-      decode_fn, num_parallel_calls=tf.data.experimental.AUTOTUNE)
+      _decode_record, num_parallel_calls=tf.data.experimental.AUTOTUNE)
 
   def _select_data_from_record(record):
     """Filter out features to use for pretraining."""
@@ -223,4 +230,153 @@ def bert_pretraining_dataset(
   dataset = dataset.batch(batch_size, drop_remainder=True)
   dataset = dataset.prefetch(1024)
   return dataset
+
+
+class Model(KerasBuild):
+  model:tf.keras.Model
+  submodel:tf.keras.Model
+  strategy:Any
+  optimizer:Any
+
+
+def build(m:Model)->None:
+  c=build_cattrs(m)
+  m.strategy=tf.distribute.MirroredStrategy()
+  with m.strategy.scope():
+
+    bert_config={
+      "attention_probs_dropout_prob": 0.1,
+      "hidden_act": "gelu",
+      "hidden_dropout_prob": 0.1,
+      "hidden_size": 768,
+      "initializer_range": 0.02,
+      "intermediate_size": 3072,
+      "max_position_embeddings": 512,
+      "num_attention_heads": 12,
+      "num_hidden_layers": 12,
+      "type_vocab_size": 2,
+      "vocab_size": flines(mklens(m).vocab_file.syspath)
+    }
+
+    bert_inputs=BertInput(
+        Input(shape=(c.max_seq_length,), name='input_word_ids', dtype=tf.int32),
+        Input(shape=(c.max_seq_length,), name='input_mask', dtype=tf.int32),
+        Input(shape=(c.max_seq_length,), name='input_type_ids', dtype=tf.int32))
+
+    bert_layer = BertLayer(config=bert_config, float_type=tf.float32, name='BERT')
+
+    bert_outputs = bert_layer(bert_inputs)
+
+    bert_model=BertModelPretrain(ins=bert_inputs,
+                                 outs=bert_outputs,
+                                 embedding_weights=bert_layer.embedding_lookup.embeddings)
+
+    # input_word_ids = Input(shape=(c.max_seq_length,), name='input_word_ids', dtype=tf.int32)
+    # input_mask     = Input(shape=(c.max_seq_length,), name='input_mask', dtype=tf.int32)
+    # input_type_ids = Input(shape=(c.max_seq_length,), name='input_type_ids', dtype=tf.int32)
+
+    # input_word_ids = Input( shape=(c.max_seq_length,), name='input_word_ids', dtype=tf.int32)
+    # input_mask = Input( shape=(c.max_seq_length,), name='input_mask', dtype=tf.int32)
+    # input_type_ids = Input( shape=(c.max_seq_length,), name='input_type_ids', dtype=tf.int32)
+
+    masked_lm_positions = Input( shape=(c.max_predictions_per_seq,), name='masked_lm_positions', dtype=tf.int32)
+    masked_lm_ids = Input( shape=(c.max_predictions_per_seq,), name='masked_lm_ids', dtype=tf.int32)
+    masked_lm_weights = Input( shape=(c.max_predictions_per_seq,), name='masked_lm_weights', dtype=tf.int32)
+    next_sentence_labels = Input( shape=(1,), name='next_sentence_labels', dtype=tf.int32)
+
+    bert_pretrain = BertPretrainer(
+        network=bert_model,
+        num_classes=2,
+        num_token_predictions=c.max_predictions_per_seq,
+        initializer=TruncatedNormal(stddev=bert_config['initializer_range']),
+        output='predictions')
+
+    lm_output, sentence_output = bert_pretrain([
+        bert_inputs.input_word_ids, bert_inputs.input_mask, bert_inputs.input_type_ids, masked_lm_positions ])
+
+    pretrain_loss_layer = BertPretrainLossAndMetricLayer(vocab_size=bert_config['vocab_size'])
+    output_loss = pretrain_loss_layer(lm_output, sentence_output,
+                                      masked_lm_ids, masked_lm_weights, next_sentence_labels)
+    model = tf.keras.Model(
+        inputs={
+            'input_word_ids': bert_inputs.input_word_ids,
+            'input_mask': bert_inputs.input_mask,
+            'input_type_ids': bert_inputs.input_type_ids,
+            'masked_lm_positions': masked_lm_positions,
+            'masked_lm_ids': masked_lm_ids,
+            'masked_lm_weights': masked_lm_weights,
+            'next_sentence_labels': next_sentence_labels,
+        },
+        outputs=output_loss)
+
+    m.model=model
+    m.submodel=bert_model.model
+    m.optimizer = create_optimizer(
+        init_lr=c.lr, num_train_steps=c.train_steps,
+        num_warmup_steps=c.train_warmup_steps)
+
+
+def train(m:Model)->None:
+  c = build_cattrs(m)
+  o = build_outpath(m)
+
+  def _model():
+    return m.model, m.submodel
+
+  def _loss(unused_labels, losses, **unused_args):
+    loss_factor=1.0
+    return tf.reduce_mean(losses) * loss_factor
+
+  def _input(ctx:Any)->Dataset:
+    global_batch_size=c.train_batch_size
+    batch_size = ctx.get_per_replica_batch_size(global_batch_size) if ctx else global_batch_size
+    return bert_pretraining_dataset(
+        mklens(m).tfrecs.rref, batch_size, is_training=True)
+
+  tensorboard_callback = TensorBoard(log_dir=o, profile_batch=0,
+                                     write_graph=False, update_freq='batch')
+
+  m.model.optimizer = m.optimizer
+  logging.set_verbosity(logging.INFO)
+  run_customized_training_loop(
+      strategy=m.strategy,
+      model_fn=_model,
+      loss_fn=_loss,
+      model_dir=o,
+      train_input_fn=_input,
+      steps_per_epoch=c.train_steps/c.train_epoches,
+      steps_per_loop=c.train_steps_per_loop,
+      epochs=c.train_epoches,
+      init_checkpoint=None,
+      sub_model_export_name='pretrained/bert_model')
+
+  dpurge(o,'ctl_step.*ckpt', debug=True)
+  with open(join(o,'summaries/training_summary.txt'), 'r') as f:
+    s=json_load(f)
+  protocol_add(m, 'train', result=s)
+
+def _realize(m:Model)->None:
+  build(m); train(m); # evaluate(b); keras_save(b)
+
+def bert_pretrain_wiki(m:Manager, tfrecs:WikiTFR)->BertPretrain:
+  def _config()->dict:
+    name = 'bert-pretrain-wiki'
+    max_seq_length=mklens(tfrecs).max_seq_length.val
+    max_predictions_per_seq=mklens(tfrecs).max_predictions_per_seq.val
+    vocab_file = mklens(tfrecs).vocab_file.refpath
+    lr = 2e-5
+    train_batch_size = 16
+    train_steps = 10000
+    train_epoches = 10
+    train_steps_per_loop = 200
+    train_warmup_steps = 10000 # FIXME: Sic! why so much?
+    version = 3
+    return locals()
+
+  # print(_config())
+
+  return BertPretrain(mkdrv(m,
+    config=mkconfig(_config()),
+    matcher=match_metric('evaluate', 'eval_accuracy'),
+    realizer=build_wrapper_(_realize, Model)))
 

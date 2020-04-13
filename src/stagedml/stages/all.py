@@ -140,7 +140,7 @@ def all_bert_pretraining_tfrecords(m:Manager)->WikiTFR:
       vocab_file=mklens(b).bert_vocab.refpath,
       wiki=all_fetchenwiki(m))
 
-def all_bert_pretraining(m:Manager)->BertPretrain:
+def all_bert_pretrain(m:Manager)->BertPretrain:
   tfr=all_bert_pretraining_tfrecords(m)
   return bert_pretrain_wiki(m,tfr)
 
