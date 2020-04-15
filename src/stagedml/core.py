@@ -1,12 +1,14 @@
 from pylightnix import ( Context, Hash, Path, DRef, RRef, Closure, Build,
     BuildArgs, repl_realize, repl_continue, repl_build, build_outpath, realize,
-    rref2path, store_config, config_name, mksymlink, isdir, dirhash, json_dumps,
-    assert_serializable, assert_valid_rref, build_wrapper_, readjson,
-    store_rrefs, repl_rref, repl_cancel, rmref, store_gc, instantiate )
+    rref2path, store_config, config_name, mksymlink, isdir, dirhash, json_dump,
+    json_load, assert_serializable, assert_valid_rref, build_wrapper_,
+    readjson, store_rrefs, repl_rref, repl_cancel, rmref, store_gc, instantiate,
+    tryreadjson, tryreadjson_def, mklens
+    )
 
 from stagedml.imports import ( join, environ, remove, copytree, copy_tree )
 from stagedml.utils import ( runtensorboard, ndhashl )
-from stagedml.types import ( Callable, List, Optional, Any, Tuple, Set )
+from stagedml.types import ( Callable, List, Optional, Any, Tuple, Set, NamedTuple )
 
 from stagedml.imports.tf import ( History )
 
@@ -93,60 +95,6 @@ def tryrealize(clo:Closure, verbose:bool=False)->Optional[RRef]:
     return None
 
 
-# from pylightnix import datahash, encode, makedirs
-# def linkrefs(rrefs:List[RRef], tgtdir:Optional[Path]=None)->Path:
-#   if tgtdir is None:
-#     import pylightnix.core
-#     tgtdir=join(pylightnix.core.PYLIGHTNIX_TMP,
-#                 datahash([encode(rref) for rref in rrefs])[:7])
-#   makedirs(tgtdir,exist_ok=True)
-#   for rref in rrefs:
-#     mksymlink(rref,tgtdir,name=str(rref),withtime=False)
-#   return tgtdir
-
-
-#  ____        _ _     _
-# | __ ) _   _(_) | __| | ___ _ __ ___
-# |  _ \| | | | | |/ _` |/ _ \ '__/ __|
-# | |_) | |_| | | | (_| |  __/ |  \__ \
-# |____/ \__,_|_|_|\__,_|\___|_|  |___/
-
-
-Protocol=List[Tuple[str,Hash,Any]]
-
-class ProtocolBuild(Build):
-  protocol:Protocol
-  def __init__(self, ba:BuildArgs)->None:
-    super().__init__(ba)
-    self.protocol=[]
-  def get_data_hash(self)->Hash:
-    return dirhash(build_outpath(self))
-
-def protocol_save(b:ProtocolBuild)->None:
-  o=build_outpath(b)
-  with open(join(o,'protocol.json'),'w') as f:
-    f.write(json_dumps(b.protocol))
-
-class KerasBuild(ProtocolBuild):
-  model:tf.keras.Model
-  def __init__(self, ba:BuildArgs)->None:
-    super().__init__(ba)
-  def get_data_hash(self)->Hash:
-    assert self.model is not None, "Keras model should be initialized by the user"
-    return Hash(ndhashl(self.model.get_weights()))
-
-def keras_save(b:KerasBuild)->None:
-  assert b.model is not None
-  assert all(b.model._get_trainable_state().values())
-  o = build_outpath(b)
-  b.model.save_weights(join(o, 'weights.h5'), save_format='h5')
-  protocol_save(b)
-
-def protocolled(f:Callable[[ProtocolBuild],None], buildtime:bool=True):
-  return build_wrapper_(f,ProtocolBuild,buildtime)
-
-def keras_wrapper(f:Callable[[KerasBuild],None], buildtime:bool=True):
-  return build_wrapper_(f,KerasBuild,buildtime)
 
 #  ____            _                  _
 # |  _ \ _ __ ___ | |_ ___   ___ ___ | |
@@ -155,45 +103,72 @@ def keras_wrapper(f:Callable[[KerasBuild],None], buildtime:bool=True):
 # |_|   |_|  \___/ \__\___/ \___\___/|_|
 
 
-def protocol_laststate(b:ProtocolBuild)->Optional[Hash]:
-  if len(b.protocol) == 0:
-    return None
-  else:
-    return b.protocol[-1][1]
+#: Protocol data, which is a list of protocol operations. An operation has a
+#: name, a hash of whole model state and some payload data
+ProtocolItem=NamedTuple('ProtocolItem',[('name',str),('hash',Optional[Hash]),('payload',Any)])
+Protocol=List[ProtocolItem]
 
-def protocol_add(build:ProtocolBuild, name:str, arg:Any=[], result:Any=[], expect_wchange:bool=True)->None:
-  assert_serializable(name,'name')
-  assert_serializable(arg,'arg')
-  assert_serializable(result,'result')
-  new_whash=build.get_data_hash()
-  old_whash=protocol_laststate(build)
-  if expect_wchange:
-    assert new_whash != old_whash, \
-        (f"Protocol sanity check: Operation was marked as parameter-changing,"
-         f"but Model parameters didn't change their hashes as expected."
-         f"Both hashes are {new_whash}.")
-  else:
-    assert new_whash == old_whash or (old_whash is None), \
-        (f"Protocol sanity check: Operation was marked as"
-         f"non-paramerer-changing, but Model parameters were in fact changed by"
-         f"something. Expected {old_whash}, got {new_whash}.")
-  build.protocol.append((name, new_whash, result))
+def protocol_dump(p:Protocol, fname:Path)->None:
+  json=[{'name':i.name,'hash':i.hash,'payload':i.payload} for i in p]
+  assert_serializable(json, argname='protocol')
+  with open(fname,'w') as fp:
+    json_dump(json, fp, indent=4)
 
-def protocol_add_hist(build:ProtocolBuild, name:str, hist:History)->None:
+def protocol_load(fname:Path)->Optional[Protocol]:
+  json=tryreadjson(fname)
+  return None if json is None else [ProtocolItem(p['name'],p['hash'],p['payload']) for p in json]
+
+def protocol_load_def(fname:Path, default:Protocol)->Protocol:
+  return protocol_load(fname) or default
+
+def protocol_laststate(p:Protocol)->Optional[Hash]:
+  return p[-1][1] if len(p)>0 else None
+
+def protocol_add(fname:Path,
+                 name:str,
+                 whash:Optional[Hash]=None,
+                 arg:Any=[],
+                 result:Any=[],
+                 expect_wchange:bool=True)->Protocol:
+  """ Adds record to the protocol, saves protocol to disk """
+  p=protocol_load_def(fname,[])
+  old_whash=protocol_laststate(p)
+  if whash is not None:
+    if expect_wchange:
+      assert whash != old_whash, \
+          (f"Protocol sanity check: Operation was marked as parameter-changing,"
+           f"but Model parameters didn't change their hashes as expected."
+           f"Both hashes are {whash}.")
+    else:
+      assert whash == old_whash or (old_whash is None), \
+          (f"Protocol sanity check: Operation was marked as"
+           f"non-paramerer-changing, but Model parameters were in fact changed by"
+           f"something. Expected {old_whash}, got {whash}.")
+  p.append(ProtocolItem(name, whash, result))
+  protocol_dump(p,fname)
+  return p
+
+def protocol_add_hist(fname:Path, name:str, whash:Hash, hist:History)->None:
   hd=hist.__dict__
   h2={'epoch':hd['epoch'],
       'history':{k:[float(f) for f in v] for k,v in hd['history'].items()}}
-  protocol_add(build, name, result=h2)
+  protocol_add(fname, name, whash, result=h2)
 
-def protocol_add_eval(build:ProtocolBuild, name:str, metric_names:List[str], result:List[float])->None:
+def protocol_add_eval(fname:Path,
+                      name:str,
+                      whash:Hash,
+                      metric_names:List[str],
+                      result:List[float])->None:
+  assert len(metric_names)==len(result), \
+      f"{metric_names} doesn't match {result}"
   result=[float(x) for x in result]
   rec=[[a,b] for a,b in zip(metric_names,result)]
-  protocol_add(build, name, result=rec, expect_wchange=False)
+  protocol_add(fname, name, whash=whash, result=rec, expect_wchange=False)
 
-def store_protocol(rref:RRef)->Protocol:
-  assert_valid_rref(rref)
-  return list(readjson(join(rref2path(rref), 'protocol.json')))
 
+# def store_protocol(rref:RRef)->Protocol:
+#   assert_valid_rref(rref)
+#   return list(readjson(join(rref2path(rref), 'protocol.json')))
 
 
 #  __  __       _       _
@@ -226,30 +201,32 @@ def protocol_metric(p:Protocol, op_name:str, metric_name:str)->Optional[float]:
     print(f"Warning: '{op_name}' operation was found in protocol")
   return metric_val
 
-def best_(op_name:str, metric_name:str, refs:List[RRef])->RRef:
+def best_(op_name:str, metric_name:str, rrefs:List[RRef])->RRef:
   """ Return best model in terms of a metric, received by the given operation.
   Example: `best('evaluate','eval_accuracy', search(...)) ` """
-  assert len(refs)>0, "Empty input list of refs"
+  assert len(rrefs)>0, "Empty input list of refs"
   metric_val=None
   best_ref=None
-  for ref in refs:
-    p=store_protocol(ref)
+  for rref in rrefs:
     found_ops=0
-    mv=protocol_metric(p, op_name, metric_name)
+    mv=None
+    p=protocol_load(mklens(rref).protocol.syspath)
+    if p is not None:
+      mv=protocol_metric(p, op_name, metric_name)
     if mv is not None:
       if metric_val is None:
         metric_val=mv
-        best_ref=ref
+        best_ref=rref
       else:
         if mv>metric_val:
           metrci_val=mv
-          best_ref=ref
+          best_ref=rref
   assert best_ref is not None, \
     (f"`best()` was unable to find best match for '{metric_name}' "
-     f"among '{op_name}' operations")
+     f"among '{op_name}' operations of {rrefs}")
   return best_ref
 
-def match_metric(op_name:str, metric_name:str):
+def protocol_match(op_name:str, metric_name:str):
   def _matcher(dref:DRef, context:Context)->Optional[List[RRef]]:
     rrefs=list(store_rrefs(dref, context))
     if len(rrefs)==0:

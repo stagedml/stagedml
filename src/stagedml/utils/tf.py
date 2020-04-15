@@ -81,3 +81,7 @@ def runtb(arg:Union[RRef,Build,str])->None:
     assert False, "Value of unsupported type: '{arg}'"
   pid=runtensorboard(path)
   print('Tensorboard is running at', path, 'pid', pid)
+
+def modelhash(m:tf.keras.Model)->Hash:
+  return Hash(ndhashl(m.get_weights()))
+

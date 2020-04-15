@@ -13,36 +13,20 @@ from absl import logging
 
 from typing import Optional,Any,List,Tuple,Union
 
-from pylightnix import ( Path, Config, Manager, RRef, DRef, Context,
-    store_cattrs, build_outpath, build_cattrs, mkdrv, rref2path,
-    json_load, build_config, mklens, build_wrapper_, mkconfig )
+from pylightnix import ( Build, Path, Config, Manager, RRef, DRef, Context,
+    store_cattrs, build_outpath, build_cattrs, mkdrv, rref2path, json_load,
+    build_config, mklens, build_wrapper_, mkconfig, promise )
 
 from stagedml.datasets.glue.tfdataset import ( dataset, dataset_eval, dataset_train )
 from stagedml.models.bert import ( BertLayer, BertInput, BertOutput,
     BertModel, classification_logits )
-from stagedml.utils.tf import ( runtb, runtensorboard, thash, dpurge )
-from stagedml.core import ( KerasBuild, protocol_add, protocol_add_hist,
-    protocol_add_eval, match_metric, keras_save )
+from stagedml.utils.tf import ( runtb, runtensorboard, thash, dpurge, modelhash )
+from stagedml.core import ( protocol_add, protocol_add_hist,
+    protocol_add_eval, protocol_match )
 from stagedml.types import ( GlueTFR, BertGlue )
 
 
-def config(tfrecs:GlueTFR)->Config:
-  name = 'bert-finetune-'+mklens(tfrecs).task_name.val.lower()
-
-  task_train = mklens(tfrecs).outputs.train.refpath
-  task_eval = mklens(tfrecs).outputs.dev.refpath
-  task_config = mklens(tfrecs).outputs.meta.refpath
-  bert_config = mklens(tfrecs).refbert.bert_config.refpath
-  bert_ckpt = mklens(tfrecs).refbert.bert_ckpt.refpath
-
-  lr = 2e-5
-  batch_size = 8
-  train_epoches = 3
-  version = 4
-  return mkconfig(locals())
-
-
-class ModelBuild(KerasBuild):
+class ModelBuild(Build):
   model:tf.keras.Model
   model_eval:tf.keras.Model
   core_model:tf.keras.Model
@@ -66,8 +50,10 @@ def build(b:ModelBuild, clear_session:bool=True):
 
   c.train_batch_size = c.batch_size
   c.eval_batch_size = c.batch_size
-  c.train_data_size = int(task_config['train_data_size']*0.95)
-  c.valid_data_size = int(task_config['train_data_size'])-c.train_data_size
+  if c.dataset_size is None:
+    c.dataset_size = int(task_config['train_data_size'])
+  c.train_data_size = int(c.dataset_size*0.95)
+  c.valid_data_size = int(c.dataset_size)-c.train_data_size
   c.eval_data_size = task_config['dev_data_size']
   c.train_steps_per_epoch = int(c.train_data_size / c.train_batch_size)
   c.valid_steps_per_epoch = int(c.valid_data_size / c.train_batch_size)
@@ -109,8 +95,7 @@ def cpload(b:ModelBuild)->None:
   c = build_cattrs(b)
   checkpoint = tf.train.Checkpoint(model=b.core_model)
   checkpoint.restore(mklens(b).bert_ckpt.syspath).assert_consumed()
-  protocol_add(b, 'cpload')
-  return
+  protocol_add(mklens(b).protocol.syspath, 'cpload')
 
 
 def train(b:ModelBuild, **kwargs)->None:
@@ -119,7 +104,8 @@ def train(b:ModelBuild, **kwargs)->None:
   c = build_cattrs(b)
   o = build_outpath(b)
 
-  dt, dv = dataset_train(mklens(b).task_train.syspath, c.train_data_size, c.train_batch_size, c.max_seq_length)
+  dt, dv = dataset_train(mklens(b).task_train.syspath, c.train_data_size,
+                         c.train_batch_size, c.max_seq_length)
   tensorboard_callback = TensorBoard(log_dir=o, profile_batch=0,
                                      write_graph=False, update_freq='batch')
 
@@ -134,10 +120,10 @@ def train(b:ModelBuild, **kwargs)->None:
     validation_steps=c.valid_steps_per_epoch,
     epochs=c.train_epoches,
     callbacks=[tensorboard_callback])
-  protocol_add_hist(b, 'train', h)
-  return
+  b.model.save_weights(mklens(b).weights.syspath, save_format='h5')
+  protocol_add_hist(mklens(b).protocol.syspath, 'train', modelhash(b.model), h)
 
-def evaluate(b:ModelBuild):
+def evaluate(b:ModelBuild)->None:
   c = build_cattrs(b)
   o = build_outpath(b)
   print('Evaluating')
@@ -154,15 +140,37 @@ def evaluate(b:ModelBuild):
   with filewriter.as_default():
     for mname,v in zip(k.metrics_names,h):
       tf.summary.scalar(mname,v,step=0)
-  protocol_add_eval(b, 'evaluate', k.metrics_names, h)
-  return
 
-def _realize(b:ModelBuild)->None:
-  build(b); cpload(b); train(b); evaluate(b); keras_save(b)
+  protocol_add_eval(mklens(b).protocol.syspath, 'evaluate', modelhash(b.model), k.metrics_names, h)
+
+def bert_finetune_realize(b:ModelBuild)->None:
+  build(b); cpload(b); train(b); evaluate(b)
 
 def bert_finetune_glue(m:Manager, tfrecs:GlueTFR)->BertGlue:
+  def _config()->dict:
+    nonlocal tfrecs
+    name = 'bert-finetune-'+mklens(tfrecs).task_name.val.lower()
+
+    task_train = mklens(tfrecs).outputs.train.refpath
+    task_eval = mklens(tfrecs).outputs.dev.refpath
+    task_config = mklens(tfrecs).outputs.meta.refpath
+    bert_config = mklens(tfrecs).refbert.bert_config.refpath
+    bert_ckpt = mklens(tfrecs).refbert.bert_ckpt.refpath
+
+    protocol = [promise, 'protocol.json']
+    weights = [promise, 'weights.h5']
+    dataset_size = None # Use default value
+
+    lr = 2e-5
+    batch_size = 8
+    train_epoches = 3
+    version = 4
+    return locals()
+
   return BertGlue(mkdrv(m,
-    config=config(tfrecs),
-    matcher=match_metric('evaluate', 'eval_accuracy'),
-    realizer=build_wrapper_(_realize, ModelBuild)))
+    config=mkconfig(_config()),
+    matcher=protocol_match('evaluate', 'eval_accuracy'),
+    realizer=build_wrapper_(bert_finetune_realize, ModelBuild)))
+
+
 

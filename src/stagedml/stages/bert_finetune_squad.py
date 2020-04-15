@@ -10,19 +10,20 @@ from official.nlp.bert.configs import BertConfig
 from official.nlp.optimization import create_optimizer
 from official.modeling.model_training_utils import run_customized_training_loop
 
-from pylightnix import ( Path, Manager, Config, DRef, RRef, Context, match_only,
-    store_cattrs, build_cattrs, build_outpath, json_load, mkbuild,
-    mkdrv, match_latest, mklens, build_wrapper_ )
+from pylightnix import ( Build, Path, Manager, Config, DRef, RRef, Context,
+    match_only, store_cattrs, build_cattrs, build_outpath, json_load, mkbuild,
+    mkdrv, match_latest, mklens, build_wrapper_, promise, mkconfig )
 
 from stagedml.datasets.squad.tfrecord import tf_record_dataset
 from stagedml.models.bert import ( BertLayer, BertInput, BertOutput, BertModel )
 from stagedml.models.bert_squad import BertSquadLogitsLayer
 from stagedml.types import ( Squad11TFR, BertSquad, Optional, Any, List, Tuple, Union )
-from stagedml.utils import ( dpurge )
-from stagedml.core import ( KerasBuild, protocol_add, keras_save, match_metric )
+from stagedml.utils import ( dpurge, modelhash )
+from stagedml.core import ( protocol_add, protocol_match )
 
 
-class Model(KerasBuild):
+class Model(Build):
+  model:tf.keras.Model
   model_core:tf.keras.Model
   strategy:Any
   optimizer:Any
@@ -76,7 +77,7 @@ def cpload(m:Model)->None:
   c = build_cattrs(m)
   checkpoint = tf.train.Checkpoint(model=m.model_core)
   checkpoint.restore(mklens(m).bert_ckpt.syspath).assert_consumed()
-  protocol_add(m, 'cpload')
+  protocol_add(mklens(m).protocol.syspath, 'cpload', whash=modelhash(m.model))
 
 
 # def ctrained(s:State)->State:
@@ -127,7 +128,7 @@ def ctrain(m:Model)->None:
                                      write_graph=False, update_freq='batch')
   m.model.optimizer = m.optimizer
   logging.set_verbosity(logging.INFO)
-  run_customized_training_loop(
+  tm=run_customized_training_loop(
       strategy=m.strategy,
       model_fn=_get_model,
       loss_fn=_loss_fn,
@@ -146,8 +147,9 @@ def ctrain(m:Model)->None:
   dpurge(o,'ctl_step.*ckpt', debug=True)
   with open(join(o,'summaries/training_summary.txt'), 'r') as f:
     s=json_load(f)
-  protocol_add(m, 'ctrain', result=s)
-  return
+
+  protocol_add(mklens(m).protocol.syspath, 'ctrain', whash=modelhash(m.model), result=s)
+  # FIXME: save checkpoint?
 
 
 
@@ -163,7 +165,7 @@ def _realize(b:Model)->None:
 
 def bert_finetune_squad11(m:Manager, tfrecs:Squad11TFR)->BertSquad:
 
-  def _config()->Config:
+  def _config()->dict:
     name = 'bert-finetune-squad'
 
     train_tfrecord = mklens(tfrecs).output_train.refpath
@@ -178,11 +180,14 @@ def bert_finetune_squad11(m:Manager, tfrecs:Squad11TFR)->BertSquad:
     train_batch_size = 8
     eval_batch_size = store_cattrs(tfrecs).eval_batch_size
     max_seq_length = store_cattrs(tfrecs).max_seq_length
+
+    protocol = [promise, 'protocol.json']
+    broken = True
     version=4
-    return Config(locals())
+    return locals()
 
   return BertSquad(mkdrv(m,
-    config=_config(),
+    config=mkconfig(_config()),
     matcher=match_latest(), #match_metric('evaluate', 'eval_accuracy'),
     realizer=build_wrapper_(_realize, Model)))
 

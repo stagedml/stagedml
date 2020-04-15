@@ -3,13 +3,13 @@ from os.path import join
 from typing import Optional,Any,List,Tuple,Union
 
 from pylightnix import ( Manager, Build, Config, Hash, DRef, build_cattrs,
-    build_outpath, build_path, mkdrv, match_only, mklens, promise, mkconfig )
+    build_outpath, build_path, mkdrv, match_only, mklens, promise, mkconfig,
+    build_wrapper )
 
 from stagedml.utils import ( json_read, memlimit )
 from stagedml.types import Glue,GlueTFR,BertCP
 from stagedml.datasets.glue.create_tfrecord import create_tfrecord_data
 from stagedml.datasets.glue.download_glue_data import TASKS as GLUE_TASKS
-from stagedml.core import ( ProtocolBuild, protocol_add, protocolled )
 
 def glue_tasks()->List[str]:
   tasks=[]
@@ -42,7 +42,7 @@ def config(task_name:str, refbert:BertCP, refdataset:Glue)->Config:
   return mkconfig(locals())
 
 
-def process(b:ProtocolBuild)->None:
+def process(b:Build)->None:
   c=build_cattrs(b)
   o=build_outpath(b)
   print(f"Processing {c.task_name}..")
@@ -53,7 +53,6 @@ def process(b:ProtocolBuild)->None:
                        vocab_path=mklens(b).bert_vocab.syspath,
                        output_dir=task_out_dir,
                        max_seq_length=c.max_seq_length)
-  protocol_add(b, 'process')
 
 
 def glue_tfrecords(m:Manager, task_name:str, refbert:BertCP, refdataset:Glue)->GlueTFR:
@@ -61,6 +60,6 @@ def glue_tfrecords(m:Manager, task_name:str, refbert:BertCP, refdataset:Glue)->G
     mkdrv(m,
       config=config(task_name, refbert, refdataset),
       matcher=match_only(),
-      realizer=protocolled(process)))
+      realizer=build_wrapper(process)))
 
 

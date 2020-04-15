@@ -1,7 +1,7 @@
 import tensorflow as tf
 assert tf.version.VERSION.startswith('2.1')
 
-from pylightnix import ( Path, Config, Manager, RRef, DRef, Context,
+from pylightnix import ( Build, Path, Config, Manager, RRef, DRef, Context,
     store_cattrs, build_path, build_outpaths, build_cattrs, mkdrv, rref2path,
     json_load, build_config, mkconfig, mkbuild, match_only, build_wrapper_,
     tryread, store_config, mklens, repl_realize, instantiate, shell, promise,
@@ -13,9 +13,6 @@ from stagedml.imports import ( join, clear_session, set_session_config,
     deepcopy, copyfile, SummaryWriter, create_file_writer )
 
 from stagedml.utils import ( runtb, thash, dpurge, tryindex )
-
-from stagedml.core import ( KerasBuild, protocol_add, protocol_add_hist,
-    protocol_add_eval, match_metric, keras_save, keras_wrapper )
 
 from stagedml.models.transformer import ( create_train_model, create_eval_model,
     create_optimizer, train_ds, eval_ds, LearningRateScheduler, LearningRateFn,
@@ -29,8 +26,9 @@ from stagedml.stages.fetchwmt import create_subtokenizer
 
 from official.utils.flags._performance import DTYPE_MAP
 
-class TransformerBuild(KerasBuild):
+class TransformerBuild(Build):
   params:dict
+  model:Model
   eval_model:Model
   train_model:Model
   epoch:Optional[int]

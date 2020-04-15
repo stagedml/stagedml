@@ -2,22 +2,31 @@
 import tensorflow as tf
 assert tf.version.VERSION.startswith('2.1')
 
-from pylightnix import ( Matcher, Build, Path, RefPath, Config, Manager, RRef,
-    DRef, Context, store_cattrs, build_path, build_outpath, build_cattrs, mkdrv,
-    rref2path, json_load, build_config, mkconfig, mkbuild, match_only,
-    match_best, build_wrapper_, tryread, fetchurl, mklens )
+from pylightnix import ( Stage, Matcher, Build, Path, RefPath, Config, Manager,
+    RRef, DRef, Context, store_cattrs, build_path, build_outpath, build_cattrs,
+    mkdrv, rref2path, json_load, build_config, mkconfig, mkbuild, match_only,
+    match_best, build_wrapper_, tryread, fetchurl, mklens, promise,
+    instantiate, realize, redefine )
 
 from stagedml.imports import ( join, clear_session, set_session_config,
     TensorBoard, ModelCheckpoint, to_categorical, np_load, Conv2D, MaxPool2D,
-    Dropout, Sequential, Flatten, Dense )
+    Dropout, Sequential, Flatten, Dense, partial )
 
-from stagedml.utils.tf import ( runtb, runtensorboard, thash, dpurge )
+from stagedml.utils.tf import ( runtb, runtensorboard, thash, dpurge, modelhash )
 
-from stagedml.core import ( KerasBuild, protocol_add, protocol_add_hist,
-    protocol_add_eval, match_metric, keras_save, keras_wrapper )
+from stagedml.core import ( protocol_add, protocol_add_hist,
+    protocol_add_eval, protocol_match )
 
 from stagedml.types import ( ConvnnMnist, Mnist, Optional, Any, List, Tuple,
     Union )
+
+
+class Model(Build):
+  model:Sequential
+  x_train:Any
+  y_train:Any
+  x_test:Any
+  y_test:Any
 
 
 def fetchmnist(m:Manager)->Mnist:
@@ -28,25 +37,6 @@ def fetchmnist(m:Manager)->Mnist:
                 sha256='731c5ac602752760c8e48fbffcf8c3b850d9dc2a2aedcf2cc48468fc17b673d1'))
 
 
-
-def mnist_config(mnist:Mnist)->Config:
-  name = 'convnn-'+mklens(mnist).name.val
-  dataset:RefPath = [mnist, 'mnist.npz']
-  learning_rate = 1e-3
-  num_epoches = 6
-  version = 6
-  return mkconfig(locals())
-
-def mnist_match()->Matcher:
-  return match_best('accuracy.txt')
-
-
-class Model(Build):
-  model:Sequential
-  x_train:Any
-  y_train:Any
-  x_test:Any
-  y_test:Any
 
 def mnist_train(b:Model)->None:
   o = build_outpath(b)
@@ -88,27 +78,39 @@ def mnist_train(b:Model)->None:
       save_weights_only=True,
       save_best_only=True,
       verbose=True)]
-  model.fit(b.x_train, b.y_train,
+  h=model.fit(b.x_train, b.y_train,
       batch_size=32,
       epochs=c.num_epoches,
       verbose=0,
       callbacks=callbacks,
       validation_split=0.2)
+  protocol_add_hist(mklens(b).protocol.syspath, 'train', modelhash(model), h)
 
 def mnist_eval(b:Model):
   o = build_outpath(b)
   b.model.load_weights(join(o, "checkpoint.ckpt"))
-  accuracy = b.model.evaluate(b.x_test, b.y_test, verbose = 0)[-1]
-  print(accuracy)
-  # model.save_weights(join(o, 'weights.h5'), save_format='h5')
-  with open(join(o,'accuracy.txt'),'w') as f:
-    f.write(str(accuracy))
+  metrics = b.model.evaluate(b.x_test, b.y_test, verbose = 0)
+  protocol_add_eval(mklens(b).protocol.syspath, 'eval', modelhash(b.model),
+                    metric_names=b.model.metrics_names, result=metrics)
 
 def mnist_realize(b:Model):
   mnist_train(b)
   mnist_eval(b)
 
 def convnn_mnist(m:Manager, mnist:Mnist)->ConvnnMnist:
-  return ConvnnMnist(mkdrv(m, mnist_config(mnist), mnist_match(),
+
+  def _config()->dict:
+    nonlocal mnist
+    name = 'convnn-'+mklens(mnist).name.val
+    dataset:RefPath = [mnist, 'mnist.npz']
+    learning_rate = 1e-3
+    num_epoches = 6
+    version = 6
+    protocol = [promise, 'protocol.json']
+    return locals()
+
+  return ConvnnMnist(mkdrv(m, mkconfig(_config()), protocol_match('eval','accuracy'),
     build_wrapper_(mnist_realize,Model)))
+
+
 

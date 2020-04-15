@@ -14,7 +14,7 @@ from pylightnix import ( Path, RRef, Manager, mknode, fetchurl, instantiate,
     realize, rref2path, store_initialize, shell, lsref, catref, repl_realize,
     repl_continueBuild, repl_build, repl_rref, repl_cancelBuild, store_gc,
     rmref, mklens, promise, claim, path2rref, rref2path, store_dref2path,
-    dirsize, store_config, config_name )
+    dirsize, store_config, config_name, redefine, mkconfig )
 
 from stagedml.stages.fetchglue import fetchglue
 from stagedml.stages.glue_tfrecords import glue_tfrecords
@@ -37,7 +37,7 @@ from stagedml.types import ( Set, Tuple, List, DRef, Glue, Squad11, GlueTFR,
     ConvnnMnist, Wikidump, Wikitext, WikiTFR, BertPretrain )
 from stagedml.core import ( lrealize, tryrealize, STAGEDML_EXPERIMENTS,
     diskspace_h, linkrref )
-from stagedml.imports import ( walk, join, abspath, islink )
+from stagedml.imports import ( walk, join, abspath, islink, partial )
 
 from beautifultable import BeautifulTable
 
@@ -71,6 +71,15 @@ def all_bert_finetune_glue(m:Manager, task_name:str)->BertGlue:
   """ Finetune BERT on GLUE dataset """
   glueref=all_glue_tfrecords(m,task_name)
   return bert_finetune_glue(m,glueref)
+
+def dryrun_bert_finetune_glue(m:Manager, task_name:str='MRPC')->BertGlue:
+  """ Train a simple convolutional model on MNIST """
+  def _new_config(d):
+    d['name']+='-dryrun'
+    d['train_epoches']=1
+    d['dataset_size']=100
+    return mkconfig(d)
+  return redefine(partial(all_bert_finetune_glue, task_name=task_name), new_config=_new_config)(m)
 
 def all_bert_finetune_squad11(m:Manager)->BertSquad:
   """ Finetune BERT on Squad-1.1 dataset """
@@ -116,6 +125,14 @@ all_fetchmnist = fetchmnist
 def all_convnn_mnist(m:Manager)->ConvnnMnist:
   """ Train a simple convolutional model on MNIST """
   return convnn_mnist(m, fetchmnist(m))
+
+def dryrun_convnn_mnist(m:Manager)->ConvnnMnist:
+  """ Dry-run a simple convolutional model on MNIST """
+  def _new_config(d):
+    d['name']+='-dryrun'
+    d['num_epoches']=1
+    return mkconfig(d)
+  return redefine(all_convnn_mnist, new_config=_new_config)(m)
 
 def all_fetchenwiki(m:Manager)->Wikitext:
   """ Fetch and extract english wikipedia dump """

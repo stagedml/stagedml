@@ -1,14 +1,15 @@
-from pylightnix import ( Manager, Lens, DRef, RRef, Build, RefPath, mklens,
+from pylightnix import ( Build, Manager, Lens, DRef, RRef, Build, RefPath, mklens,
     mkdrv, build_wrapper, build_path, mkconfig, match_only, promise,
     build_outpath, realize, instantiate, repl_realize, build_wrapper_,
     repl_buildargs, build_cattrs )
+
 from stagedml.imports import ( walk, abspath, join, Random, partial, cpu_count,
     getpid, makedirs, Pool, bz2_open, json_loads, json_load )
 from stagedml.imports.tf import ( Dataset, FixedLenFeature,
     parse_single_example, Input, TruncatedNormal, TensorBoard )
-from stagedml.utils import ( concat, batch, flines, dpurge )
-from stagedml.core import ( KerasBuild, protocol_add, protocol_add_hist,
-    protocol_add_eval, match_metric, keras_save )
+from stagedml.utils import ( concat, batch, flines, dpurge, modelhash )
+from stagedml.core import ( protocol_add, protocol_add_hist,
+    protocol_add_eval, protocol_match )
 from stagedml.types import ( List, Optional, Wikitext, WikiTFR, Any, BertPretrain )
 
 from official.nlp.bert.tokenization import FullTokenizer, convert_to_unicode
@@ -232,7 +233,7 @@ def bert_pretraining_dataset(
   return dataset
 
 
-class Model(KerasBuild):
+class Model(Build):
   model:tf.keras.Model
   submodel:tf.keras.Model
   strategy:Any
@@ -316,7 +317,7 @@ def build(m:Model)->None:
         num_warmup_steps=c.train_warmup_steps)
 
 
-def train(m:Model)->None:
+def train(m:Model, init_checkpoint:Optional[str]=None)->None:
   c = build_cattrs(m)
   o = build_outpath(m)
 
@@ -348,17 +349,19 @@ def train(m:Model)->None:
       steps_per_loop=c.train_steps_per_loop,
       epochs=c.train_epoches,
       init_checkpoint=None,
-      sub_model_export_name='pretrained/bert_model')
+      checkpoint_name_template=None)
 
   dpurge(o,'ctl_step.*ckpt', debug=True)
   with open(join(o,'summaries/training_summary.txt'), 'r') as f:
     s=json_load(f)
-  protocol_add(m, 'train', result=s)
+  protocol_add(mklen(m).protocol.syspath, 'train', modelhash(m.model), result=s)
 
-def _realize(m:Model)->None:
-  build(m); train(m); # evaluate(b); keras_save(b)
 
-def bert_pretrain_wiki(m:Manager, tfrecs:WikiTFR)->BertPretrain:
+def realize_(m:Model, init_checkpoint:Optional[str]=None)->None:
+  build(m); train(m, init_checkpoint); # evaluate(b); keras_save(b)
+
+def bert_pretrain_wiki(m:Manager, tfrecs:WikiTFR,
+                       init_checkpoint:Optional[str]=None)->BertPretrain:
   def _config()->dict:
     name = 'bert-pretrain-wiki'
     max_seq_length=mklens(tfrecs).max_seq_length.val
@@ -370,6 +373,7 @@ def bert_pretrain_wiki(m:Manager, tfrecs:WikiTFR)->BertPretrain:
     train_epoches = 10
     train_steps_per_loop = 200
     train_warmup_steps = 10000 # FIXME: Sic! why so much?
+    protocol = [promise, 'protocol.json']
     version = 3
     return locals()
 
@@ -377,6 +381,6 @@ def bert_pretrain_wiki(m:Manager, tfrecs:WikiTFR)->BertPretrain:
 
   return BertPretrain(mkdrv(m,
     config=mkconfig(_config()),
-    matcher=match_metric('evaluate', 'eval_accuracy'),
-    realizer=build_wrapper_(_realize, Model)))
+    matcher=match_latest(), # FIXME! protocol_match('evaluate', 'eval_accuracy'),
+    realizer=build_wrapper_(partial(realize_, init_checkpoint=init_checkpoint), Model)))
 

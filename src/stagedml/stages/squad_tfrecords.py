@@ -3,11 +3,10 @@ from os.path import join, isdir
 from json import dump as json_dump
 from typing import Optional,Any,List,Tuple,Union
 
-from pylightnix import ( Manager, Config, build_cattrs, build_outpath,
-    mkdrv, match_only, store_cattrs, mklens, promise, mkconfig )
+from pylightnix import ( Build, Manager, Config, build_cattrs, build_outpath,
+    mkdrv, match_only, store_cattrs, mklens, promise, mkconfig, build_wrapper )
 
 from stagedml.utils.files import json_read
-from stagedml.core import ( ProtocolBuild, protocol_add, protocolled )
 from stagedml.types import BertCP, Squad11, Squad11TFR
 
 from stagedml.datasets.squad.tfrecord import ( predict_squad,
@@ -34,7 +33,7 @@ def config(bertref:BertCP, squadref:Squad11)->Config:
   config_version = 3
   return mkconfig(locals())
 
-def process(b:ProtocolBuild)->None:
+def process(b:Build)->None:
   c=build_cattrs(b)
   o=build_outpath(b)
 
@@ -75,15 +74,12 @@ def process(b:ProtocolBuild)->None:
         "version_2_with_negative": c.version_2_with_negative,
     },f)
 
-  protocol_add(b, 'process')
-  return
-
 
 def squad11_tfrecords(m:Manager, bertref:BertCP, squadref:Squad11)->Squad11TFR:
   return Squad11TFR(
     mkdrv(m,
       config=config(bertref, squadref),
       matcher=match_only(),
-      realizer=protocolled(process)))
+      realizer=build_wrapper(process)))
 
 
