@@ -1,6 +1,7 @@
 
 import tensorflow as tf
-assert tf.version.VERSION.startswith('2.1')
+assert tf.version.VERSION.startswith('2.1') or \
+       tf.version.VERSION.startswith('2.2')
 
 from pylightnix import ( Stage, Matcher, Build, Path, RefPath, Config, Manager,
     RRef, DRef, Context, store_cattrs, build_path, build_outpath, build_cattrs,

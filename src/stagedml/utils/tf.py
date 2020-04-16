@@ -2,8 +2,10 @@
 import json
 import numpy
 import tensorflow as tf
-assert tf.version.VERSION.startswith('2.1'), \
-       f"sbtagedml requires TensorFlow version '2.1.*', not '{tf.version.VERSION}'"
+assert tf.version.VERSION.startswith('2.1') or \
+       tf.version.VERSION.startswith('2.2'), \
+       (f"sbtagedml requires TensorFlow version '2.1.*' or '2.2.*', "
+        f"not '{tf.version.VERSION}'")
 
 from re import search as re_search
 from os import remove, listdir

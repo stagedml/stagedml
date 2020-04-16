@@ -1,6 +1,4 @@
 import tensorflow as tf
-assert tf.version.VERSION.startswith('2.1')
-
 from stagedml.imports import ( Model, Layer, Tensor, Adam, LayerNormalization )
 
 from stagedml.models.transformer.imports import (

@@ -1,6 +1,7 @@
 import os
 import tensorflow as tf
-assert tf.version.VERSION.startswith('2.1')
+assert tf.version.VERSION.startswith('2.1') or \
+       tf.version.VERSION.startswith('2.2')
 
 import json
 from official.nlp.bert.run_classifier import get_loss_fn

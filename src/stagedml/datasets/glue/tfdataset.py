@@ -1,6 +1,4 @@
 import tensorflow as tf
-assert tf.version.VERSION.startswith('2.1')
-
 from os import environ
 from official.nlp.bert.input_pipeline import decode_record
 
