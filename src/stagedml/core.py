@@ -1,14 +1,15 @@
-from pylightnix import ( Context, Hash, Path, DRef, RRef, Closure, Build,
-    BuildArgs, repl_realize, repl_continue, repl_build, build_outpath, realize,
-    rref2path, store_config, config_name, mksymlink, isdir, dirhash, json_dump,
-    json_load, assert_serializable, assert_valid_rref, build_wrapper_,
-    readjson, store_rrefs, repl_rref, repl_cancel, rmref, store_gc, instantiate,
-    tryreadjson, tryreadjson_def, mklens
-    )
+from pylightnix import ( Manager, Context, Hash, Path, DRef, RRef, Closure,
+    Build, BuildArgs, repl_realize, repl_continue, repl_build, build_outpath,
+    realize, rref2path, store_config, config_name, mksymlink, isdir, dirhash,
+    json_dump, json_load, assert_serializable, assert_valid_rref,
+    build_wrapper_, readjson, store_rrefs, repl_rref, repl_cancel, rmref,
+    store_gc, instantiate, tryreadjson, tryreadjson_def, mklens)
 
-from stagedml.imports import ( join, environ, remove, copytree, copy_tree )
+from stagedml.imports import ( join, environ, remove, copytree, copy_tree,
+    partial )
 from stagedml.utils import ( runtensorboard, ndhashl )
-from stagedml.types import ( Callable, List, Optional, Any, Tuple, Set, NamedTuple )
+from stagedml.types import ( Callable, List, Optional, Any, Tuple, Set,
+    NamedTuple )
 
 from stagedml.imports.tf import ( History )
 
@@ -94,6 +95,14 @@ def tryrealize(clo:Closure, verbose:bool=False)->Optional[RRef]:
       print(e)
     return None
 
+def realize_epoches(s:Callable[[Manager,Optional[int],Optional[RRef]],DRef],
+                    epoches:int, step:int=1)->List[RRef]:
+  rrefs:List[RRef]=[]
+  for e in range(0,epoches,step):
+    rrefs.append(
+        realize(instantiate(partial(s, train_epoches=e+step,
+            resume_rref=rrefs[-1] if len(rrefs)>0 else None))))
+  return rrefs
 
 
 #  ____            _                  _

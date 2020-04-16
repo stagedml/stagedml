@@ -1,16 +1,17 @@
 from pylightnix import ( Build, Manager, Lens, DRef, RRef, Build, RefPath, mklens,
     mkdrv, build_wrapper, build_path, mkconfig, match_only, promise,
     build_outpath, realize, instantiate, repl_realize, build_wrapper_,
-    repl_buildargs, build_cattrs )
+    repl_buildargs, build_cattrs, match_latest, claim, dircp, build_setoutpaths )
 
 from stagedml.imports import ( walk, abspath, join, Random, partial, cpu_count,
     getpid, makedirs, Pool, bz2_open, json_loads, json_load )
 from stagedml.imports.tf import ( Dataset, FixedLenFeature,
     parse_single_example, Input, TruncatedNormal, TensorBoard )
-from stagedml.utils import ( concat, batch, flines, dpurge, modelhash )
+from stagedml.utils import ( concat, batch, flines, dpurge, modelhash, runtb )
 from stagedml.core import ( protocol_add, protocol_add_hist,
     protocol_add_eval, protocol_match )
-from stagedml.types import ( List, Optional, Wikitext, WikiTFR, Any, BertPretrain )
+from stagedml.types import ( List, Optional, Wikitext, WikiTFR, Any,
+    BertPretrain, Tuple )
 
 from official.nlp.bert.tokenization import FullTokenizer, convert_to_unicode
 from official.nlp.optimization import create_optimizer
@@ -21,7 +22,7 @@ from official.nlp.bert.bert_models import ( BertPretrainLossAndMetricLayer )
 from official.modeling.model_training_utils import ( run_customized_training_loop )
 from absl import logging
 
-from stagedml.models.bert import ( BertLayer, BertInput, BertOutput, BertModelPretrain )
+from stagedml.models.bert import ( BertLayer, BertInput, BertOutput )
 
 import tensorflow as tf
 
@@ -233,14 +234,29 @@ def bert_pretraining_dataset(
   return dataset
 
 
+# __  __           _      _
+# |  \/  | ___   __| | ___| |
+# | |\/| |/ _ \ / _` |/ _ \ |
+# | |  | | (_) | (_| |  __/ |
+# |_|  |_|\___/ \__,_|\___|_|
+
+
+
+
 class Model(Build):
   model:tf.keras.Model
   submodel:tf.keras.Model
   strategy:Any
   optimizer:Any
+  epoch:int
+
+  def __init__(self, ba):
+    super().__init__(ba)
+    self.epoch=0
 
 
 def build(m:Model)->None:
+  tf.keras.backend.clear_session()
   c=build_cattrs(m)
   m.strategy=tf.distribute.MirroredStrategy()
   with m.strategy.scope():
@@ -268,9 +284,12 @@ def build(m:Model)->None:
 
     bert_outputs = bert_layer(bert_inputs)
 
-    bert_model=BertModelPretrain(ins=bert_inputs,
-                                 outs=bert_outputs,
-                                 embedding_weights=bert_layer.embedding_lookup.embeddings)
+    # bert_model=BertModelPretrain(ins=bert_inputs,
+    #                              outs=bert_outputs,
+    #                              embedding_weights=bert_layer.embedding_lookup.embeddings)
+
+    bert_model=tf.keras.Model(inputs=bert_inputs,
+                              outputs=[bert_outputs.hidden_output[-1], bert_outputs.cls_output])
 
     # input_word_ids = Input(shape=(c.max_seq_length,), name='input_word_ids', dtype=tf.int32)
     # input_mask     = Input(shape=(c.max_seq_length,), name='input_mask', dtype=tf.int32)
@@ -287,6 +306,7 @@ def build(m:Model)->None:
 
     bert_pretrain = BertPretrainer(
         network=bert_model,
+        embedding_table=bert_layer.embedding_lookup.embeddings,
         num_classes=2,
         num_token_predictions=c.max_predictions_per_seq,
         initializer=TruncatedNormal(stddev=bert_config['initializer_range']),
@@ -310,58 +330,62 @@ def build(m:Model)->None:
         },
         outputs=output_loss)
 
-    m.model=model
-    m.submodel=bert_model.model
-    m.optimizer = create_optimizer(
-        init_lr=c.lr, num_train_steps=c.train_steps,
+    optimizer = create_optimizer(
+        init_lr=c.lr, num_train_steps=c.train_steps_per_epoch*c.train_epoches,
         num_warmup_steps=c.train_warmup_steps)
 
+    model.add_loss(tf.reduce_mean(output_loss))
+    model.compile(optimizer)
 
-def train(m:Model, init_checkpoint:Optional[str]=None)->None:
+    m.model=model
+    m.submodel=bert_model
+    m.optimizer = optimizer
+
+def ftrain(m:Model, init:Optional[RRef]=None)->None:
   c = build_cattrs(m)
   o = build_outpath(m)
 
-  def _model():
-    return m.model, m.submodel
+  ds = bert_pretraining_dataset(
+          mklens(m).tfrecs.rref, c.train_batch_size, is_training=True)
 
-  def _loss(unused_labels, losses, **unused_args):
-    loss_factor=1.0
-    return tf.reduce_mean(losses) * loss_factor
+  with m.strategy.scope():
+    if init is not None:
+      m.epoch = mklens(init).train_epoches.val
+      m.model.load_weights(mklens(init).checkpoint_full.syspath)
+      dircp(mklens(init).logs.syspath, mklens(m).logs.syspath, make_rw=True)
 
-  def _input(ctx:Any)->Dataset:
-    global_batch_size=c.train_batch_size
-    batch_size = ctx.get_per_replica_batch_size(global_batch_size) if ctx else global_batch_size
-    return bert_pretraining_dataset(
-        mklens(m).tfrecs.rref, batch_size, is_training=True)
+    tensorboard_callback = TensorBoard(log_dir=mklens(m).logs.syspath,
+                                       profile_batch=0,
+                                       write_graph=False, update_freq='batch')
+    while m.epoch < c.train_epoches:
+      print(f"Training {m.epoch+1}/{c.train_epoches}")
+      h = m.model.fit(ds,
+        initial_epoch=m.epoch,
+        epochs=m.epoch+1,
+        steps_per_epoch=c.train_steps_per_epoch,
+        callbacks=[tensorboard_callback],
+        verbose=True)
 
-  tensorboard_callback = TensorBoard(log_dir=o, profile_batch=0,
-                                     write_graph=False, update_freq='batch')
+      m.epoch += 1
+      print(f"Saving '{mklens(m).checkpoint_bert.syspath}' after {m.epoch} epoch")
+      m.submodel.save_weights(mklens(m).checkpoint_bert.syspath)
+      print(f"Saving '{mklens(m).checkpoint_full.syspath}' after {m.epoch} epoch")
+      m.model.save_weights(mklens(m).checkpoint_full.syspath)
 
-  m.model.optimizer = m.optimizer
-  logging.set_verbosity(logging.INFO)
-  run_customized_training_loop(
-      strategy=m.strategy,
-      model_fn=_model,
-      loss_fn=_loss,
-      model_dir=o,
-      train_input_fn=_input,
-      steps_per_epoch=c.train_steps/c.train_epoches,
-      steps_per_loop=c.train_steps_per_loop,
-      epochs=c.train_epoches,
-      init_checkpoint=None,
-      checkpoint_name_template=None)
-
-  dpurge(o,'ctl_step.*ckpt', debug=True)
-  with open(join(o,'summaries/training_summary.txt'), 'r') as f:
-    s=json_load(f)
-  protocol_add(mklen(m).protocol.syspath, 'train', modelhash(m.model), result=s)
+  protocol_add_hist(mklens(m).protocol.syspath, 'train', modelhash(m.model), h)
 
 
-def realize_(m:Model, init_checkpoint:Optional[str]=None)->None:
-  build(m); train(m, init_checkpoint); # evaluate(b); keras_save(b)
+
+def bert_pretrain_wiki_realize(m:Model, init:Optional[RRef]=None)->None:
+  build_setoutpaths(m,1); runtb(m)
+  build(m); ftrain(m,init) # train(m,init); # evaluate(b); keras_save(b)
 
 def bert_pretrain_wiki(m:Manager, tfrecs:WikiTFR,
-                       init_checkpoint:Optional[str]=None)->BertPretrain:
+    train_epoches:Optional[int]=None,
+    resume_rref:Optional[RRef]=None)->BertPretrain:
+
+  train_epoches = 10 if train_epoches is None else train_epoches
+
   def _config()->dict:
     name = 'bert-pretrain-wiki'
     max_seq_length=mklens(tfrecs).max_seq_length.val
@@ -369,18 +393,57 @@ def bert_pretrain_wiki(m:Manager, tfrecs:WikiTFR,
     vocab_file = mklens(tfrecs).vocab_file.refpath
     lr = 2e-5
     train_batch_size = 16
-    train_steps = 10000
-    train_epoches = 10
+    nonlocal train_epoches
     train_steps_per_loop = 200
+    train_steps_per_epoch = 1000
     train_warmup_steps = 10000 # FIXME: Sic! why so much?
     protocol = [promise, 'protocol.json']
-    version = 3
+    checkpoint_full = [claim, 'checkpoint_full.ckpt']
+    # checkpoint_opt = [promise, 'checkpoint_opt.pkl']
+    checkpoint_bert = [claim, 'checkpoint_bert.ckpt']
+    logs = [promise, 'logs']
+    version = 6
     return locals()
-
-  # print(_config())
 
   return BertPretrain(mkdrv(m,
     config=mkconfig(_config()),
     matcher=match_latest(), # FIXME! protocol_match('evaluate', 'eval_accuracy'),
-    realizer=build_wrapper_(partial(realize_, init_checkpoint=init_checkpoint), Model)))
+    realizer=build_wrapper_(partial(bert_pretrain_wiki_realize, init=resume_rref), Model)))
+
+
+
+
+
+# def train(m:Model)->None:
+#   c = build_cattrs(m)
+#   o = build_outpath(m)
+#   def _model():
+#     return m.model, m.submodel
+#   def _loss(unused_labels, model_outs, **unused_args):
+#     loss_factor=1.0
+#     return tf.reduce_mean(model_outs) * loss_factor
+#   def _input(ctx:Any)->Dataset:
+#     global_batch_size=c.train_batch_size
+#     batch_size = ctx.get_per_replica_batch_size(global_batch_size) if ctx else global_batch_size
+#     return bert_pretraining_dataset(
+#         mklens(m).tfrecs.rref, batch_size, is_training=True)
+#   tensorboard_callback = TensorBoard(log_dir=o, profile_batch=0,
+#                                      write_graph=False, update_freq='epoch')
+#   m.model.optimizer = m.optimizer
+#   logging.set_verbosity(logging.INFO)
+#   run_customized_training_loop(
+#       strategy=m.strategy,
+#       model_fn=_model,
+#       loss_fn=_loss,
+#       model_dir=o,
+#       train_input_fn=_input,
+#       steps_per_epoch=c.train_steps/c.train_epoches,
+#       steps_per_loop=c.train_steps_per_loop,
+#       epochs=c.train_epoches,
+#       init_checkpoint=None,
+#       checkpoint_name_template=None)
+#   dpurge(o,'ctl_step.*ckpt', debug=True)
+#   with open(join(o,'summaries/training_summary.txt'), 'r') as f:
+#     s=json_load(f)
+#   protocol_add(mklens(m).protocol.syspath, 'train', modelhash(m.model), result=s)
 

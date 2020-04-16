@@ -36,7 +36,7 @@ from stagedml.types import ( Set, Tuple, List, DRef, Glue, Squad11, GlueTFR,
     Squad11TFR, BertCP, BertGlue, BertSquad, NL2Bash, TransWmt, WmtSubtok,
     ConvnnMnist, Wikidump, Wikitext, WikiTFR, BertPretrain )
 from stagedml.core import ( lrealize, tryrealize, STAGEDML_EXPERIMENTS,
-    diskspace_h, linkrref )
+    diskspace_h, linkrref, realize_epoches )
 from stagedml.imports import ( walk, join, abspath, islink, partial )
 
 from beautifultable import BeautifulTable
@@ -157,9 +157,20 @@ def all_bert_pretraining_tfrecords(m:Manager)->WikiTFR:
       vocab_file=mklens(b).bert_vocab.refpath,
       wiki=all_fetchenwiki(m))
 
-def all_bert_pretrain(m:Manager)->BertPretrain:
+def all_bert_pretrain(m:Manager, **kwargs)->BertPretrain:
   tfr=all_bert_pretraining_tfrecords(m)
-  return bert_pretrain_wiki(m,tfr)
+  return bert_pretrain_wiki(m, tfr, **kwargs)
+
+def dryrun_bert_pretrain(m:Manager, train_epoches=1, resume_rref=None)->ConvnnMnist:
+  """ Dry-run a simple convolutional model on MNIST """
+  def _new_config(d):
+    d['name']+='-dryrun'
+    d['train_steps_per_loop']=1
+    d['train_steps_per_epoch']=10
+    return mkconfig(d)
+  return redefine(partial(all_bert_pretrain,
+                          train_epoches=train_epoches,
+                          resume_rref=resume_rref), new_config=_new_config)(m)
 
 
 

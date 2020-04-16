@@ -12,6 +12,8 @@ from tensorflow.keras.callbacks import History
 from hashlib import md5
 from subprocess import run as os_run, Popen
 from typing import ( Union, List, Any, Optional, Tuple, Callable, TypeVar )
+from pickle import ( dump as pickle_dump, load as pickle_load)
+from tensorflow.keras.backend import batch_get_value
 
 from pylightnix import ( Closure, Path, Build, Hash, DRef, assert_valid_rref,
     assert_serializable, PYLIGHTNIX_TMP, Realizer, build_outpath, mkbuild, RRef,
@@ -84,4 +86,3 @@ def runtb(arg:Union[RRef,Build,str])->None:
 
 def modelhash(m:tf.keras.Model)->Hash:
   return Hash(ndhashl(m.get_weights()))
-

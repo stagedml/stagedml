@@ -424,15 +424,17 @@ class BertModel:
     return BertOutput(*self.model(ins))
 
 
-class BertModelPretrain:
-  def __init__(self, ins:BertInput, outs:BertOutput, embedding_weights:Tensor)->None:
-    self.embedding_weights=embedding_weights
-    self.model=tf.keras.Model(inputs=ins, outputs=outs)
-    self.inputs=self.model.inputs
-    self.outputs=self.model.outputs
-  def __call__(self, ins:BertInput)->Tuple[Tensor,Tensor]:
-    bo=BertOutput(*self.model(ins))
-    return (bo.hidden_output[-1], bo.cls_output)
-  def get_embedding_table(self)->Tensor:
-    return self.embedding_weights
+# class BertModelPretrain:
+#   def __init__(self, ins:BertInput, outs:BertOutput, embedding_weights:Tensor)->None:
+#     def _get_embedding_table(self)->Tensor:
+#       return embedding_weights
+#     self.model=tf.keras.Model(inputs=ins, outputs=outs)
+#     self.model.get_embedding_table = _get_embedding_table
+#   def __call__(self, ins:BertInput)->Tuple[Tensor,Tensor]:
+#     print('XXXXXXXXXXXXXXXXXXXX')
+#     bo=BertOutput(*self.model(ins))
+#     return (bo.hidden_output[-1], bo.cls_output)
+#     # self.embedding_weights=embedding_weights
+#     # self.inputs=self.model.inputs
+#     # self.outputs=self.model.outputs
 

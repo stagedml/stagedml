@@ -50,4 +50,3 @@ def flines(p:str, newline:str='\n')->int:
     for i, l in enumerate(f):
       pass
   return i+1
-
