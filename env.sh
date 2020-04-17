@@ -90,20 +90,20 @@ buildtf() {(
   TF_NEED_MPI=n \
   ./configure
   bazel build --config=opt //tensorflow/tools/pip_package:build_pip_package
-  rm -rf $STAGEDML_ROOT/_tf 2>/dev/null || true
   ./bazel-bin/tensorflow/tools/pip_package/build_pip_package $STAGEDML_ROOT/_tf
   echo "Build finished. To install TF, type:"
-  echo "     \`sudo -H pip3 install --force $STAGEDML_ROOT/_tf/*whl\`"
+  echo "     \`sudo -H pip3 install --force $STAGEDML_ROOT/_tf/<latest>.whl\`"
   echo "  or \`installtf\`"
 )}
 
-installtf() {
+installtf() {(
+  cd $STAGEDML_ROOT/_tf
   # Uninstall stock TF which comes from Docker image
   sudo -H pip uninstall -y tb-nightly tensorboard tensorflow \
                            tensorflow-estimator tensorflow-estimator-2.0-preview \
                            tf-nightly-gpu-2.0-preview
-  # Install custom TF2.1. See `buildtf`.
-  sudo -H pip3 install --force $STAGEDML_ROOT/_tf/*whl tensorflow-hub
-}
+  # Install custom TF. See `buildtf`.
+  sudo -H pip3 install --force `ls -t *whl | head -n 1` tensorflow-hub
+)}
 
 
