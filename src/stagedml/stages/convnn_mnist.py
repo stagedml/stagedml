@@ -82,7 +82,7 @@ def mnist_train(b:Model)->None:
   h=model.fit(b.x_train, b.y_train,
       batch_size=32,
       epochs=c.num_epoches,
-      verbose=0,
+      verbose=True,
       callbacks=callbacks,
       validation_split=0.2)
   protocol_add_hist(mklens(b).protocol.syspath, 'train', modelhash(model), h)

@@ -96,12 +96,13 @@ def tryrealize(clo:Closure, verbose:bool=False)->Optional[RRef]:
     return None
 
 def realize_epoches(s:Callable[[Manager,Optional[int],Optional[RRef]],DRef],
-                    epoches:int, step:int=1)->List[RRef]:
+    epoches:int, step:int=1, force_rebuild:bool=False)->List[RRef]:
   rrefs:List[RRef]=[]
   for e in range(0,epoches,step):
     rrefs.append(
         realize(instantiate(partial(s, train_epoches=e+step,
-            resume_rref=rrefs[-1] if len(rrefs)>0 else None))))
+            resume_rref=rrefs[-1] if len(rrefs)>0 else None)),
+            force_rebuild=force_rebuild))
   return rrefs
 
 

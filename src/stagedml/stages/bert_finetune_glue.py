@@ -104,45 +104,47 @@ def train(b:ModelBuild, **kwargs)->None:
   assert b.model is not None
   c = build_cattrs(b)
   o = build_outpath(b)
+  with b.strategy.scope():
 
-  dt, dv = dataset_train(mklens(b).task_train.syspath, c.train_data_size,
-                         c.train_batch_size, c.max_seq_length)
-  tensorboard_callback = TensorBoard(log_dir=o, profile_batch=0,
-                                     write_graph=False, update_freq='batch')
+    dt, dv = dataset_train(mklens(b).task_train.syspath, c.train_data_size,
+                           c.train_batch_size, c.max_seq_length)
+    tensorboard_callback = TensorBoard(log_dir=o, profile_batch=0,
+                                       write_graph=False, update_freq='batch')
 
-  print('Training')
-  loss_fn = get_loss_fn(num_classes=c.num_labels, loss_factor=1.0)
-  metric_fn = tf.keras.metrics.SparseCategoricalAccuracy('accuracy', dtype=tf.float32)
-  b.model.compile(b.optimizer, loss=loss_fn, metrics=[metric_fn])
-  h = b.model.fit(
-    dt,
-    steps_per_epoch=c.train_steps_per_epoch,
-    validation_data=dv,
-    validation_steps=c.valid_steps_per_epoch,
-    epochs=c.train_epoches,
-    callbacks=[tensorboard_callback])
-  b.model.save_weights(mklens(b).weights.syspath, save_format='h5')
-  protocol_add_hist(mklens(b).protocol.syspath, 'train', modelhash(b.model), h)
+    print('Training')
+    loss_fn = get_loss_fn(num_classes=c.num_labels, loss_factor=1.0)
+    metric_fn = tf.keras.metrics.SparseCategoricalAccuracy('accuracy', dtype=tf.float32)
+    b.model.compile(b.optimizer, loss=loss_fn, metrics=[metric_fn])
+    h = b.model.fit(
+      dt,
+      steps_per_epoch=c.train_steps_per_epoch,
+      validation_data=dv,
+      validation_steps=c.valid_steps_per_epoch,
+      epochs=c.train_epoches,
+      callbacks=[tensorboard_callback])
+    b.model.save_weights(mklens(b).weights.syspath, save_format='h5')
+    protocol_add_hist(mklens(b).protocol.syspath, 'train', modelhash(b.model), h)
 
 def evaluate(b:ModelBuild)->None:
   c = build_cattrs(b)
   o = build_outpath(b)
   print('Evaluating')
 
-  metric_fn = tf.keras.metrics.SparseCategoricalAccuracy('eval_accuracy', dtype=tf.float32)
-  loss_fn = get_loss_fn(num_classes=int(c.num_labels), loss_factor=1.0)
-  k = b.model_eval
-  k.compile(b.optimizer, loss=loss_fn, metrics=[metric_fn])
+  with b.strategy.scope():
+    metric_fn = tf.keras.metrics.SparseCategoricalAccuracy('eval_accuracy', dtype=tf.float32)
+    loss_fn = get_loss_fn(num_classes=int(c.num_labels), loss_factor=1.0)
+    k = b.model_eval
+    k.compile(b.optimizer, loss=loss_fn, metrics=[metric_fn])
 
-  de = dataset_eval(mklens(b).task_eval.syspath, c.eval_batch_size, c.max_seq_length)
-  h = k.evaluate(de, steps=c.eval_steps_per_epoch)
+    de = dataset_eval(mklens(b).task_eval.syspath, c.eval_batch_size, c.max_seq_length)
+    h = k.evaluate(de, steps=c.eval_steps_per_epoch)
 
-  filewriter = tf.summary.create_file_writer(o)
-  with filewriter.as_default():
-    for mname,v in zip(k.metrics_names,h):
-      tf.summary.scalar(mname,v,step=0)
+    filewriter = tf.summary.create_file_writer(o)
+    with filewriter.as_default():
+      for mname,v in zip(k.metrics_names,h):
+        tf.summary.scalar(mname,v,step=0)
 
-  protocol_add_eval(mklens(b).protocol.syspath, 'evaluate', modelhash(b.model), k.metrics_names, h)
+    protocol_add_eval(mklens(b).protocol.syspath, 'evaluate', modelhash(b.model), k.metrics_names, h)
 
 def bert_finetune_realize(b:ModelBuild)->None:
   build(b); cpload(b); train(b); evaluate(b)

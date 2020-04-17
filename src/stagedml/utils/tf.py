@@ -17,6 +17,8 @@ from typing import ( Union, List, Any, Optional, Tuple, Callable, TypeVar )
 from pickle import ( dump as pickle_dump, load as pickle_load)
 from tensorflow.keras.backend import batch_get_value
 
+from stagedml.imports.tf import ( TensorBoard )
+
 from pylightnix import ( Closure, Path, Build, Hash, DRef, assert_valid_rref,
     assert_serializable, PYLIGHTNIX_TMP, Realizer, build_outpath, mkbuild, RRef,
     rref2path, readjson, json_dumps, store_rrefs, dirhash, Context,
@@ -88,3 +90,26 @@ def runtb(arg:Union[RRef,Build,str])->None:
 
 def modelhash(m:tf.keras.Model)->Hash:
   return Hash(ndhashl(m.get_weights()))
+
+
+
+class TensorBoardFixed(TensorBoard):
+  """ TensorBoard callback with a patch wich fixes training steps counter """
+  def __init__(self, steps_getter, *args, **kwargs):
+    self.steps_getter=steps_getter
+    super().__init__(*args,**kwargs)
+
+  def _init_batch_steps(self):
+    from tensorflow.python.framework import ops
+    from tensorflow.python.ops import variables
+    init_steps=self.steps_getter()
+    if ops.executing_eagerly_outside_functions():
+      self._total_batches_seen = {
+          self._train_run_name: variables.Variable(init_steps, dtype='int64'),
+          self._validation_run_name: variables.Variable(init_steps, dtype='int64')
+      }
+    else:
+      self._total_batches_seen = {
+          self._train_run_name: init_steps,
+          self._validation_run_name: init_steps
+      }

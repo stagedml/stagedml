@@ -7,7 +7,7 @@ from stagedml.imports import ( walk, abspath, join, Random, partial, cpu_count,
     getpid, makedirs, Pool, bz2_open, json_loads, json_load )
 from stagedml.imports.tf import ( Dataset, FixedLenFeature,
     parse_single_example, Input, TruncatedNormal, TensorBoard )
-from stagedml.utils import ( concat, batch, flines, dpurge, modelhash, runtb )
+from stagedml.utils import ( concat, batch, flines, dpurge, modelhash, runtb, TensorBoardFixed )
 from stagedml.core import ( protocol_add, protocol_add_hist,
     protocol_add_eval, protocol_match )
 from stagedml.types import ( List, Optional, Wikitext, WikiTFR, Any,
@@ -335,7 +335,7 @@ def build(m:Model)->None:
         num_warmup_steps=c.train_warmup_steps)
 
     model.add_loss(tf.reduce_mean(output_loss))
-    model.compile(optimizer)
+    model.compile(optimizer, experimental_run_tf_function=False)
 
     m.model=model
     m.submodel=bert_model
@@ -354,9 +354,13 @@ def ftrain(m:Model, init:Optional[RRef]=None)->None:
       m.model.load_weights(mklens(init).checkpoint_full.syspath)
       dircp(mklens(init).logs.syspath, mklens(m).logs.syspath, make_rw=True)
 
-    tensorboard_callback = TensorBoard(log_dir=mklens(m).logs.syspath,
-                                       profile_batch=0,
-                                       write_graph=False, update_freq='batch')
+    tensorboard_callback = TensorBoardFixed(
+        steps_getter=lambda : m.epoch*c.train_steps_per_epoch,
+        log_dir=mklens(m).logs.syspath,
+        profile_batch=0,
+        write_graph=False,
+        update_freq='batch')
+
     while m.epoch < c.train_epoches:
       print(f"Training {m.epoch+1}/{c.train_epoches}")
       h = m.model.fit(ds,
@@ -402,7 +406,7 @@ def bert_pretrain_wiki(m:Manager, tfrecs:WikiTFR,
     # checkpoint_opt = [promise, 'checkpoint_opt.pkl']
     checkpoint_bert = [claim, 'checkpoint_bert.ckpt']
     logs = [promise, 'logs']
-    version = 6
+    version = 7
     return locals()
 
   return BertPretrain(mkdrv(m,
