@@ -32,11 +32,11 @@ from stagedml.stages.fetchenwiki import fetchwiki, extractwiki
 from stagedml.stages.bert_pretrain_wiki import ( bert_pretraining_tfrecords,
     bert_pretrain_wiki )
 
-from stagedml.types import ( Set, Tuple, List, DRef, Glue, Squad11, GlueTFR,
-    Squad11TFR, BertCP, BertGlue, BertSquad, NL2Bash, TransWmt, WmtSubtok,
-    ConvnnMnist, Wikidump, Wikitext, WikiTFR, BertPretrain )
+from stagedml.types import ( Dict, Set, Tuple, List, DRef, Glue, Squad11,
+    GlueTFR, Squad11TFR, BertCP, BertGlue, BertSquad, NL2Bash, TransWmt,
+    WmtSubtok, ConvnnMnist, Wikidump, Wikitext, WikiTFR, BertPretrain )
 from stagedml.core import ( lrealize, tryrealize, STAGEDML_EXPERIMENTS,
-    diskspace_h, linkrref, realize_epoches )
+    diskspace_h, linkrref, realize_recursive )
 from stagedml.imports import ( walk, join, abspath, islink, partial )
 
 from beautifultable import BeautifulTable
@@ -59,7 +59,7 @@ def all_glue_tfrecords(m:Manager, task_name:str)->GlueTFR:
   """ Fetch and preprocess GLUE dataset """
   refbert=all_fetchbert(m)
   refglue=all_fetchglue(m)
-  return glue_tfrecords(m, task_name, refbert=refbert, refdataset=refglue)
+  return glue_tfrecords(m, task_name, bert_vocab=mklens(refbert).bert_vocab.refpath, refdataset=refglue)
 
 def all_squad11_tfrecords(m:Manager)->Squad11TFR:
   """ Fetch and preprocess Squad-1.1 dataset """
@@ -69,8 +69,9 @@ def all_squad11_tfrecords(m:Manager)->Squad11TFR:
 
 def all_bert_finetune_glue(m:Manager, task_name:str)->BertGlue:
   """ Finetune BERT on GLUE dataset """
+  refbert=all_fetchbert(m)
   glueref=all_glue_tfrecords(m,task_name)
-  return bert_finetune_glue(m,glueref)
+  return bert_finetune_glue(m,refbert,glueref)
 
 def dryrun_bert_finetune_glue(m:Manager, task_name:str='MRPC')->BertGlue:
   """ Train a simple convolutional model on MNIST """
@@ -161,7 +162,7 @@ def all_bert_pretrain(m:Manager, **kwargs)->BertPretrain:
   tfr=all_bert_pretraining_tfrecords(m)
   return bert_pretrain_wiki(m, tfr, **kwargs)
 
-def dryrun_bert_pretrain(m:Manager, train_epoches=1, resume_rref=None)->ConvnnMnist:
+def dryrun_bert_pretrain(m:Manager, train_epoches=1, resume_rref=None)->BertPretrain:
   """ Dry-run a simple convolutional model on MNIST """
   def _new_config(d):
     d['name']+='-dryrun'

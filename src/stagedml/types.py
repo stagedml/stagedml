@@ -46,5 +46,5 @@ Wikitext=NewType('Wikitext',DRef)
 WikiTFR=NewType('WikiTFR',DRef)
 
 #! Reference to the pre-trained BERT model
-BertPretrain=NewType('BertPretrain',DRef)
+BertPretrain=NewType('BertPretrain',BertCP)
 

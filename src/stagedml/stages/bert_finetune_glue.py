@@ -12,8 +12,6 @@ from tensorflow.python.keras.backend import clear_session
 from tensorflow.keras.callbacks import TensorBoard
 from absl import logging
 
-from typing import Optional,Any,List,Tuple,Union
-
 from pylightnix import ( Build, Path, Config, Manager, RRef, DRef, Context,
     store_cattrs, build_outpath, build_cattrs, mkdrv, rref2path, json_load,
     build_config, mklens, build_wrapper_, mkconfig, promise )
@@ -24,7 +22,7 @@ from stagedml.models.bert import ( BertLayer, BertInput, BertOutput,
 from stagedml.utils.tf import ( runtb, runtensorboard, thash, dpurge, modelhash )
 from stagedml.core import ( protocol_add, protocol_add_hist,
     protocol_add_eval, protocol_match )
-from stagedml.types import ( GlueTFR, BertGlue )
+from stagedml.types import ( BertCP, GlueTFR, BertGlue, Optional,Any,List,Tuple,Union )
 
 
 class ModelBuild(Build):
@@ -149,7 +147,7 @@ def evaluate(b:ModelBuild)->None:
 def bert_finetune_realize(b:ModelBuild)->None:
   build(b); cpload(b); train(b); evaluate(b)
 
-def bert_finetune_glue(m:Manager, tfrecs:GlueTFR)->BertGlue:
+def bert_finetune_glue(m:Manager, refbert:BertCP, tfrecs:GlueTFR)->BertGlue:
   def _config()->dict:
     nonlocal tfrecs
     name = 'bert-finetune-'+mklens(tfrecs).task_name.val.lower()
@@ -157,8 +155,9 @@ def bert_finetune_glue(m:Manager, tfrecs:GlueTFR)->BertGlue:
     task_train = mklens(tfrecs).outputs.train.refpath
     task_eval = mklens(tfrecs).outputs.dev.refpath
     task_config = mklens(tfrecs).outputs.meta.refpath
-    bert_config = mklens(tfrecs).refbert.bert_config.refpath
-    bert_ckpt = mklens(tfrecs).refbert.bert_ckpt.refpath
+    bert_config = mklens(refbert).bert_config.refpath
+    bert_ckpt = mklens(refbert).bert_ckpt.refpath
+    assert mklens(refbert).bert_vocab.refpath==mklens(tfrecs).bert_vocab.refpath
 
     protocol = [promise, 'protocol.json']
     weights = [promise, 'weights.h5']

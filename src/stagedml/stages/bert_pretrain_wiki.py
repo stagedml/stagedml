@@ -1,7 +1,8 @@
-from pylightnix import ( Build, Manager, Lens, DRef, RRef, Build, RefPath, mklens,
-    mkdrv, build_wrapper, build_path, mkconfig, match_only, promise,
+from pylightnix import ( Build, Manager, Lens, DRef, RRef, Build, RefPath,
+    mklens, mkdrv, build_wrapper, build_path, mkconfig, match_only, promise,
     build_outpath, realize, instantiate, repl_realize, build_wrapper_,
-    repl_buildargs, build_cattrs, match_latest, claim, dircp, build_setoutpaths )
+    repl_buildargs, build_cattrs, match_latest, claim, dircp,
+    build_setoutpaths, json_dump )
 
 from stagedml.imports import ( walk, abspath, join, Random, partial, cpu_count,
     getpid, makedirs, Pool, bz2_open, json_loads, json_load )
@@ -10,8 +11,6 @@ from stagedml.imports.tf import ( Dataset, FixedLenFeature,
 from stagedml.utils import ( concat, batch, flines, dpurge, modelhash, runtb, TensorBoardFixed )
 from stagedml.core import ( protocol_add, protocol_add_hist,
     protocol_add_eval, protocol_match )
-from stagedml.types import ( List, Optional, Wikitext, WikiTFR, Any,
-    BertPretrain, Tuple )
 
 from official.nlp.bert.tokenization import FullTokenizer, convert_to_unicode
 from official.nlp.optimization import create_optimizer
@@ -23,6 +22,10 @@ from official.modeling.model_training_utils import ( run_customized_training_loo
 from absl import logging
 
 from stagedml.models.bert import ( BertLayer, BertInput, BertOutput )
+
+from stagedml.types import ( List, Optional, Wikitext, WikiTFR, Any,
+    BertPretrain, Tuple, BertCP )
+
 
 import tensorflow as tf
 
@@ -272,8 +275,11 @@ def build(m:Model)->None:
       "num_attention_heads": 12,
       "num_hidden_layers": 12,
       "type_vocab_size": 2,
-      "vocab_size": flines(mklens(m).vocab_file.syspath)
+      "vocab_size": flines(mklens(m).bert_vocab.syspath)
     }
+
+    with open(mklens(m).bert_config.syspath,'w') as f:
+      json_dump(bert_config, f, indent=4)
 
     bert_inputs=BertInput(
         Input(shape=(c.max_seq_length,), name='input_word_ids', dtype=tf.int32),
@@ -371,8 +377,10 @@ def ftrain(m:Model, init:Optional[RRef]=None)->None:
         verbose=True)
 
       m.epoch += 1
-      print(f"Saving '{mklens(m).checkpoint_bert.syspath}' after {m.epoch} epoch")
-      m.submodel.save_weights(mklens(m).checkpoint_bert.syspath)
+      print(f"Saving '{mklens(m).bert_ckpt.syspath}' after {m.epoch} epoch")
+      checkpoint=tf.train.Checkpoint(model=m.submodel)
+      checkpoint.save(join(o,'checkpoint_bert.ckpt'))
+
       print(f"Saving '{mklens(m).checkpoint_full.syspath}' after {m.epoch} epoch")
       m.model.save_weights(mklens(m).checkpoint_full.syspath)
 
@@ -394,7 +402,6 @@ def bert_pretrain_wiki(m:Manager, tfrecs:WikiTFR,
     name = 'bert-pretrain-wiki'
     max_seq_length=mklens(tfrecs).max_seq_length.val
     max_predictions_per_seq=mklens(tfrecs).max_predictions_per_seq.val
-    vocab_file = mklens(tfrecs).vocab_file.refpath
     lr = 2e-5
     train_batch_size = 16
     nonlocal train_epoches
@@ -403,16 +410,17 @@ def bert_pretrain_wiki(m:Manager, tfrecs:WikiTFR,
     train_warmup_steps = 10000 # FIXME: Sic! why so much?
     protocol = [promise, 'protocol.json']
     checkpoint_full = [claim, 'checkpoint_full.ckpt']
-    # checkpoint_opt = [promise, 'checkpoint_opt.pkl']
-    checkpoint_bert = [claim, 'checkpoint_bert.ckpt']
+    bert_ckpt = [claim, 'checkpoint_bert.ckpt-1'] # FIXME: this name is magic
+    bert_config = [promise, 'bert_config.json']
+    bert_vocab = mklens(tfrecs).vocab_file.refpath
     logs = [promise, 'logs']
-    version = 7
+    version = 8
     return locals()
 
-  return BertPretrain(mkdrv(m,
+  return BertPretrain(BertCP(mkdrv(m,
     config=mkconfig(_config()),
     matcher=match_latest(), # FIXME! protocol_match('evaluate', 'eval_accuracy'),
-    realizer=build_wrapper_(partial(bert_pretrain_wiki_realize, init=resume_rref), Model)))
+    realizer=build_wrapper_(partial(bert_pretrain_wiki_realize, init=resume_rref), Model))))
 
 
 

@@ -2,9 +2,9 @@ from os import environ, makedirs
 from os.path import join
 from typing import Optional,Any,List,Tuple,Union
 
-from pylightnix import ( Manager, Build, Config, Hash, DRef, build_cattrs,
-    build_outpath, build_path, mkdrv, match_only, mklens, promise, mkconfig,
-    build_wrapper )
+from pylightnix import ( RefPath, Manager, Build, Config, Hash, DRef,
+    build_cattrs, build_outpath, build_path, mkdrv, match_only, mklens,
+    promise, mkconfig, build_wrapper )
 
 from stagedml.utils import ( json_read, memlimit )
 from stagedml.types import Glue,GlueTFR,BertCP
@@ -27,21 +27,6 @@ def glue_tasks()->List[str]:
 def _glue_task_src(tn:str)->str:
   return 'MNLI' if 'MNLI' in tn else tn  # 'MNLI-m' and 'MNLI-mm' are special
 
-def config(task_name:str, refbert:BertCP, refdataset:Glue)->Config:
-  assert task_name in glue_tasks(), \
-      f"Unsupported task '{task_name}'. Expected one of {glue_tasks()}"
-  version=6
-  name='tfrecord-'+task_name.lower()
-  bert_vocab = mklens(refbert).bert_vocab.refpath
-  inputdir = [refdataset,_glue_task_src(task_name)]
-  outputs={'dir':[promise,task_name],
-           'train':[promise,task_name,'train.tfrecord'],
-           'dev':[promise,task_name,'dev.tfrecord'],
-           'meta':[promise,task_name,'meta.json']}
-  max_seq_length = 128
-  return mkconfig(locals())
-
-
 def process(b:Build)->None:
   c=build_cattrs(b)
   o=build_outpath(b)
@@ -55,10 +40,26 @@ def process(b:Build)->None:
                        max_seq_length=c.max_seq_length)
 
 
-def glue_tfrecords(m:Manager, task_name:str, refbert:BertCP, refdataset:Glue)->GlueTFR:
+def glue_tfrecords(m:Manager, task_name:str, bert_vocab:RefPath, refdataset:Glue)->GlueTFR:
+
+  assert task_name in glue_tasks(), \
+      f"Unsupported task '{task_name}'. Expected one of {glue_tasks()}"
+
+  def _config():
+    version=6
+    name='tfrecord-'+task_name.lower()
+    nonlocal bert_vocab
+    inputdir = [refdataset,_glue_task_src(task_name)]
+    outputs={'dir':[promise,task_name],
+             'train':[promise,task_name,'train.tfrecord'],
+             'dev':[promise,task_name,'dev.tfrecord'],
+             'meta':[promise,task_name,'meta.json']}
+    max_seq_length = 128
+    return locals()
+
   return GlueTFR(
     mkdrv(m,
-      config=config(task_name, refbert, refdataset),
+      config=mkconfig(_config()),
       matcher=match_only(),
       realizer=build_wrapper(process)))
 
