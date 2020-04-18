@@ -1,3 +1,4 @@
+from stagedml.imports import makedirs
 from stagedml.stages.all import *
 
 def run(task_name:str='MRPC')->dict:
@@ -17,7 +18,7 @@ def run(task_name:str='MRPC')->dict:
 
   pretrains=realize_recursive(
       lambda e,rref: instantiate(_pretrained(e), resume_rref=rref),
-      epoches=20, epoches_step=2)
+      epoches=100, epoches_step=10)
 
   print('Begin fine-tuning on:', pretrains)
   res={}
@@ -25,5 +26,6 @@ def run(task_name:str='MRPC')->dict:
     print('Fine-tuning after epoch', e)
     res[e]=realize(instantiate(partial(_run,e=e)))
     out=Path(join(STAGEDML_EXPERIMENTS,'bert_pretrain',f'epoch-{e}'))
+    makedirs(out, exist_ok=True)
     linkrref(res[e],out)
   return res

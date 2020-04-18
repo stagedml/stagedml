@@ -9,7 +9,7 @@ from stagedml.imports import ( join, environ, remove, copytree, copy_tree,
     partial )
 from stagedml.utils import ( runtensorboard, ndhashl )
 from stagedml.types import ( Callable, List, Optional, Any, Tuple, Set,
-    NamedTuple )
+    NamedTuple, Dict )
 
 from stagedml.imports.tf import ( History )
 
@@ -27,6 +27,8 @@ assert isdir(STAGEDML_ROOT), (
     f"StagedML root folder doesn't exist ('{STAGEDML_ROOT}'). Consider assigning "
     f"STAGEDML_ROOT environment variable to an existing direcory path." )
 
+assert isdir(STAGEDML_EXPERIMENTS), \
+    f"STAGEDML_EXPERIMENTS folder ('{STAGEDML_EXPERIMENTS}') doesn't exist"
 
 #  _   _ _   _ _
 # | | | | |_(_) |___
@@ -35,10 +37,11 @@ assert isdir(STAGEDML_ROOT), (
 #  \___/ \__|_|_|___/
 
 
-def linkrref(rref:RRef)->None:
+def linkrref(rref:RRef, tgtpath:Optional[Path]=None)->None:
   """ Create a 'result-' symlink under the Pylightnix experiments folder """
-  mksymlink(rref, Path(STAGEDML_EXPERIMENTS),
-            name='result-'+config_name(store_config(rref)), withtime=False)
+  tgtpath_=Path(STAGEDML_EXPERIMENTS) if tgtpath is None else tgtpath
+  linkname='result-'+config_name(store_config(rref))
+  mksymlink(rref, tgtpath=tgtpath_, name=linkname, withtime=False)
 
 def diskspace_h(sz:int)->str:
   return f"{sz//2**10} K" if sz<2**20 else f"{sz//2**20} M" if sz<2**30 else f"{sz//2**30} G"
@@ -50,10 +53,10 @@ def diskspace_h(sz:int)->str:
 # |_| \_\___|\__,_|_|_/___\___|_|  |___/
 
 
-def lrealize(clo:Closure)->RRef:
-  """ Realize the model and Link it's realization to STAGEDML_ROOT folder """
-  rref=realize(clo)
-  linkrref(rref)
+def lrealize(clo:Closure, tgtpath:Optional[Path]=None, **kwargs)->RRef:
+  """ Realize the model and Link it's realization to `STAGEDML_EXPERIMENTS` folder """
+  rref=realize(clo,**kwargs)
+  linkrref(rref, tgtpath)
   return rref
 
 
@@ -95,14 +98,13 @@ def tryrealize(clo:Closure, verbose:bool=False)->Optional[RRef]:
       print(e)
     return None
 
-def realize_epoches(s:Callable[[Manager,Optional[int],Optional[RRef]],DRef],
-    epoches:int, step:int=1, force_rebuild:bool=False)->List[RRef]:
-  rrefs:List[RRef]=[]
-  for e in range(0,epoches,step):
-    rrefs.append(
-        realize(instantiate(partial(s, train_epoches=e+step,
-            resume_rref=rrefs[-1] if len(rrefs)>0 else None)),
-            force_rebuild=force_rebuild))
+def realize_recursive(step:Callable[[int,Optional[RRef]],Closure],
+    epoches:int, epoches_step:int=1, force_rebuild:bool=False)->Dict[int,RRef]:
+  rrefs:Dict[int,RRef]={}
+  prev:Optional[RRef]=None
+  for e in range(0,epoches,epoches_step):
+    rrefs[e+epoches_step]=realize(step(e+epoches_step, prev), force_rebuild=force_rebuild)
+    prev=rrefs[e+epoches_step]
   return rrefs
 
 
