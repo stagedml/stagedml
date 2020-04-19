@@ -1,8 +1,8 @@
 from pylightnix import ( RefPath, Build, Path, Config, Manager, RRef, DRef,
     Context, build_wrapper, build_path, build_outpath, build_cattrs, mkdrv,
     rref2path, mkbuild, mkconfig, match_only, instantiate, realize, lsref,
-    catref, store_cattrs, fetchurl, mknode, checkpaths, mklens,
-    promise, rref2dref, store_context )
+    catref, store_cattrs, fetchurl, mknode, mklens, promise, rref2dref,
+    store_context )
 
 from stagedml.imports import ( join )
 from stagedml.models.transformer.imports import ( Subtokenizer,
@@ -14,51 +14,46 @@ from stagedml.types import ( WmtSubtok, Optional, Any, List, Tuple, Union,
 
 def fetchwmt17parallel(m:Manager)->DRef:
   langpairs=[['de','en'],['ru','en']]
-  f=fetchurl(m,
+  return fetchurl(m,
     name='training-parallel-nc-v12',
     url='http://data.statmt.org/wmt17/translation-task/training-parallel-nc-v12.tgz',
-    sha256='2b45f30ef1d550d302fd17dd3a5cbe19134ccc4c2cf50c2dae534aee600101a2')
-  return checkpaths(m,
-      {('_'.join(lp)):{l:[f,"training",f"news-commentary-v12.{'-'.join(lp)}.{l}"] \
-      for l in lp} for lp in langpairs})
+    sha256='2b45f30ef1d550d302fd17dd3a5cbe19134ccc4c2cf50c2dae534aee600101a2',
+    outputs={('_'.join(lp)):{l:[promise,"training",f"news-commentary-v12.{'-'.join(lp)}.{l}"] for l in lp} for lp in langpairs})
 
 def fetchwmt13commoncrawl(m:Manager)->DRef:
   langpairs=[['de','en'],['ru','en']]
-  f=fetchurl(m,
+  return fetchurl(m,
     name='training-parallel-commoncrawl',
     url='http://www.statmt.org/wmt13/training-parallel-commoncrawl.tgz',
-    sha256='c7a74e2ea01ac6c920123108627e35278d4ccb5701e15428ffa34de86fa3a9e5')
-  return checkpaths(m,
-      {('_'.join(lp)):{l:[f,'training-parallel-commoncrawl',f"commoncrawl.{'-'.join(lp)}.{l}"] \
+    sha256='c7a74e2ea01ac6c920123108627e35278d4ccb5701e15428ffa34de86fa3a9e5',
+    outputs={('_'.join(lp)):{l:[promise,'training-parallel-commoncrawl',f"commoncrawl.{'-'.join(lp)}.{l}"] \
       for l in lp} for lp in langpairs})
 
 def fetchwmt13europarl(m:Manager)->DRef:
   langpairs=[['de','en']]
-  f=fetchurl(m,
+  return fetchurl(m,
     name='training-parallel-europarl-v7',
     url='http://www.statmt.org/wmt13/training-parallel-europarl-v7.tgz',
-    sha256='0224c7c710c8a063dfd893b0cc0830202d61f4c75c17eb8e31836103d27d96e7')
-  return checkpaths(m,
-      {('_'.join(lp)):{l:[f,'training',f"europarl-v7.{'-'.join(lp)}.{l}"] \
+    sha256='0224c7c710c8a063dfd893b0cc0830202d61f4c75c17eb8e31836103d27d96e7',
+    outputs={('_'.join(lp)):{l:[promise,'training',f"europarl-v7.{'-'.join(lp)}.{l}"] \
       for l in lp} for lp in langpairs})
 
 def fetchwmt17dev(m:Manager)->DRef:
   langs=['ru','en','de']
-  f=fetchurl(m,
+  return fetchurl(m,
     name='newstest2013',
     url=f'http://data.statmt.org/wmt17/translation-task/dev.tgz',
-    sha256='9d5ff04a28496b7796904ea65e50e3837bab14dbdca88b1e063105f17513dca9')
-  return checkpaths(m,
-    {l:[f,'dev',f'newstest2013.{l}'] for l in langs})
+    sha256='9d5ff04a28496b7796904ea65e50e3837bab14dbdca88b1e063105f17513dca9',
+    outputs={l:[promise,'dev',f'newstest2013.{l}'] for l in langs})
 
 def fetchnewstest2014(m:Manager)->DRef:
   langs=['en','de']
   name='newstest2014'
-  f=fetchurl(m,
+  return fetchurl(m,
     name=name,
     url=f'https://storage.googleapis.com/tf-perf-public/official_transformer/test_data/{name}.tgz',
-    sha256='1d07bf20db2f4607bb5f3c228e24c1fa17bdfb66d650cc5e713353606fde0800')
-  return checkpaths(m, {l:[f,'newstest2014',f'newstest2014.{l}'] for l in langs})
+    sha256='1d07bf20db2f4607bb5f3c228e24c1fa17bdfb66d650cc5e713353606fde0800',
+    outputs={l:[promise,'newstest2014',f'newstest2014.{l}'] for l in langs})
 
 
 def fetchwmtpack(m:Manager)->DRef:
@@ -76,23 +71,23 @@ def trainfiles(m:Manager, lang1:str, lang2:str, suffix:Optional[str]=None, europ
   europarl_= europarl if europarl is not None else ('ru' not in [lang1,lang2])
 
   inputs=catfiles(m, outname='inputs', files=\
-      [mklens(fetchwmt17parallel(m)).get(suffix_).get(lang1).refpath,
-       mklens(fetchwmt13commoncrawl(m)).get(suffix_).get(lang1).refpath] + \
-      ([mklens(fetchwmt13europarl(m)).get(suffix_).get(lang1).refpath] if europarl_ else []))
+      [mklens(fetchwmt17parallel(m)).outputs.get(suffix_).get(lang1).refpath,
+       mklens(fetchwmt13commoncrawl(m)).outputs.get(suffix_).get(lang1).refpath] + \
+      ([mklens(fetchwmt13europarl(m)).outputs.get(suffix_).get(lang1).refpath] if europarl_ else []))
 
   targets=catfiles(m, outname='targets', files=\
-      [mklens(fetchwmt17parallel(m)).get(suffix_).get(lang2).refpath,
-       mklens(fetchwmt13commoncrawl(m)).get(suffix_).get(lang2).refpath] + \
-      ([mklens(fetchwmt13europarl(m)).get(suffix_).get(lang2).refpath] if europarl_ else []))
+      [mklens(fetchwmt17parallel(m)).outputs.get(suffix_).get(lang2).refpath,
+       mklens(fetchwmt13commoncrawl(m)).outputs.get(suffix_).get(lang2).refpath] + \
+      ([mklens(fetchwmt13europarl(m)).outputs.get(suffix_).get(lang2).refpath] if europarl_ else []))
 
-  return checkpaths(m,{'name':f'wmt-{suffix_}',
+  return mknode(m,{'name':f'wmt-{suffix_}',
                        'train_input_combined':mklens(inputs).output.refpath,
                        'train_target_combined':mklens(targets).output.refpath})
 
 def evalfiles(m:Manager, lang1:str, lang2:str, suffix:Optional[str]=None)->DRef:
   suffix_=f"{lang2}_{lang1}" if suffix is None else suffix
-  inputs=catfiles(m, files=[mklens(fetchwmt17dev(m)).get(lang1).val], outname='inputs')
-  targets=catfiles(m, files=[mklens(fetchwmt17dev(m)).get(lang2).val], outname='outputs')
+  inputs=catfiles(m, files=[mklens(fetchwmt17dev(m)).outputs.get(lang1).val], outname='inputs')
+  targets=catfiles(m, files=[mklens(fetchwmt17dev(m)).outputs.get(lang2).val], outname='outputs')
   return mknode(m,{'name':f'wmt-{suffix_}-eval',
                    'eval_input_combined':mklens(inputs).output.refpath,
                    'eval_target_combined':mklens(targets).output.refpath})

@@ -166,7 +166,7 @@ def bert_finetune_glue(m:Manager, refbert:BertCP, tfrecs:GlueTFR)->BertGlue:
     lr = 2e-5
     batch_size = 8
     train_epoches = 3
-    version = 4
+    version = 5
     return locals()
 
   return BertGlue(mkdrv(m,

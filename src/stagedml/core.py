@@ -3,7 +3,7 @@ from pylightnix import ( Manager, Context, Hash, Path, DRef, RRef, Closure,
     realize, rref2path, store_config, config_name, mksymlink, isdir, dirhash,
     json_dump, json_load, assert_serializable, assert_valid_rref,
     build_wrapper_, readjson, store_rrefs, repl_rref, repl_cancel, rmref,
-    store_gc, instantiate, tryreadjson, tryreadjson_def, mklens)
+    store_gc, instantiate, tryreadjson, tryreadjson_def, mklens, Tag)
 
 from stagedml.imports import ( join, environ, remove, copytree, copy_tree,
     partial )
@@ -240,10 +240,10 @@ def best_(op_name:str, metric_name:str, rrefs:List[RRef])->RRef:
 
 def protocol_match(op_name:str, metric_name:str):
   def _matcher(dref:DRef, context:Context)->Optional[List[RRef]]:
-    rrefs=list(store_rrefs(dref, context))
-    if len(rrefs)==0:
+    rgs=list(store_rrefs(dref, context))
+    if len(rgs)==0:
       return None
-    return [best_(op_name, metric_name, rrefs)]
+    return [best_(op_name, metric_name, [rg[Tag('out')] for rg in rgs])]
   return _matcher
 
 

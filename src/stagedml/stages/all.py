@@ -37,7 +37,8 @@ from stagedml.types import ( Dict, Set, Tuple, List, DRef, Glue, Squad11,
     WmtSubtok, ConvnnMnist, Wikidump, Wikitext, WikiTFR, BertPretrain )
 from stagedml.core import ( lrealize, tryrealize, STAGEDML_EXPERIMENTS,
     diskspace_h, linkrref, realize_recursive )
-from stagedml.imports import ( walk, join, abspath, islink, partial )
+from stagedml.imports import ( walk, join, abspath, islink, partial,
+    get_terminal_size )
 
 from beautifultable import BeautifulTable
 
@@ -217,7 +218,7 @@ def gc(force:bool=False):
       rmref(dref)
   else:
     print('The following refs will be deleted:')
-    t=BeautifulTable()
+    t=BeautifulTable(max_width=get_terminal_size().columns)
     t.set_style(BeautifulTable.STYLE_MARKDOWN)
     t.width_exceed_policy = BeautifulTable.WEP_ELLIPSIS
     t.column_headers=['Name', 'RRef/DRef', 'Size']
