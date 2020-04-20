@@ -17,7 +17,8 @@ from typing import ( Union, List, Any, Optional, Tuple, Callable, TypeVar )
 from pickle import ( dump as pickle_dump, load as pickle_load)
 from tensorflow.keras.backend import batch_get_value
 
-from stagedml.imports.tf import ( TensorBoard )
+from stagedml.imports.tf import ( TensorBoard, list_variables )
+from stagedml.imports.sys import ( Popen )
 
 from pylightnix import ( Closure, Path, Build, Hash, DRef, assert_valid_rref,
     assert_serializable, PYLIGHTNIX_TMP, Realizer, build_outpath, mkbuild, RRef,
@@ -91,6 +92,22 @@ def runtb(arg:Union[RRef,Build,str])->None:
 def modelhash(m:tf.keras.Model)->Hash:
   return Hash(ndhashl(m.get_weights()))
 
+
+def print_model_checkpoint_diff(m:tf.keras.Model, cprefix:str, tmpdir:Path)->None:
+  l1=sorted([w.name.split(':')[0] for w in m.weights])
+  l2=sorted([str(x[0]) for x in list_variables(cprefix)])
+  # print('Model variables:\n','\n'.join())
+  # print('Checkpoint variables:\n','\n'.join())
+  def _savelist(l,fname):
+    fname=join(tmpdir,fname)
+    with open(fname,'w') as f:
+      f.write('\n'.join(l))
+    return fname
+  Popen(['diff', '-y', '--color',
+      _savelist(l1,'vars_model.txt'),
+      _savelist(l2,'vars_checkpoint.txt')],
+          shell=False, cwd='/').wait()
+  print() # EOL
 
 
 class TensorBoardFixed(TensorBoard):

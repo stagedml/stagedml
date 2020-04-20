@@ -19,7 +19,9 @@ from pylightnix import ( Build, Path, Config, Manager, RRef, DRef, Context,
 from stagedml.datasets.glue.tfdataset import ( dataset, dataset_eval, dataset_train )
 from stagedml.models.bert import ( BertLayer, BertInput, BertOutput,
     BertModel, classification_logits )
-from stagedml.utils.tf import ( runtb, runtensorboard, thash, dpurge, modelhash )
+from stagedml.imports.tf import ( load_checkpoint )
+from stagedml.utils.tf import ( runtb, runtensorboard, thash, dpurge,
+    modelhash, print_model_checkpoint_diff )
 from stagedml.core import ( protocol_add, protocol_add_hist,
     protocol_add_eval, protocol_match )
 from stagedml.types import ( BertCP, GlueTFR, BertGlue, Optional,Any,List,Tuple,Union )
@@ -91,10 +93,36 @@ def build(b:ModelBuild, clear_session:bool=True):
 
 def cpload(b:ModelBuild)->None:
   """ Load checkpoint into model """
-  c = build_cattrs(b)
-  checkpoint = tf.train.Checkpoint(model=b.core_model)
-  checkpoint.restore(mklens(b).bert_ckpt.syspath).assert_consumed()
+  r=load_checkpoint(mklens(b).bert_ckpt.syspath)
+  for w in b.core_model.weights:
+    name=w.name.split(':')[0]
+    print(f"Loading {name}")
+    w.assign(r.get_tensor({
+      'bert/word_embeddings/embeddings':'bert/embeddings/word_embeddings'}.get(name,name)))
   protocol_add(mklens(b).protocol.syspath, 'cpload')
+
+
+
+def cpload_old(b:ModelBuild)->None:
+  """ Load checkpoint into model """
+  c = build_cattrs(b)
+  o = build_outpath(b)
+
+  assertion=None
+  checkpoint=tf.train.Checkpoint(model=b.core_model)
+  load_status=checkpoint.restore(mklens(b).bert_ckpt.syspath)
+  try:
+    load_status.assert_consumed()
+    protocol_add(mklens(b).protocol.syspath, 'cpload')
+  except AssertionError as e:
+    assertion=e
+
+  if assertion is not None:
+    print(f"Catched exception of type {type(assertion)}")
+    print_model_checkpoint_diff(b.core_model, mklens(b).bert_ckpt.syspath, o)
+    print("Unused variables:")
+    print('\n'.join(['- '+w.name.split(':')[0] for w in load_status._checkpoint.unused_attributes.keys()]))
+    assert False, "Failed to load the checkpoint into model"
 
 
 def train(b:ModelBuild, **kwargs)->None:
@@ -157,7 +185,8 @@ def bert_finetune_glue(m:Manager, refbert:BertCP, tfrecs:GlueTFR)->BertGlue:
     task_config = mklens(tfrecs).outputs.meta.refpath
     bert_config = mklens(refbert).bert_config.refpath
     bert_ckpt = mklens(refbert).bert_ckpt.refpath
-    assert mklens(refbert).bert_vocab.refpath==mklens(tfrecs).bert_vocab.refpath
+    assert mklens(refbert).bert_vocab.refpath==mklens(tfrecs).bert_vocab.refpath, \
+        "Model dictionary path doesn't match the dataset dictionary path"
 
     protocol = [promise, 'protocol.json']
     weights = [promise, 'weights.h5']

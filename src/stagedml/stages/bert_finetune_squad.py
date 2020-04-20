@@ -21,6 +21,7 @@ from stagedml.models.bert_squad import BertSquadLogitsLayer
 from stagedml.types import ( Squad11TFR, BertSquad, Optional, Any, List, Tuple, Union )
 from stagedml.utils import ( dpurge, modelhash )
 from stagedml.core import ( protocol_add, protocol_match )
+from stagedml.imports.tf import ( load_checkpoint )
 
 
 class Model(Build):
@@ -70,15 +71,22 @@ def build(m:Model, clear_session:bool=True)->None:
     m.optimizer = optimizer
   return
 
-
-# def cploaded(s:State)->State:
-#   return state_add(s,'cpload')
-def cpload(m:Model)->None:
+def cpload(b:Model)->None:
   """ Load checkpoint into model """
-  c = build_cattrs(m)
-  checkpoint = tf.train.Checkpoint(model=m.model_core)
-  checkpoint.restore(mklens(m).bert_ckpt.syspath).assert_consumed()
-  protocol_add(mklens(m).protocol.syspath, 'cpload', whash=modelhash(m.model))
+  r=load_checkpoint(mklens(b).bert_ckpt.syspath)
+  for w in b.model_core.weights:
+    name=w.name.split(':')[0]
+    print(f"Loading {name}")
+    w.assign(r.get_tensor({
+      'bert/word_embeddings/embeddings':'bert/embeddings/word_embeddings'}.get(name,name)))
+  protocol_add(mklens(b).protocol.syspath, 'cpload')
+
+# def cpload_old(m:Model)->None:
+#   """ Load checkpoint into model """
+#   c = build_cattrs(m)
+#   checkpoint = tf.train.Checkpoint(model=m.model_core)
+#   checkpoint.restore(mklens(m).bert_ckpt.syspath).assert_consumed()
+#   protocol_add(mklens(m).protocol.syspath, 'cpload', whash=modelhash(m.model))
 
 
 # def ctrained(s:State)->State:

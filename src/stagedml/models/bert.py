@@ -10,7 +10,7 @@ from stagedml.types import ( Any, NamedTuple, NewType, Tuple )
 
 from official.nlp.bert.configs import BertConfig
 from official.nlp.bert_modeling import ( EmbeddingLookup,
-    EmbeddingPostprocessor, Dense3D, Dense2DProjection )
+    Dense3D, Dense2DProjection )
 from official.nlp.bert_modeling import ( get_initializer,
     create_attention_mask_from_input_mask )
 from official.modeling import tf_utils
@@ -160,6 +160,7 @@ class CustomTransformerBlock(tf.keras.layers.Layer):
 
   def build(self, unused_input_shapes):
     """Implements build() for the layer."""
+
     dense3d_impl = Dense3D
     dense2dprojection_impl = Dense2DProjection
 
@@ -169,7 +170,7 @@ class CustomTransformerBlock(tf.keras.layers.Layer):
         attention_probs_dropout_prob=self.attention_probs_dropout_prob,
         initializer_range=self.initializer_range,
         backward_compatible=self.backward_compatible,
-        name="self_attention")
+        name="self")
 
     self.attention_output_dense = dense3d_impl(
         num_attention_heads=self.num_attention_heads,
@@ -177,28 +178,28 @@ class CustomTransformerBlock(tf.keras.layers.Layer):
         kernel_initializer=get_initializer(self.initializer_range),
         output_projection=True,
         backward_compatible=self.backward_compatible,
-        name="self_attention_output")
+        name="dense")
     self.attention_dropout = tf.keras.layers.Dropout(
         rate=self.hidden_dropout_prob)
     self.attention_layer_norm = (
         tf.keras.layers.LayerNormalization(
-            name="self_attention_layer_norm", axis=-1, epsilon=1e-12,
+            name="LayerNorm", axis=-1, epsilon=1e-12,
             # We do layer norm in float32 for numeric stability.
             dtype=tf.float32))
+
     self.intermediate_dense = dense2dprojection_impl(
         output_size=self.intermediate_size,
         kernel_initializer=get_initializer(self.initializer_range),
         activation=self.intermediate_activation,
         # Uses float32 so that gelu activation is done in float32.
-        fp32_activation=True,
-        name="intermediate")
+        fp32_activation=True, name='dense')
     self.output_dense = dense2dprojection_impl(
         output_size=self.hidden_size,
         kernel_initializer=get_initializer(self.initializer_range),
-        name="output")
+        name='dense')
     self.output_dropout = tf.keras.layers.Dropout(rate=self.hidden_dropout_prob)
-    self.output_layer_norm = tf.keras.layers.LayerNormalization(
-        name="output_layer_norm", axis=-1, epsilon=1e-12, dtype=tf.float32)
+    self.output_layer_norm = tf.keras.layers.LayerNormalization(axis=-1,
+        epsilon=1e-12, dtype=tf.float32, name='LayerNorm')
     super(CustomTransformerBlock, self).build(unused_input_shapes)
 
   def common_layers(self):
@@ -217,27 +218,33 @@ class CustomTransformerBlock(tf.keras.layers.Layer):
   def call(self, inputs):
     """Implements call() for the layer."""
     (input_tensor, attention_mask) = tf_utils.unpack_inputs(inputs)
-    attention_output, attention_scores = self.attention_layer(
-        from_tensor=input_tensor,
-        to_tensor=input_tensor,
-        attention_mask=attention_mask)
-    attention_output = self.attention_output_dense(attention_output)
-    attention_output = self.attention_dropout(attention_output)
-    # Use float32 in keras layer norm and the gelu activation in the
-    # intermediate dense layer for numeric stability
-    attention_output = self.attention_layer_norm(input_tensor +
-                                                 attention_output)
-    if self.float_type == tf.float16:
-      attention_output = tf.cast(attention_output, tf.float16)
-    intermediate_output = self.intermediate_dense(attention_output)
-    if self.float_type == tf.float16:
-      intermediate_output = tf.cast(intermediate_output, tf.float16)
-    layer_output = self.output_dense(intermediate_output)
-    layer_output = self.output_dropout(layer_output)
-    # Use float32 in keras layer norm for numeric stability
-    layer_output = self.output_layer_norm(layer_output + attention_output)
-    if self.float_type == tf.float16:
-      layer_output = tf.cast(layer_output, tf.float16)
+    with tf.name_scope('attention'):
+      attention_output, attention_scores = self.attention_layer(
+          from_tensor=input_tensor,
+          to_tensor=input_tensor,
+          attention_mask=attention_mask)
+      with tf.name_scope('output'):
+        attention_output = self.attention_output_dense(attention_output)
+        attention_output = self.attention_dropout(attention_output)
+        # Use float32 in keras layer norm and the gelu activation in the
+        # intermediate dense layer for numeric stability
+        attention_output = self.attention_layer_norm(input_tensor +
+                                                     attention_output)
+        if self.float_type == tf.float16:
+          attention_output = tf.cast(attention_output, tf.float16)
+
+    with tf.name_scope('intermediate'):
+      intermediate_output = self.intermediate_dense(attention_output)
+      if self.float_type == tf.float16:
+        intermediate_output = tf.cast(intermediate_output, tf.float16)
+
+    with tf.name_scope('output'):
+      layer_output = self.output_dense(intermediate_output)
+      layer_output = self.output_dropout(layer_output)
+      # Use float32 in keras layer norm for numeric stability
+      layer_output = self.output_layer_norm(layer_output + attention_output)
+      if self.float_type == tf.float16:
+        layer_output = tf.cast(layer_output, tf.float16)
     return layer_output, attention_scores
 
 
@@ -329,6 +336,94 @@ BertOutput=NamedTuple('BertOutput',[('cls_output',Tensor),
                                     ('attention_output',Tensor),
                                     ('hidden_output',Tensor)])
 
+class CustomEmbeddingPostprocessor(tf.keras.layers.Layer):
+  """Performs various post-processing on a word embedding tensor."""
+
+  def __init__(self,
+               word_embedding_width,
+               use_type_embeddings=False,
+               token_type_vocab_size=None,
+               use_position_embeddings=True,
+               max_position_embeddings=512,
+               dropout_prob=0.0,
+               initializer_range=0.02,
+               **kwargs):
+    super().__init__(**kwargs)
+
+    self.use_type_embeddings = use_type_embeddings
+    self.token_type_vocab_size = token_type_vocab_size
+    self.use_position_embeddings = use_position_embeddings
+    self.max_position_embeddings = max_position_embeddings
+    self.dropout_prob = dropout_prob
+    self.initializer_range = initializer_range
+    self.initializer = get_initializer(self.initializer_range)
+    self.word_embedding_width = word_embedding_width
+    self.type_embeddings = None
+    self.position_embeddings = None
+
+    if self.use_type_embeddings and not self.token_type_vocab_size:
+      raise ValueError("If `use_type_embeddings` is True, then "
+                       "`token_type_vocab_size` must be specified.")
+
+  def build(self,unused):
+    """Implements build() for the layer."""
+    # (word_embeddings_shape, _) = input_shapes
+    # width = word_embeddings_shape.as_list()[-1]
+    if self.use_type_embeddings:
+      self.type_embeddings = self.add_weight(
+          "token_type_embeddings",
+          shape=[self.token_type_vocab_size, self.word_embedding_width],
+          initializer=get_initializer(self.initializer_range),
+          dtype=self.dtype)
+
+    self.position_embeddings = None
+    if self.use_position_embeddings:
+      self.position_embeddings = self.add_weight(
+          "position_embeddings",
+          shape=[self.max_position_embeddings, self.word_embedding_width],
+          initializer=get_initializer(self.initializer_range),
+          dtype=self.dtype)
+
+    self.output_layer_norm = tf.keras.layers.LayerNormalization(
+        name="LayerNorm", axis=-1, epsilon=1e-12, dtype=tf.float32)
+    self.output_dropout = tf.keras.layers.Dropout(
+        rate=self.dropout_prob, dtype=tf.float32)
+    super().build(unused)
+
+  def __call__(self, word_embeddings, token_type_ids=None, **kwargs):
+    inputs = tf_utils.pack_inputs([word_embeddings, token_type_ids])
+    return super().__call__(inputs, **kwargs)
+
+  def call(self, inputs):
+    """Implements call() for the layer."""
+    unpacked_inputs = tf_utils.unpack_inputs(inputs)
+    word_embeddings = unpacked_inputs[0]
+    token_type_ids = unpacked_inputs[1]
+    input_shape = tf_utils.get_shape_list(word_embeddings, expected_rank=3)
+    batch_size = input_shape[0]
+    seq_length = input_shape[1]
+    width = input_shape[2]
+
+    output = word_embeddings
+    if self.use_type_embeddings:
+      flat_token_type_ids = tf.reshape(token_type_ids, [-1])
+      token_type_embeddings = tf.gather(self.type_embeddings,
+                                        flat_token_type_ids)
+      token_type_embeddings = tf.reshape(token_type_embeddings,
+                                         [batch_size, seq_length, width])
+      output += token_type_embeddings
+
+    if self.use_position_embeddings:
+      position_embeddings = tf.expand_dims(
+          tf.slice(self.position_embeddings, [0, 0], [seq_length, width]),
+          axis=0)
+
+      output += position_embeddings
+
+    output = self.output_layer_norm(output)
+    output = self.output_dropout(output)
+
+    return output
 
 class BertLayer(tf.keras.layers.Layer):
   def __init__(self, config, float_type=tf.float32, **kwargs):
@@ -346,7 +441,8 @@ class BertLayer(tf.keras.layers.Layer):
         initializer_range=self.config.initializer_range,
         dtype=tf.float32,
         name="word_embeddings")
-    self.embedding_postprocessor = EmbeddingPostprocessor(
+    self.embedding_postprocessor = CustomEmbeddingPostprocessor(
+        word_embedding_width=self.config.hidden_size,
         use_type_embeddings=True,
         token_type_vocab_size=self.config.type_vocab_size,
         use_position_embeddings=True,
@@ -354,7 +450,7 @@ class BertLayer(tf.keras.layers.Layer):
         dropout_prob=self.config.hidden_dropout_prob,
         initializer_range=self.config.initializer_range,
         dtype=tf.float32,
-        name="embedding_postprocessor")
+        name="embeddings")
     self.encoder = CustomTransformer(
         num_hidden_layers=self.config.num_hidden_layers,
         hidden_size=self.config.hidden_size,
@@ -367,11 +463,10 @@ class BertLayer(tf.keras.layers.Layer):
         backward_compatible=self.config.backward_compatible,
         float_type=self.float_type,
         name="encoder")
-    self.pooler_transform = tf.keras.layers.Dense(
+    self.pooler_dense = tf.keras.layers.Dense(
         units=self.config.hidden_size,
         activation="tanh",
-        kernel_initializer=get_initializer(self.config.initializer_range),
-        name="pooler_transform")
+        kernel_initializer=get_initializer(self.config.initializer_range))
     super(BertLayer, self).build(unused_input_shapes)
 
   def __call__(self, bert_input:BertInput)->BertOutput:
@@ -398,7 +493,8 @@ class BertLayer(tf.keras.layers.Layer):
     hidden_output, attention_output = list(zip(*sequence_output))
 
     first_token_tensor = tf.squeeze(hidden_output[-1][:, 0:1, :], axis=1)
-    pooled_output = self.pooler_transform(first_token_tensor)
+    with tf.name_scope('pooler'):
+      pooled_output = self.pooler_dense(first_token_tensor)
 
     return BertOutput(pooled_output, embedding_output, attention_output, hidden_output)
 

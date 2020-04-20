@@ -45,15 +45,36 @@ from beautifultable import BeautifulTable
 all_fetchglue = fetchglue
 all_fetchsquad11 = fetchsquad11
 
+# def all_fetchbert(m:Manager)->BertCP:
+#   """ Fetch BERT-base pretrained checkpoint from the Google cloud """
+#   return BertCP(fetchurl(m,
+#     name='uncased-bert',
+#     url='https://storage.googleapis.com/cloud-tpu-checkpoints/bert/tf_20/uncased_L-12_H-768_A-12.tar.gz',
+#     sha256='018ef0ac65fc371f97c1e2b1ede59b5afb2d9e1da0217eb5072888940fb51978',
+#     bert_config=[promise,'uncased_L-12_H-768_A-12','bert_config.json'],
+#     bert_vocab=[promise,'uncased_L-12_H-768_A-12','vocab.txt'],
+#     bert_ckpt=[claim,'uncased_L-12_H-768_A-12','bert_model.ckpt']
+#     ))
+
 def all_fetchbert(m:Manager)->BertCP:
   """ Fetch BERT-base pretrained checkpoint from the Google cloud """
   return BertCP(fetchurl(m,
-    name='uncased-bert',
-    url='https://storage.googleapis.com/cloud-tpu-checkpoints/bert/tf_20/uncased_L-12_H-768_A-12.tar.gz',
-    sha256='018ef0ac65fc371f97c1e2b1ede59b5afb2d9e1da0217eb5072888940fb51978',
+    name='basebert-uncased',
+    url='https://storage.googleapis.com/bert_models/2020_02_20/uncased_L-12_H-768_A-12.zip',
+    sha256='d15224e1e7d950fb9a8b29497ce962201dff7d27b379f5bfb4638b4a73540a04',
     bert_config=[promise,'uncased_L-12_H-768_A-12','bert_config.json'],
     bert_vocab=[promise,'uncased_L-12_H-768_A-12','vocab.txt'],
     bert_ckpt=[claim,'uncased_L-12_H-768_A-12','bert_model.ckpt']
+    ))
+
+def all_fetchminibert(m:Manager)->BertCP:
+  return BertCP(fetchurl(m,
+    name='minibert-uncased',
+    url='https://storage.googleapis.com/bert_models/2020_02_20/uncased_L-4_H-256_A-4.zip',
+    sha256='5f087a0c6c73aed0b0a13f9a99dade56bece97d0594b713195821e031266fae9',
+    bert_config=[promise,'uncased_L-4_H-256_A-4','bert_config.json'],
+    bert_vocab=[promise,'uncased_L-4_H-256_A-4','vocab.txt'],
+    bert_ckpt=[claim,'uncased_L-4_H-256_A-4','bert_model.ckpt']
     ))
 
 def all_glue_tfrecords(m:Manager, task_name:str)->GlueTFR:
@@ -68,11 +89,25 @@ def all_squad11_tfrecords(m:Manager)->Squad11TFR:
   squadref=all_fetchsquad11(m)
   return squad11_tfrecords(m, bertref, squadref)
 
-def all_bert_finetune_glue(m:Manager, task_name:str)->BertGlue:
-  """ Finetune BERT on GLUE dataset """
-  refbert=all_fetchbert(m)
-  glueref=all_glue_tfrecords(m,task_name)
+def all_minibert_finetune_glue(m:Manager, task_name:str='MRPC')->BertGlue:
+  """ Finetune mini-BERT on GLUE dataset """
+  refbert=all_fetchminibert(m)
+  refglue=all_fetchglue(m)
+  glueref=glue_tfrecords(m, task_name, bert_vocab=mklens(refbert).bert_vocab.refpath, refdataset=refglue)
   return bert_finetune_glue(m,refbert,glueref)
+
+def all_bert_finetune_glue(m:Manager, task_name:str='MRPC')->BertGlue:
+  """ Finetune base-BERT on GLUE dataset """
+  refbert=all_fetchbert(m)
+  refglue=all_fetchglue(m)
+  glueref=glue_tfrecords(m, task_name, bert_vocab=mklens(refbert).bert_vocab.refpath, refdataset=refglue)
+  return bert_finetune_glue(m,refbert,glueref)
+
+# def all_bert_finetune_glue(m:Manager, task_name:str='MRPC')->BertGlue:
+#   """ Finetune BERT on GLUE dataset """
+#   refbert=all_fetchbert(m)
+#   glueref=all_glue_tfrecords(m,task_name)
+#   return bert_finetune_glue(m,refbert,glueref)
 
 def dryrun_bert_finetune_glue(m:Manager, task_name:str='MRPC')->BertGlue:
   """ Train a simple convolutional model on MNIST """

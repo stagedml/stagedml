@@ -12,6 +12,8 @@ from tensorflow.keras.layers import ( Layer, LayerNormalization, Dense )
 from tensorflow.keras.optimizers import Adam
 from tensorflow.keras.initializers import ( TruncatedNormal )
 from tensorflow import ( io, data )
+from tensorflow.python.training.checkpoint_utils import ( list_variables,
+    load_checkpoint )
 
 Dataset=data.Dataset
 FixedLenFeature=io.FixedLenFeature
