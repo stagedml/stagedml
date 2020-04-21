@@ -13,6 +13,11 @@ TESTS = $(shell find tests -name '*\.py')
 .PHONY: test
 test: .stamp_tested
 
+.PHONY: typecheck tc
+typecheck:
+	pytest --mypy -m mypy
+tc: typecheck
+
 ## TensorFlow Models
 
 .PHONY: wheels_tfm # We don't bother scanning for the changed sources here
