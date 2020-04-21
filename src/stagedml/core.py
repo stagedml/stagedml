@@ -82,7 +82,7 @@ def borrow(rref:RRef, clo:Closure)->RRef:
   except Exception:
     repl_cancel(rh)
     raise
-  orref=repl_continue(out_paths=[o],rh=rh)
+  orref=repl_continue(out_groups=[{Tag('out'):o}],rh=rh)
   assert orref is not None
   linkrref(orref)
   return orref
