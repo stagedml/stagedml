@@ -10,11 +10,11 @@ rref2path(rref)
 ```
 """
 
-from pylightnix import ( Path, RRef, Manager, mknode, fetchurl, instantiate,
-    realize, rref2path, store_initialize, shell, lsref, catref, repl_realize,
-    repl_continueBuild, repl_build, repl_rref, repl_cancelBuild, store_gc,
-    rmref, mklens, promise, claim, path2rref, rref2path, store_dref2path,
-    dirsize, store_config, config_name, redefine, mkconfig )
+from pylightnix import ( Stage, Path, RRef, Manager, mknode, fetchurl,
+    instantiate, realize, rref2path, store_initialize, shell, lsref, catref,
+    repl_realize, repl_continueBuild, repl_build, repl_rref, repl_cancelBuild,
+    store_gc, rmref, mklens, promise, claim, path2rref, rref2path,
+    store_dref2path, dirsize, store_config, config_name, redefine, mkconfig )
 
 from stagedml.stages.fetchglue import fetchglue
 from stagedml.stages.glue_tfrecords import glue_tfrecords
@@ -30,11 +30,12 @@ from stagedml.stages.transformer_wmt import transformer_wmt
 from stagedml.stages.convnn_mnist import fetchmnist, convnn_mnist
 from stagedml.stages.fetchenwiki import fetchwiki, extractwiki
 from stagedml.stages.bert_pretrain_wiki import ( bert_pretraining_tfrecords,
-    bert_pretrain_wiki )
+    basebert_pretrain_wiki, minibert_pretrain_wiki )
 
-from stagedml.types import ( Dict, Set, Tuple, List, DRef, Glue, Squad11,
-    GlueTFR, Squad11TFR, BertCP, BertGlue, BertSquad, NL2Bash, TransWmt,
-    WmtSubtok, ConvnnMnist, Wikidump, Wikitext, WikiTFR, BertPretrain )
+from stagedml.types import ( Dict, Set, Tuple, List, Optional, DRef, Glue,
+    Squad11, GlueTFR, Squad11TFR, BertCP, BertGlue, BertSquad, NL2Bash,
+    TransWmt, WmtSubtok, ConvnnMnist, Wikidump, Wikitext, WikiTFR, BertPretrain
+    )
 from stagedml.core import ( lrealize, tryrealize, STAGEDML_EXPERIMENTS,
     diskspace_h, linkrref, realize_recursive )
 from stagedml.imports import ( walk, join, abspath, islink, partial,
@@ -45,16 +46,16 @@ from beautifultable import BeautifulTable
 all_fetchglue = fetchglue
 all_fetchsquad11 = fetchsquad11
 
-# def all_fetchbert(m:Manager)->BertCP:
-#   """ Fetch BERT-base pretrained checkpoint from the Google cloud """
-#   return BertCP(fetchurl(m,
-#     name='uncased-bert',
-#     url='https://storage.googleapis.com/cloud-tpu-checkpoints/bert/tf_20/uncased_L-12_H-768_A-12.tar.gz',
-#     sha256='018ef0ac65fc371f97c1e2b1ede59b5afb2d9e1da0217eb5072888940fb51978',
-#     bert_config=[promise,'uncased_L-12_H-768_A-12','bert_config.json'],
-#     bert_vocab=[promise,'uncased_L-12_H-768_A-12','vocab.txt'],
-#     bert_ckpt=[claim,'uncased_L-12_H-768_A-12','bert_model.ckpt']
-#     ))
+def all_fetcholdbert(m:Manager)->BertCP:
+  """ Fetch BERT-base pretrained checkpoint from the Google cloud """
+  return BertCP(fetchurl(m,
+    name='uncased-bert',
+    url='https://storage.googleapis.com/cloud-tpu-checkpoints/bert/tf_20/uncased_L-12_H-768_A-12.tar.gz',
+    sha256='018ef0ac65fc371f97c1e2b1ede59b5afb2d9e1da0217eb5072888940fb51978',
+    bert_config=[promise,'uncased_L-12_H-768_A-12','bert_config.json'],
+    bert_vocab=[promise,'uncased_L-12_H-768_A-12','vocab.txt'],
+    bert_ckpt=[claim,'uncased_L-12_H-768_A-12','bert_model.ckpt']
+    ))
 
 def all_fetchbert(m:Manager)->BertCP:
   """ Fetch BERT-base pretrained checkpoint from the Google cloud """
@@ -189,14 +190,21 @@ def all_fetchruwiki(m:Manager)->Wikitext:
   return extractwiki(m,wikidump)
 
 def all_bert_pretraining_tfrecords(m:Manager)->WikiTFR:
-  b=all_fetchbert(m)
+  """
+  FIXME: use uniform BERT
+  """
+  b=all_fetcholdbert(m)
   return bert_pretraining_tfrecords(m,
       vocab_file=mklens(b).bert_vocab.refpath,
       wiki=all_fetchenwiki(m))
 
-def all_bert_pretrain(m:Manager, **kwargs)->BertPretrain:
+def all_basebert_pretrain(m:Manager, **kwargs)->BertPretrain:
   tfr=all_bert_pretraining_tfrecords(m)
-  return bert_pretrain_wiki(m, tfr, **kwargs)
+  return basebert_pretrain_wiki(m, tfr, **kwargs)
+
+def all_minibert_pretrain(m:Manager, **kwargs)->BertPretrain:
+  tfr=all_bert_pretraining_tfrecords(m)
+  return minibert_pretrain_wiki(m, tfr, **kwargs)
 
 def dryrun_bert_pretrain(m:Manager, train_epoches=1, resume_rref=None)->BertPretrain:
   """ Dry-run a simple convolutional model on MNIST """
@@ -205,10 +213,9 @@ def dryrun_bert_pretrain(m:Manager, train_epoches=1, resume_rref=None)->BertPret
     d['train_steps_per_loop']=1
     d['train_steps_per_epoch']=10
     return mkconfig(d)
-  return redefine(partial(all_bert_pretrain,
+  return redefine(partial(all_minibert_pretrain,
                           train_epoches=train_epoches,
                           resume_rref=resume_rref), new_config=_new_config)(m)
-
 
 
 def gcfind()->Tuple[Set[DRef],Set[RRef]]:

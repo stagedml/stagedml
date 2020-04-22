@@ -19,7 +19,7 @@ from pylightnix import ( Build, Path, Config, Manager, RRef, DRef, Context,
 from stagedml.datasets.glue.tfdataset import ( dataset, dataset_eval, dataset_train )
 from stagedml.models.bert import ( BertLayer, BertInput, BertOutput,
     BertModel, classification_logits )
-from stagedml.imports.tf import ( load_checkpoint )
+from stagedml.imports.tf import ( load_checkpoint, NotFoundError )
 from stagedml.utils.tf import ( runtb, runtensorboard, thash, dpurge,
     modelhash, print_model_checkpoint_diff )
 from stagedml.core import ( protocol_add, protocol_add_hist,
@@ -91,38 +91,72 @@ def build(b:ModelBuild, clear_session:bool=True):
   return
 
 
+# def cpload_new(b:ModelBuild)->None:
+#   """ Load checkpoint into model """
+#   o=build_outpath(b)
+#   r=load_checkpoint(mklens(b).bert_ckpt.syspath)
+#   for w in b.core_model.weights:
+#     name=w.name.split(':')[0]
+#     print(f"Loading {name}")
+
+#     try:
+#       w.assign(r.get_tensor(name))
+#       continue
+#     except NotFoundError:
+#       pass
+
+#     try:
+#       w.assign(r.get_tensor({
+#         'bert/word_embeddings/embeddings':'bert/embeddings/word_embeddings'}.get(name,name)))
+#     except NotFoundError:
+#       print_model_checkpoint_diff(b.core_model, mklens(b).bert_ckpt.syspath, o)
+#       raise
+
+#   protocol_add(mklens(b).protocol.syspath, 'cpload')
+
+
+
 def cpload(b:ModelBuild)->None:
   """ Load checkpoint into model """
-  r=load_checkpoint(mklens(b).bert_ckpt.syspath)
-  for w in b.core_model.weights:
-    name=w.name.split(':')[0]
-    print(f"Loading {name}")
-    w.assign(r.get_tensor({
-      'bert/word_embeddings/embeddings':'bert/embeddings/word_embeddings'}.get(name,name)))
-  protocol_add(mklens(b).protocol.syspath, 'cpload')
+  c=build_cattrs(b)
+  o=build_outpath(b)
+  exceptions=[]
 
-
-
-def cpload_old(b:ModelBuild)->None:
-  """ Load checkpoint into model """
-  c = build_cattrs(b)
-  o = build_outpath(b)
-
-  assertion=None
-  checkpoint=tf.train.Checkpoint(model=b.core_model)
-  load_status=checkpoint.restore(mklens(b).bert_ckpt.syspath)
   try:
+    checkpoint=tf.train.Checkpoint(model=b.core_model)
+    load_status=checkpoint.restore(mklens(b).bert_ckpt.syspath)
     load_status.assert_consumed()
-    protocol_add(mklens(b).protocol.syspath, 'cpload')
-  except AssertionError as e:
-    assertion=e
+    protocol_add(mklens(b).protocol.syspath, 'cpload:1', modelhash(b.model))
+    return
+  except Exception as e:
+    exceptions.append(e)
 
-  if assertion is not None:
-    print(f"Catched exception of type {type(assertion)}")
-    print_model_checkpoint_diff(b.core_model, mklens(b).bert_ckpt.syspath, o)
-    print("Unused variables:")
-    print('\n'.join(['- '+w.name.split(':')[0] for w in load_status._checkpoint.unused_attributes.keys()]))
-    assert False, "Failed to load the checkpoint into model"
+  try:
+    r=load_checkpoint(mklens(b).bert_ckpt.syspath)
+    for w in b.core_model.weights:
+      w.assign(r.get_tensor(w.name.split(':')[0]))
+    protocol_add(mklens(b).protocol.syspath, 'cpload:2', modelhash(b.model))
+    return
+  except Exception as e:
+    exceptions.append(e)
+
+  try:
+    r=load_checkpoint(mklens(b).bert_ckpt.syspath)
+    for w in b.core_model.weights:
+      name=w.name.split(':')[0]
+      w.assign(r.get_tensor({
+        'bert/word_embeddings/embeddings':'bert/embeddings/word_embeddings'}\
+            .get(name,name)))
+    protocol_add(mklens(b).protocol.syspath, 'cpload:3', modelhash(b.model))
+    return
+  except Exception as e:
+    exceptions.append(e)
+
+  print_model_checkpoint_diff(b.core_model, mklens(b).bert_ckpt.syspath, o)
+  print("Unused variables:")
+  print('\n'.join(['- '+w.name.split(':')[0]
+                   for w in load_status._checkpoint.unused_attributes.keys()]))
+  assert False, f"None of the checkpoint loading methods have succeed"
 
 
 def train(b:ModelBuild, **kwargs)->None:

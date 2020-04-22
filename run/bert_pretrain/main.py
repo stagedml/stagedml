@@ -1,31 +1,32 @@
 from stagedml.imports import makedirs
 from stagedml.stages.all import *
 
-def run(task_name:str='MRPC')->dict:
+def run(task_name:str='MRPC', epoches:int=200, epoches_step:int=20)->tuple:
   """ Finetune BERT on GLUE dataset """
 
-  def _pretrained(nepoch):
-    return partial(all_bert_pretrain, train_epoches=nepoch)
+  def _pretrain_stage(nepoch:int, resume_rref:Optional[RRef]):
+    return partial(all_minibert_pretrain, train_epoches=nepoch, resume_rref=resume_rref)
 
-  def _run(m:Manager,e:int):
-    refglue=all_fetchglue(m)
-    refbert=_pretrained(e)(m)
-    gluetfr=glue_tfrecords(m, task_name, bert_vocab=mklens(refbert).bert_vocab.refpath, refdataset=refglue)
-    tfbert=bert_finetune_glue(m,refbert,gluetfr)
-    return tfbert
+  def _finetune_stage(nepoch:int)->Stage:
+    def _stage(m)->BertGlue:
+      refglue=all_fetchglue(m)
+      refbert=_pretrain_stage(nepoch, None)(m)
+      gluetfr=glue_tfrecords(m, task_name, bert_vocab=mklens(refbert).bert_vocab.refpath, refdataset=refglue)
+      tfbert=bert_finetune_glue(m,refbert,gluetfr)
+      return tfbert
+    return _stage
 
   print('Begin pretraining')
 
-  pretrains=realize_recursive(
-      lambda e,rref: instantiate(_pretrained(e), resume_rref=rref),
-      epoches=100, epoches_step=10)
-
-  print('Begin fine-tuning on:', pretrains)
-  res={}
-  for e in pretrains.keys():
-    print('Fine-tuning after epoch', e)
-    res[e]=realize(instantiate(partial(_run,e=e)))
+  pretrained:Dict[int,RRef]={}
+  finetuned:Dict[int,RRef]={}
+  for e in range(epoches_step,epoches+epoches_step,epoches_step):
     out=Path(join(STAGEDML_EXPERIMENTS,'bert_pretrain',f'epoch-{e}'))
     makedirs(out, exist_ok=True)
-    linkrref(res[e],out)
-  return res
+    print('Pre-training up to epoch', e)
+    pretrained[e]=realize(instantiate(_pretrain_stage(e, pretrained.get(e-epoches_step))))
+    linkrref(pretrained[e],out)
+    print('Fine-tunining up to epoch', e)
+    finetuned[e]=realize(instantiate(_finetune_stage(e)))
+    linkrref(finetuned[e],out)
+  return pretrained, finetuned

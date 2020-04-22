@@ -2,10 +2,10 @@ from pylightnix import ( Build, Manager, Lens, DRef, RRef, Build, RefPath,
     mklens, mkdrv, build_wrapper, build_path, mkconfig, match_only, promise,
     build_outpath, realize, instantiate, repl_realize, build_wrapper_,
     repl_buildargs, build_cattrs, match_latest, claim, dircp,
-    build_setoutpaths, json_dump )
+    build_setoutpaths, json_dump, redefine )
 
 from stagedml.imports import ( walk, abspath, join, Random, partial, cpu_count,
-    getpid, makedirs, Pool, bz2_open, json_loads, json_load )
+    getpid, makedirs, Pool, bz2_open, json_loads, json_load, copy )
 from stagedml.imports.tf import ( Dataset, FixedLenFeature,
     parse_single_example, Input, TruncatedNormal, TensorBoard )
 from stagedml.utils import ( concat, batch, flines, dpurge, modelhash, runtb, TensorBoardFixed )
@@ -24,7 +24,7 @@ from absl import logging
 from stagedml.models.bert import ( BertLayer, BertInput, BertOutput )
 
 from stagedml.types import ( List, Optional, Wikitext, WikiTFR, Any,
-    BertPretrain, Tuple, BertCP )
+    BertPretrain, Tuple, BertCP, Callable )
 
 
 import tensorflow as tf
@@ -264,20 +264,8 @@ def build(m:Model)->None:
   m.strategy=tf.distribute.MirroredStrategy()
   with m.strategy.scope():
 
-    bert_config={
-      "attention_probs_dropout_prob": 0.1,
-      "hidden_act": "gelu",
-      "hidden_dropout_prob": 0.1,
-      "hidden_size": 768,
-      "initializer_range": 0.02,
-      "intermediate_size": 3072,
-      "max_position_embeddings": 512,
-      "num_attention_heads": 12,
-      "num_hidden_layers": 12,
-      "type_vocab_size": 2,
-      "vocab_size": flines(mklens(m).bert_vocab.syspath)
-    }
-
+    bert_config=copy(mklens(m).bert_config_template.val)
+    bert_config.update({'vocab_size':flines(mklens(m).bert_vocab.syspath)})
     with open(mklens(m).bert_config.syspath,'w') as f:
       json_dump(bert_config, f, indent=4)
 
@@ -290,25 +278,18 @@ def build(m:Model)->None:
 
     bert_outputs = bert_layer(bert_inputs)
 
-    # bert_model=BertModelPretrain(ins=bert_inputs,
-    #                              outs=bert_outputs,
-    #                              embedding_weights=bert_layer.embedding_lookup.embeddings)
-
     bert_model=tf.keras.Model(inputs=bert_inputs,
-                              outputs=[bert_outputs.hidden_output[-1], bert_outputs.cls_output])
+                              outputs=[bert_outputs.hidden_output[-1],
+                              bert_outputs.cls_output])
 
-    # input_word_ids = Input(shape=(c.max_seq_length,), name='input_word_ids', dtype=tf.int32)
-    # input_mask     = Input(shape=(c.max_seq_length,), name='input_mask', dtype=tf.int32)
-    # input_type_ids = Input(shape=(c.max_seq_length,), name='input_type_ids', dtype=tf.int32)
-
-    # input_word_ids = Input( shape=(c.max_seq_length,), name='input_word_ids', dtype=tf.int32)
-    # input_mask = Input( shape=(c.max_seq_length,), name='input_mask', dtype=tf.int32)
-    # input_type_ids = Input( shape=(c.max_seq_length,), name='input_type_ids', dtype=tf.int32)
-
-    masked_lm_positions = Input( shape=(c.max_predictions_per_seq,), name='masked_lm_positions', dtype=tf.int32)
-    masked_lm_ids = Input( shape=(c.max_predictions_per_seq,), name='masked_lm_ids', dtype=tf.int32)
-    masked_lm_weights = Input( shape=(c.max_predictions_per_seq,), name='masked_lm_weights', dtype=tf.int32)
-    next_sentence_labels = Input( shape=(1,), name='next_sentence_labels', dtype=tf.int32)
+    masked_lm_positions = Input( shape=(c.max_predictions_per_seq,),
+        name='masked_lm_positions', dtype=tf.int32)
+    masked_lm_ids = Input( shape=(c.max_predictions_per_seq,),
+        name='masked_lm_ids', dtype=tf.int32)
+    masked_lm_weights = Input( shape=(c.max_predictions_per_seq,),
+        name='masked_lm_weights', dtype=tf.int32)
+    next_sentence_labels = Input( shape=(1,),
+        name='next_sentence_labels', dtype=tf.int32)
 
     bert_pretrain = BertPretrainer(
         network=bert_model,
@@ -319,7 +300,8 @@ def build(m:Model)->None:
         output='predictions')
 
     lm_output, sentence_output = bert_pretrain([
-        bert_inputs.input_word_ids, bert_inputs.input_mask, bert_inputs.input_type_ids, masked_lm_positions ])
+        bert_inputs.input_word_ids, bert_inputs.input_mask,
+        bert_inputs.input_type_ids, masked_lm_positions ])
 
     pretrain_loss_layer = BertPretrainLossAndMetricLayer(vocab_size=bert_config['vocab_size'])
     output_loss = pretrain_loss_layer(lm_output, sentence_output,
@@ -392,38 +374,70 @@ def bert_pretrain_wiki_realize(m:Model, init:Optional[RRef]=None)->None:
   build_setoutpaths(m,1); runtb(m)
   build(m); ftrain(m,init) # train(m,init); # evaluate(b); keras_save(b)
 
-def bert_pretrain_wiki(m:Manager, tfrecs:WikiTFR,
+def bert_pretrain_wiki_(
+    m:Manager,
+    tfrecs:WikiTFR,
+    cfg:Callable[[DRef,int],dict],
     train_epoches:Optional[int]=None,
     resume_rref:Optional[RRef]=None)->BertPretrain:
 
   train_epoches = 10 if train_epoches is None else train_epoches
 
-  def _config()->dict:
-    name = 'bert-pretrain-wiki'
-    max_seq_length=mklens(tfrecs).max_seq_length.val
-    max_predictions_per_seq=mklens(tfrecs).max_predictions_per_seq.val
-    lr = 2e-5
-    train_batch_size = 16
-    nonlocal train_epoches
-    train_steps_per_loop = 200
-    train_steps_per_epoch = 1000
-    train_warmup_steps = 10000 # FIXME: Sic! why so much?
-    protocol = [promise, 'protocol.json']
-    checkpoint_full = [claim, 'checkpoint_full.ckpt']
-    bert_ckpt = [claim, 'checkpoint_bert.ckpt-1'] # FIXME: this name is magic
-    bert_config = [promise, 'bert_config.json']
-    bert_vocab = mklens(tfrecs).vocab_file.refpath
-    logs = [promise, 'logs']
-    version = 8
-    return locals()
-
   return BertPretrain(BertCP(mkdrv(m,
-    config=mkconfig(_config()),
+    config=mkconfig(cfg(tfrecs,train_epoches)),
     matcher=match_latest(), # FIXME! protocol_match('evaluate', 'eval_accuracy'),
     realizer=build_wrapper_(partial(bert_pretrain_wiki_realize, init=resume_rref), Model))))
 
+def basebert_pretrain_config(tfrecs, train_epoches)->dict:
+  name = 'bert-pretrain-wiki'
+  max_seq_length=mklens(tfrecs).max_seq_length.val
+  max_predictions_per_seq=mklens(tfrecs).max_predictions_per_seq.val
+  lr = 2e-5
+  train_batch_size = 16
+  train_epoches=train_epoches
+  bert_config_template={
+      "attention_probs_dropout_prob": 0.1,
+      "hidden_act": "gelu",
+      "hidden_dropout_prob": 0.1,
+      "hidden_size": 768,
+      "initializer_range": 0.02,
+      "intermediate_size": 3072,
+      "max_position_embeddings": 512,
+      "num_attention_heads": 12,
+      "num_hidden_layers": 12,
+      "type_vocab_size": 2 }
+  train_steps_per_loop = 200
+  train_steps_per_epoch = 1000
+  train_warmup_steps = 10000 # FIXME: Sic! why so much?
+  protocol = [promise, 'protocol.json']
+  checkpoint_full = [claim, 'checkpoint_full.ckpt']
+  bert_ckpt = [claim, 'checkpoint_bert.ckpt-1'] # FIXME: this name is a magic
+  bert_config = [promise, 'bert_config.json']
+  bert_vocab = mklens(tfrecs).vocab_file.refpath
+  logs = [promise, 'logs']
+  version = 8
+  return locals()
+
+basebert_pretrain_wiki=partial(bert_pretrain_wiki_, cfg=basebert_pretrain_config)
 
 
+def minibert_pretrain_config(tfrecs, train_epoches):
+  cfg=basebert_pretrain_config(tfrecs, train_epoches)
+  cfg['bert_config_template']={
+      "attention_probs_dropout_prob": 0.1,
+      "hidden_act": "gelu",
+      "hidden_dropout_prob": 0.1,
+      "hidden_size": 256,
+      "initializer_range": 0.02,
+      "intermediate_size": 1024,
+      "max_position_embeddings": 512,
+      "num_attention_heads": 4,
+      "num_hidden_layers": 4,
+      "type_vocab_size": 2 }
+  cfg['train_batch_size'] = 64
+  return cfg
+
+minibert_pretrain_wiki=partial(bert_pretrain_wiki_, cfg=minibert_pretrain_config)
 
 
 # def train(m:Model)->None:
