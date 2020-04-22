@@ -1,9 +1,10 @@
 from pylightnix import ( Manager, Context, Hash, Path, DRef, RRef, Closure,
-    Build, BuildArgs, repl_realize, repl_continue, repl_build, build_outpath,
-    realize, rref2path, store_config, config_name, mksymlink, isdir, dirhash,
-    json_dump, json_load, assert_serializable, assert_valid_rref,
-    build_wrapper_, readjson, store_rrefs, repl_rref, repl_cancel, rmref,
-    store_gc, instantiate, tryreadjson, tryreadjson_def, mklens, Tag)
+    Build, BuildArgs, Matcher, repl_realize, repl_continue, repl_build,
+    build_outpath, realize, rref2path, store_config, config_name, mksymlink,
+    isdir, dirhash, json_dump, json_load, assert_serializable,
+    assert_valid_rref, build_wrapper_, readjson, store_rrefs, repl_rref,
+    repl_cancel, rmref, store_gc, instantiate, tryreadjson, tryreadjson_def,
+    mklens, Tag, RRefGroup)
 
 from stagedml.imports import ( join, environ, remove, copytree, copy_tree,
     partial )
@@ -213,13 +214,14 @@ def protocol_metric(p:Protocol, op_name:str, metric_name:str)->Optional[float]:
     print(f"Warning: '{op_name}' operation was found in protocol")
   return metric_val
 
-def best_(op_name:str, metric_name:str, rrefs:List[RRef])->RRef:
+def best_(op_name:str, metric_name:str, rrefgs:List[RRefGroup])->RRefGroup:
   """ Return best model in terms of a metric, received by the given operation.
   Example: `best('evaluate','eval_accuracy', search(...)) ` """
-  assert len(rrefs)>0, "Empty input list of refs"
+  assert len(rrefgs)>0, "Empty input list of refs"
   metric_val=None
-  best_ref=None
-  for rref in rrefs:
+  best_rrefg=None
+  for g in rrefgs:
+    rref=g[Tag('out')]
     found_ops=0
     mv=None
     p=protocol_load(mklens(rref).protocol.syspath)
@@ -228,22 +230,22 @@ def best_(op_name:str, metric_name:str, rrefs:List[RRef])->RRef:
     if mv is not None:
       if metric_val is None:
         metric_val=mv
-        best_ref=rref
+        best_rrefg=g
       else:
         if mv>metric_val:
           metrci_val=mv
-          best_ref=rref
-  assert best_ref is not None, \
+          best_rrefg=g
+  assert best_rrefg is not None, \
     (f"`best()` was unable to find best match for '{metric_name}' "
-     f"among '{op_name}' operations of {rrefs}")
-  return best_ref
+     f"among '{op_name}' operations of {rrefgs}")
+  return best_rrefg
 
-def protocol_match(op_name:str, metric_name:str):
-  def _matcher(dref:DRef, context:Context)->Optional[List[RRef]]:
+def protocol_match(op_name:str, metric_name:str)->Matcher:
+  def _matcher(dref:DRef, context:Context)->Optional[List[RRefGroup]]:
     rgs=list(store_rrefs(dref, context))
     if len(rgs)==0:
       return None
-    return [best_(op_name, metric_name, [rg[Tag('out')] for rg in rgs])]
+    return [best_(op_name, metric_name, rgs)]
   return _matcher
 
 
