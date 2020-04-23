@@ -29,3 +29,6 @@ RUN /bin/sh /install/install_python_deps.sh
 COPY install_devenv.sh /install/install_devenv.sh
 RUN /bin/sh /install/install_devenv.sh
 
+COPY install_codebraid.sh /install/install_codebraid.sh
+RUN /bin/sh /install/install_codebraid.sh
+

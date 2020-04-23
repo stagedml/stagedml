@@ -31,6 +31,7 @@ wheels_tfm:
 
 .PHONY: install_tfm
 install_tfm: # Has to be run by root
+	test "$(shell whoami)" = "root"
 	test -f $(WHEEL_TFM) || ( echo 'run `make wheels_tfm` first'; exit 1; )
 	pip3 install --force $(WHEEL_TFM)
 	pip3 hash $(WHEEL_TFM) > .install_tfm-stamp
@@ -61,6 +62,7 @@ wheels: wheels_tfm $(WHEEL)
 
 .PHONY: install
 install: install_tfm
+	test "$(shell whoami)" = "root"
 	test -f $(WHEEL) || ( echo 'run `make wheels` first'; exit 1; )
 	make -C 3rdparty/pylightnix install
 	pip3 install --force $(WHEEL)
