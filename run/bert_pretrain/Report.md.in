@@ -1,0 +1,23 @@
+Test summary on BERT pre-training
+---------------------------------
+
+TODO: intro
+
+
+```{.python .cb.nb}
+from main import *
+from stagedml.stages.all import *
+```
+
+asdasdasd
+
+
+```{.python .cb.nb hide=stdout+stderr}
+rref=realize(instantiate(all_minibert_finetune_glue))
+```
+
+```{.python .cb.nb}
+print(rref)
+```
+
+asdasdasda
