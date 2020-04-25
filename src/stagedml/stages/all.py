@@ -32,16 +32,13 @@ from stagedml.stages.fetchenwiki import fetchwiki, extractwiki
 from stagedml.stages.bert_pretrain_wiki import ( bert_pretraining_tfrecords,
     basebert_pretrain_wiki, minibert_pretrain_wiki )
 
-from stagedml.types import ( Dict, Set, Tuple, List, Optional, DRef, Glue,
-    Squad11, GlueTFR, Squad11TFR, BertCP, BertGlue, BertSquad, NL2Bash,
-    TransWmt, WmtSubtok, ConvnnMnist, Wikidump, Wikitext, WikiTFR, BertPretrain
-    )
+from stagedml.types import ( Dict, Set, Tuple, List, Optional, Union, DRef,
+    Glue, Squad11, GlueTFR, Squad11TFR, BertCP, BertGlue, BertSquad, NL2Bash,
+    TransWmt, WmtSubtok, ConvnnMnist, Wikidump, Wikitext, WikiTFR, BertPretrain )
 from stagedml.core import ( lrealize, tryrealize, STAGEDML_EXPERIMENTS,
     diskspace_h, linkrref, realize_recursive )
 from stagedml.imports import ( walk, join, abspath, islink, partial,
-    get_terminal_size )
-
-from beautifultable import BeautifulTable
+    get_terminal_size, BeautifulTable )
 
 all_fetchglue = fetchglue
 all_fetchsquad11 = fetchsquad11

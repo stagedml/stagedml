@@ -3,21 +3,62 @@ Test summary on BERT pre-training
 
 TODO: intro
 
-
 ```{.python .cb.nb}
-from main import *
+import altair as alt
+import pandas as pd
+import numpy as np
+from bert_pretrain_experiment import *
 from stagedml.stages.all import *
 ```
 
-asdasdasd
+TODO: Try to examine the source code of the function
 
 
-```{.python .cb.nb hide=stdout+stderr}
-rref=realize(instantiate(all_minibert_finetune_glue))
-```
+We now run the experiment. We assume that Pylightnix already has the results in
+it's storage because otherwize the report generation would take too long to
+complete.
 
 ```{.python .cb.nb}
-print(rref)
+pretrained,finetuned=run() # TODO: assert cached
 ```
 
-asdasdasda
+TODO: results
+
+```{.python .cb.nb show=code+stdout:raw+stderr}
+
+results=defaultdict(list)
+for epoch,rref in finetuned.items():
+  for subf,metric in zip(['validation','train'],
+                         ['epoch_accuracy','batch_accuracy']):
+    es=tensorboard_scalar_events(
+        rref,subf,metric)
+    results[metric].append(
+      pd.DataFrame({'step':[e.step for e in es],
+                    'value':[e.value for e in es],
+                    'pretrained':[epoch for _ in es]}))
+
+```
+
+TODO: Describe train batch accuracy
+
+```{.python .cb.nb show=code+stdout:raw+stderr}
+metric='batch_accuracy'
+dflist=results[metric]
+df=pd.concat(dflist)
+chart=alt.Chart(df).mark_line().encode(
+  x='step', y='value', color='pretrained')
+altair_print(chart, f'figure_{metric}.png')
+```
+
+TODO: Describe evaluation epoch accuracy
+
+```{.python .cb.nb show=code+stdout:raw+stderr}
+metric='epoch_accuracy'
+dflist=results[metric]
+df=pd.concat(dflist)
+chart=alt.Chart(df).mark_line().encode(
+  x='step', y='value', color='pretrained')
+altair_print(chart, f'figure_{metric}.png')
+```
+
+

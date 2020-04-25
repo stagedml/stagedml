@@ -1,6 +1,6 @@
 .DEFAULT_GOAL = all
 SRC = $(shell find $(STAGEDML_ROOT)/src -name '*\.py') \
-			$(STAGEDML_ROOT)/run/bert_pretrain/main.py
+			$(STAGEDML_ROOT)/run/bert_pretrain/bert_pretrain_experiment.py
 TESTS = $(shell find $(STAGEDML_ROOT)/tests -name '*\.py')
 
 .stamp_check: $(SRC) $(TESTS)
@@ -14,19 +14,22 @@ endif
 	fi
 	touch $@
 
-Report.md: Report.md.in Makefile $(SRC) $(TESTS) .stamp_check
-	PYTHONPATH=. codebraid pandoc -f markdown -t markdown --no-cache \
-						             --overwrite --standalone --self-contained \
-												 -o $@ $<
+out/Report.md: Report.md.in Makefile $(SRC) $(TESTS) .stamp_check
+	mkdir out ; REPOUT=`dirname $@` PYTHONPATH=. codebraid pandoc \
+		-f markdown -t markdown \
+		--no-cache --overwrite --standalone --self-contained -o $@ $<
 
-Report.html: Report.md.in Makefile $(SRC) $(TESTS) .stamp_check
-	PYTHONPATH=. codebraid pandoc -f markdown -t html --no-cache \
-						             --overwrite --standalone --self-contained \
-												 -o $@ $<
+out_html/Report.html: Report.md.in Makefile $(SRC) $(TESTS) .stamp_check
+	mkdir out_html ; REPOUT=`dirname $@` PYTHONPATH=. codebraid pandoc \
+		-f markdown -t html \
+		--no-cache --overwrite --standalone --self-contained \
+		--metadata pagetitle="BERT Pretraining" -o $@ $<
 
-# out/Report.py: Report.md.in Makefile $(SRC) $(TESTS) .stamp_check
-# 	ptangle -i markdown $<
-# 	mv Report.md.py $@
+.PHONY: html
+html: out_html/Report.html
+
+.PHONY: md
+md: out/Report.md
 
 .PHONY: all
-all: Report.md Report.html
+all: md html

@@ -17,4 +17,5 @@ from itertools import chain
 from bz2 import ( open as bz2_open )
 from json import ( loads as json_loads )
 from multiprocessing.pool import Pool
-
+from beautifultable import BeautifulTable
+from collections import defaultdict
