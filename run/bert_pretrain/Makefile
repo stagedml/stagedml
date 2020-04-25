@@ -15,9 +15,11 @@ endif
 	touch $@
 
 out/Report.md: Report.md.in Makefile $(SRC) $(TESTS) .stamp_check
-	mkdir out ; REPOUT=`dirname $@` PYTHONPATH=. codebraid pandoc \
+	-mkdir out
+	cd out && REPOUT=. PYTHONPATH=.. codebraid pandoc \
 		-f markdown -t markdown \
-		--no-cache --overwrite --standalone --self-contained -o $@ $<
+		--no-cache --overwrite --standalone --self-contained \
+		-o Report.md ../Report.md.in
 
 out_html/Report.html: Report.md.in Makefile $(SRC) $(TESTS) .stamp_check
 	mkdir out_html ; REPOUT=`dirname $@` PYTHONPATH=. codebraid pandoc \
