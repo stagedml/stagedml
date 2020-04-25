@@ -3,7 +3,7 @@
 CWD=$(cd `dirname $0`; pwd;)
 
 GITHACK=n
-MAPSOCKETS=y
+MAPPORTS=`expr $UID - 1000`
 DOCKERFILE=$CWD/docker/stagedml_dev.docker
 
 while test -n "$1" ; do
@@ -13,7 +13,10 @@ while test -n "$1" ; do
       exit 1
       ;;
     -n|--no-map-sockets)
-      MAPSOCKETS=n
+      MAPPORTS=""
+      ;;
+    -m|--map-ports-base)
+      MAPPORTS="$2"; shift
       ;;
     *)
       DOCKERFILE="$1"
@@ -53,23 +56,13 @@ docker build \
   -f "$DOCKERFILE" "$CWD/docker"
 
 
-if test "$MAPSOCKETS" = "y"; then
-  PORT_TENSORBOARD=`expr 6000 + $UID - 1000`
-  PORT_JUPYTER=`expr 8000 + $UID - 1000`
-  PORT_OMNIBOARD=`expr 9000 + $UID - 1000`
+if test -n "$MAPPORTS"; then
+  PORT_TENSORBOARD=`expr 6000 + $MAPPORTS`
+  PORT_JUPYTER=`expr 8000 + $MAPPORTS`
 
-  # FIXME: Check the port arguments format `ip:porta:portb`. What side does
-  # porta/portb belong to?
-  DOCKER_PORT_ARGS="-p 0.0.0.0:$PORT_TENSORBOARD:6006 -p 0.0.0.0:$PORT_JUPYTER:8888 -p $PORT_OMNIBOARD:9000"
-  (
-  set +x
-  echo
-  echo "***************************"
-  echo "Host Tensorboard port: ${PORT_TENSORBOARD}"
-  echo "Host Jupyter port:     ${PORT_JUPYTER}"
-  echo "Host OMNIboard port:   ${PORT_OMNIBOARD}"
-  echo "***************************"
-  )
+  DOCKER_PORT_ARGS="
+    -p 0.0.0.0:$PORT_TENSORBOARD:6006 -e PORT_TENSORBOARD=$PORT_TENSORBOARD
+    -p 0.0.0.0:$PORT_JUPYTER:8888 -e PORT_JUPYTER=$PORT_JUPYTER"
 fi
 
 # To allow X11 connections from docker

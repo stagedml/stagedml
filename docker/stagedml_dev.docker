@@ -32,3 +32,6 @@ RUN /bin/sh /install/install_devenv.sh
 COPY install_codebraid.sh /install/install_codebraid.sh
 RUN /bin/sh /install/install_codebraid.sh
 
+COPY install_altair.sh /install/install_altair.sh
+RUN /bin/sh /install/install_altair.sh
+
