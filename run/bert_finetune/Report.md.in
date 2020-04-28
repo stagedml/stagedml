@@ -1,5 +1,5 @@
-Test summary on BERT pre-training
-=================================
+BERT fine-tuning experiments
+============================
 
 ```{.python .cb.nb}
 import altair as alt
@@ -30,7 +30,7 @@ configuration. Now we execute the experiment.
 rrefs:Dict[int,List[RRef]]=experiment_bs()
 ```
 
-Here is the code to process results. First, we building a collection of
+Here is the code to process results. First, we build a collection of
 `DataFrame`s.
 
 ```{.python .cb.nb}
