@@ -19,6 +19,7 @@ pkgs.buildEnv {
     gitFull
     ccls
     fzf
+    fd
   ]);
 }
 
