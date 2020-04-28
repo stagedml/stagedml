@@ -28,15 +28,18 @@ def dataset(data_path:str, max_seq_length):
 def dataset_train(path:str, train_data_size, train_batch_size, max_seq_length):
   d = dataset(path, max_seq_length)
   d = d.shuffle(100)
-
   dtrain=d.take(train_data_size)
   dtrain=dtrain.repeat()
   dtrain=dtrain.batch(train_batch_size, drop_remainder=True)
   dtrain=dtrain.prefetch(1024)
+  return dtrain
 
+def dataset_valid(path:str, train_data_size, valid_batch_size, max_seq_length):
+  d = dataset(path, max_seq_length)
+  d = d.shuffle(100)
   dvalid=d.skip(train_data_size)
-  dvalid=dvalid.batch(train_batch_size, drop_remainder=False)
-  return dtrain,dvalid
+  dvalid=dvalid.batch(valid_batch_size, drop_remainder=False)
+  return dvalid
 
 def dataset_eval(path:str, eval_batch_size, max_seq_length):
   d = dataset(path, max_seq_length)

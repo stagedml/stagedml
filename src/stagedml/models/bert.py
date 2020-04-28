@@ -496,7 +496,8 @@ class BertLayer(tf.keras.layers.Layer):
     with tf.name_scope('pooler'):
       pooled_output = self.pooler_dense(first_token_tensor)
 
-    return BertOutput(pooled_output, embedding_output, attention_output, hidden_output)
+    return BertOutput(pooled_output, embedding_output,
+                      attention_output, hidden_output)
 
   def get_config(self):
     config = {"config": self.config.to_dict()}
@@ -521,7 +522,8 @@ class BertModel:
 
 
 # class BertModelPretrain:
-#   def __init__(self, ins:BertInput, outs:BertOutput, embedding_weights:Tensor)->None:
+#   def __init__(self, ins:BertInput, outs:BertOutput,
+#                      embedding_weights:Tensor)->None:
 #     def _get_embedding_table(self)->Tensor:
 #       return embedding_weights
 #     self.model=tf.keras.Model(inputs=ins, outputs=outs)

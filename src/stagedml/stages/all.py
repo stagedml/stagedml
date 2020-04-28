@@ -87,12 +87,19 @@ def all_squad11_tfrecords(m:Manager)->Squad11TFR:
   squadref=all_fetchsquad11(m)
   return squad11_tfrecords(m, bertref, squadref)
 
-def all_minibert_finetune_glue(m:Manager, task_name:str='MRPC')->BertGlue:
+def all_minibert_finetune_glue(m:Manager, task_name:str='MRPC',
+                               num_instances:int=1)->BertGlue:
   """ Finetune mini-BERT on GLUE dataset """
   refbert=all_fetchminibert(m)
   refglue=all_fetchglue(m)
   glueref=glue_tfrecords(m, task_name, bert_vocab=mklens(refbert).bert_vocab.refpath, refdataset=refglue)
-  return bert_finetune_glue(m,refbert,glueref)
+  def _new(d):
+    d['name']+='-mini'
+    d['train_batch_size']=8
+    d['eval_batch_size']=8
+    return mkconfig(d)
+  return redefine(bert_finetune_glue,new_config=_new)(m,refbert,glueref,
+      num_instances=num_instances)
 
 def all_bert_finetune_glue(m:Manager, task_name:str='MRPC')->BertGlue:
   """ Finetune base-BERT on GLUE dataset """

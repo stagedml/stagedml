@@ -15,6 +15,7 @@ from tensorflow import ( io, data )
 from tensorflow.python.training.checkpoint_utils import ( list_variables,
     load_checkpoint )
 from tensorflow.python.framework.errors import ( NotFoundError )
+from tensorflow.keras.metrics import Mean, SparseCategoricalAccuracy
 
 Dataset=data.Dataset
 FixedLenFeature=io.FixedLenFeature
