@@ -14,7 +14,7 @@ Batch size in BERT->MRPC fine-tuning
 
 The source code of the experiment:
 
-```{.markdown .cb.code
+```{.python .cb.code
     include_file=bert_finetune_experiment.py
     include_regex="experiment_bs.*return result"}
 ```

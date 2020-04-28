@@ -14,7 +14,7 @@ Batch size in BERT-\>MRPC fine-tuning
 
 The source code of the experiment:
 
-``` {.markdown .numberLines startFrom="1"}
+``` {.python .numberLines startFrom="1"}
 experiment_bs()->dict:
   result={}
   n=5
