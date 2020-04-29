@@ -12,7 +12,7 @@ from stagedml.stages.all import *
 Batch size in BERT->MRPC fine-tuning
 ------------------------------------
 
-The source code of the experiment:
+The top-level procedure of the experiment:
 
 ```{.python .cb.code
     include_file=bert_finetune_experiment.py
@@ -27,40 +27,43 @@ matcher we are saying that we want at least 5 realizations of every
 configuration. Now we execute the experiment.
 
 ```{.python .cb.nb}
-rrefs:Dict[int,List[RRef]]=experiment_bs()
+results=experiment_bs(exclude=[])
 ```
 
 Here is the code to process results. First, we build a collection of
 `DataFrame`s.
 
 ```{.python .cb.nb}
-results=defaultdict(list)
-for bs,rrefs in rrefs.items():
-  for i,rref in enumerate(rrefs):
-    for subf,metric in [('valid','accuracy'),('valid','loss')]:
-      es=tensorboard_tensor_events(rref,subf,metric)
-      results[f'{subf}-{metric}'].append(
-        pd.DataFrame({'step':[e.step*bs for e in es],
-                      'value':[te2float(e) for e in es],
-                      'batch_size':[bs for _ in es],
-                      'iid':[i for _ in es]}))
-
+dfs=[]
+for bs,rrefs in results.items():
+  for iid,rref in enumerate(rrefs):
+    cols={}
+    es=tensorboard_tensor_events(rref,'valid','accuracy')
+    assert len(es)>0
+    cols['steps']=[e.step*bs for e in es]
+    cols['valid_accuracy']=[te2float(e) for e in es]
+    cols['batch_size']=[bs for _ in es]
+    cols['iid']=[iid for _ in es]
+    es=tensorboard_tensor_events(rref,'valid','loss')
+    assert len(cols['steps'])==len(es)
+    cols['valid_loss']=[te2float(e) for e in es]
+    print(cols)
+    dfs.append(DataFrame(cols))
+ds=pd.concat(dfs)
 ```
 
 Finally, we print the validation accuracy of our models. Here:
 
 * `iid` is the instance identifier of the model.
 * `batch_size` is the batch size used during fine-tuning
-* `step` is the number of sentences passed through the model. According to the
+* `steps` is the number of sentences passed through the model. According to the
   value of `max_seq_length` parameter, each sentence contains maximum 128
   tokens.
 
 ```{.python .cb.nb show=code+stdout:raw+stderr}
-metric='valid-accuracy'
-dflist=results[metric]
-df=pd.concat(dflist)
-chart=alt.Chart(df).mark_line().encode(
-  x='step', y='value', color='batch_size',
+metric='valid_accuracy'
+chart=alt.Chart(ds).mark_line().encode(
+  x='steps', y=metric, color='batch_size',
   strokeDash='iid')
 altair_print(chart, f'figure_{metric}.png')
 ```
@@ -69,3 +72,21 @@ altair_print(chart, f'figure_{metric}.png')
   - Is it the effect of batch-normalization?
   - Is it the effect of un-disabled dropout?
 
+
+Fine-tuning on GLUE tasks
+-------------------------
+
+
+
+
+```
+{.python .cb.nb show=code+stdout:raw+stderr}
+metric='train-lr'
+dflist=results[metric]
+df=pd.concat(dflist)
+df=df[(df['batch_size']==32) | (df['batch_size']==2)]
+chart=alt.Chart(df).mark_line().encode(
+  x='step', y='value', color='batch_size',
+  strokeDash='optver')
+altair_print(chart, f'figure_{metric}.png')
+```
