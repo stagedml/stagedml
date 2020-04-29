@@ -10,6 +10,8 @@ from official.modeling.model_training_utils import run_customized_training_loop
 from official.nlp.optimization import create_optimizer
 from tensorflow.python.keras.backend import clear_session
 from tensorflow.keras.callbacks import TensorBoard
+from tensorflow.python.ops.math_ops import cast
+from tensorflow.python.framework import dtypes
 from absl import logging
 
 from pylightnix import ( Build, Path, Config, Manager, RRef, DRef, Context,
@@ -20,7 +22,7 @@ from pylightnix import ( Build, Path, Config, Manager, RRef, DRef, Context,
 from stagedml.datasets.glue.tfdataset import ( dataset, dataset_eval,
     dataset_train, dataset_valid )
 from stagedml.models.bert import ( BertLayer, BertInput, BertOutput,
-    BertModel, classification_logits )
+    BertModel, classification_logits, create_optimizer as create_optimizer_v2 )
 from stagedml.imports.tf import ( load_checkpoint, NotFoundError, Tensor, Mean,
     SparseCategoricalAccuracy )
 from stagedml.imports.sys import ( join )
@@ -89,7 +91,12 @@ def build(b:ModelBuild, iid:int=0, clear_session:bool=True):
     model = tf.keras.Model(inputs=teacher_ins, outputs=[teacher_cls_logits])
     model_eval = tf.keras.Model(inputs=teacher_ins, outputs=[teacher_cls_probs])
 
-    b.optimizer = create_optimizer(c.lr, c.train_steps_per_epoch*c.train_epoches, c.train_warmup_steps)
+    if 'opt_v2' in mklens(b).flags.val:
+      b.optimizer = create_optimizer_v2(c.lr,
+        c.train_steps_per_epoch*c.train_epoches, c.train_warmup_steps)
+    else:
+      b.optimizer = create_optimizer(c.lr,
+        c.train_steps_per_epoch*c.train_epoches, c.train_warmup_steps)
 
     b.model = model
     b.core_model = teacher_model.model
@@ -175,7 +182,8 @@ def train(b:ModelBuild, iid:int=0)->None:
       validation_steps=c.valid_steps_per_epoch,
       epochs=c.train_epoches,
       callbacks=[tensorboard_callback])
-    b.model.save_weights(l.weights.syspath, save_format='h5')
+    b.core_model.save_weights(l.bert_ckpt.syspath)
+    b.model.save_weights(l.checkpoint_full.syspath)
     protocol_add_hist(l.protocol.syspath, 'train', modelhash(b.model), h)
 
 def train_custom(b:ModelBuild, iid:int=0):
@@ -186,6 +194,7 @@ def train_custom(b:ModelBuild, iid:int=0):
   train_summary_writer = tf.summary.create_file_writer(join(o,'train'))
   valid_summary_writer = tf.summary.create_file_writer(join(o,'valid'))
   loss_metric = Mean('loss', dtype=tf.float32)
+  lr_metric = Mean('lr', dtype=tf.float32)
   metrics = [ SparseCategoricalAccuracy('accuracy', dtype=tf.float32) ]
   loss_fn=get_loss_fn(num_classes=c.num_labels, loss_factor=1.0)
   b.model.compile(b.optimizer, loss=loss_fn, metrics=metrics)
@@ -205,27 +214,29 @@ def train_custom(b:ModelBuild, iid:int=0):
                          batch_size, c.max_seq_length)
 
   def _metrics_reset()->None:
-    for m in b.model.metrics + [loss_metric]:
+    for m in b.model.metrics + [loss_metric, lr_metric]:
       m.reset_states()
 
   def _metrics_update(labels:Tensor, inputs:Tensor,
-                      loss:Optional[Tensor]=None)->None:
+                      loss:Optional[Tensor]=None,
+                      lr:Optional[Any]=None)->None:
     for m in b.model.metrics:
       m.update_state(labels, inputs)
     if loss is not None:
       loss_metric.update_state(loss)
+    if lr is not None:
+      lr_metric.update_state(lr)
 
   def _metrics_dump(writer, step:int)->None:
-    from tensorflow.python.ops.math_ops import cast
-    from tensorflow.python.framework import dtypes
     with writer.as_default():
-      for m in b.model.metrics + [loss_metric]:
+      for m in b.model.metrics + [loss_metric, lr_metric]:
         tf.summary.scalar(m.name, cast(m.result(), dtypes.float32), step=step)
       writer.flush()
 
 
   with b.strategy.scope():
-    def _train_step_replicated(inputs):
+
+    def _train_step_replicated(step:int, inputs):
       inputs, labels = inputs
       with tf.GradientTape() as tape:
         outs=b.model(inputs, training=True)
@@ -233,12 +244,13 @@ def train_custom(b:ModelBuild, iid:int=0):
       tv=b.model.trainable_variables
       grad=tape.gradient(loss,tv)
       b.model.optimizer.apply_gradients(zip(grad,tv))
-      _metrics_update(labels, outs, loss)
+      lr=b.model.optimizer.lr(step)
+      _metrics_update(labels, outs, loss, lr)
 
     @tf.function
-    def _train_step(iterator):
+    def _train_step(step:int,iterator):
       b.strategy.experimental_run_v2(
-        _train_step_replicated, args=(next(iterator),))
+        _train_step_replicated, args=(step,next(iterator)))
 
     def _valid_step_replicated(inputs):
       inputs, labels = inputs
@@ -263,7 +275,7 @@ def train_custom(b:ModelBuild, iid:int=0):
       while current_step<next_epoch*c.train_steps_per_epoch:
         print(f"Current step is {current_step}/{next_epoch*c.train_steps_per_epoch}")
         _metrics_reset()
-        _train_step(train_iterator)
+        _train_step(tf.constant(current_step), train_iterator)
         current_step += 1
         _metrics_dump(train_summary_writer, current_step)
 
@@ -314,7 +326,17 @@ def bert_finetune_glue(m:Manager, refbert:BertCP,
     build_setoutpaths(b,num_instances)
     for i in range(num_instances):
       print(f"Training instance {i}")
-      build(b,i); cpload(b,i); train_custom(b,i); evaluate(b,i)
+      runtb(build_outpaths(b)[i]) # FIXME
+      build(b,i);
+      cpload(b,i)
+      tm=mklens(b,build_output_idx=i).train_method.val
+      if tm is None or tm=='custom':
+        train_custom(b,i);
+      elif tm=='fit':
+        train(b,i);
+      else:
+        assert False, f"Unknown training method: {tm.val}"
+      evaluate(b,i)
 
   def _config()->dict:
     nonlocal tfrecs
@@ -331,14 +353,13 @@ def bert_finetune_glue(m:Manager, refbert:BertCP,
     checkpoint_full = [claim, 'checkpoint_full.ckpt']
     bert_ckpt = [claim, 'checkpoint_bert.ckpt']
     protocol = [promise, 'protocol.json']
-    # weights = [promise, 'weights.h5']
     dataset_size = None # Use default value
 
     lr = 2e-5
     train_batch_size = 32
     eval_batch_size = 32
     train_epoches = 3
-    version = 8
+    flags=['opt_v2']
     return locals()
 
   return BertGlue(mkdrv(m,

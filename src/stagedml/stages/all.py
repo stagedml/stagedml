@@ -17,7 +17,7 @@ from pylightnix import ( Stage, Path, RRef, Manager, mknode, fetchurl,
     store_dref2path, dirsize, store_config, config_name, redefine, mkconfig )
 
 from stagedml.stages.fetchglue import fetchglue
-from stagedml.stages.glue_tfrecords import glue_tfrecords
+from stagedml.stages.glue_tfrecords import glue_tfrecords, glue_tasks
 from stagedml.stages.bert_finetune_glue import bert_finetune_glue
 from stagedml.stages.fetchsquad import fetchsquad11
 from stagedml.stages.squad_tfrecords import squad11_tfrecords
@@ -76,10 +76,12 @@ def all_fetchminibert(m:Manager)->BertCP:
     ))
 
 def all_glue_tfrecords(m:Manager, task_name:str)->GlueTFR:
-  """ Fetch and preprocess GLUE dataset """
+  """ Fetch and preprocess GLUE dataset. `task_name` should be one of
+  `glue_tasks()` """
   refbert=all_fetchbert(m)
   refglue=all_fetchglue(m)
-  return glue_tfrecords(m, task_name, bert_vocab=mklens(refbert).bert_vocab.refpath, refdataset=refglue)
+  return glue_tfrecords(m, task_name,
+    bert_vocab=mklens(refbert).bert_vocab.refpath, refdataset=refglue)
 
 def all_squad11_tfrecords(m:Manager)->Squad11TFR:
   """ Fetch and preprocess Squad-1.1 dataset """
@@ -89,17 +91,21 @@ def all_squad11_tfrecords(m:Manager)->Squad11TFR:
 
 def all_minibert_finetune_glue(m:Manager, task_name:str='MRPC',
                                num_instances:int=1)->BertGlue:
-  """ Finetune mini-BERT on GLUE dataset """
+  """ Finetune mini-BERT on GLUE dataset
+
+  Ref. https://github.com/google-research/bert
+  """
   refbert=all_fetchminibert(m)
   refglue=all_fetchglue(m)
-  glueref=glue_tfrecords(m, task_name, bert_vocab=mklens(refbert).bert_vocab.refpath, refdataset=refglue)
+  glueref=glue_tfrecords(m, task_name,
+    bert_vocab=mklens(refbert).bert_vocab.refpath, refdataset=refglue)
   def _new(d):
     d['name']+='-mini'
     d['train_batch_size']=8
     d['eval_batch_size']=8
     return mkconfig(d)
-  return redefine(bert_finetune_glue,new_config=_new)(m,refbert,glueref,
-      num_instances=num_instances)
+  return redefine(bert_finetune_glue,new_config=_new)\
+    (m,refbert,glueref, num_instances=num_instances)
 
 def all_bert_finetune_glue(m:Manager, task_name:str='MRPC')->BertGlue:
   """ Finetune base-BERT on GLUE dataset """

@@ -40,7 +40,10 @@ def process(b:Build)->None:
                        max_seq_length=c.max_seq_length)
 
 
-def glue_tfrecords(m:Manager, task_name:str, bert_vocab:RefPath, refdataset:Glue)->GlueTFR:
+def glue_tfrecords(m:Manager,
+                   task_name:str,
+                   bert_vocab:RefPath,
+                   refdataset:Glue)->GlueTFR:
 
   assert task_name in glue_tasks(), \
       f"Unsupported task '{task_name}'. Expected one of {glue_tasks()}"

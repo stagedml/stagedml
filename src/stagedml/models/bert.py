@@ -14,7 +14,9 @@ from official.nlp.bert_modeling import ( EmbeddingLookup,
 from official.nlp.bert_modeling import ( get_initializer,
     create_attention_mask_from_input_mask )
 from official.modeling import tf_utils
+from official.nlp.optimization import ( WarmUp, AdamWeightDecay )
 
+LAYER_NORM_NAME="LayerNorm"
 
 class CustomAttention(tf.keras.layers.Layer):
   def __init__(self,
@@ -183,7 +185,7 @@ class CustomTransformerBlock(tf.keras.layers.Layer):
         rate=self.hidden_dropout_prob)
     self.attention_layer_norm = (
         tf.keras.layers.LayerNormalization(
-            name="LayerNorm", axis=-1, epsilon=1e-12,
+            name=LAYER_NORM_NAME, axis=-1, epsilon=1e-12,
             # We do layer norm in float32 for numeric stability.
             dtype=tf.float32))
 
@@ -199,7 +201,7 @@ class CustomTransformerBlock(tf.keras.layers.Layer):
         name='dense')
     self.output_dropout = tf.keras.layers.Dropout(rate=self.hidden_dropout_prob)
     self.output_layer_norm = tf.keras.layers.LayerNormalization(axis=-1,
-        epsilon=1e-12, dtype=tf.float32, name='LayerNorm')
+        epsilon=1e-12, dtype=tf.float32, name=LAYER_NORM_NAME)
     super(CustomTransformerBlock, self).build(unused_input_shapes)
 
   def common_layers(self):
@@ -385,7 +387,7 @@ class CustomEmbeddingPostprocessor(tf.keras.layers.Layer):
           dtype=self.dtype)
 
     self.output_layer_norm = tf.keras.layers.LayerNormalization(
-        name="LayerNorm", axis=-1, epsilon=1e-12, dtype=tf.float32)
+        name=LAYER_NORM_NAME, axis=-1, epsilon=1e-12, dtype=tf.float32)
     self.output_dropout = tf.keras.layers.Dropout(
         rate=self.dropout_prob, dtype=tf.float32)
     super().build(unused)
@@ -535,4 +537,24 @@ class BertModel:
 #     # self.embedding_weights=embedding_weights
 #     # self.inputs=self.model.inputs
 #     # self.outputs=self.model.outputs
+
+def create_optimizer(init_lr, num_train_steps, num_warmup_steps):
+  """Creates an optimizer with learning rate schedule."""
+  # Implements linear decay of the learning rate.
+  learning_rate_fn = tf.keras.optimizers.schedules.PolynomialDecay(
+      initial_learning_rate=init_lr,
+      decay_steps=num_train_steps,
+      end_learning_rate=0.0)
+  if num_warmup_steps:
+    learning_rate_fn = WarmUp(initial_learning_rate=init_lr,
+                              decay_schedule_fn=learning_rate_fn,
+                              warmup_steps=num_warmup_steps)
+  optimizer = AdamWeightDecay(
+      learning_rate=learning_rate_fn,
+      weight_decay_rate=0.01,
+      beta_1=0.9,
+      beta_2=0.999,
+      epsilon=1e-6,
+      exclude_from_weight_decay=[LAYER_NORM_NAME, 'bias'])
+  return optimizer
 
