@@ -9,8 +9,8 @@ immutable data management engine named
 [Pylightnix](https://github.com/stagedml/pylightnix).
 
 
-StagedML formalizes notions of model configuration and dependency, provides
-stable ground for experimenting by tracking their realizations, takes possible
+StagedML formalizes the concepts of model configuration and dependency, provides
+stable grounds for experimentation by tracking their realizations, takes possible
 non-determenism into account.
 ![graph-demo](./run/depgraph/graph-demo.png)
 *<p align=center>Example: stage configuration dependencies related to BERT
