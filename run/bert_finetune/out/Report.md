@@ -1,7 +1,6 @@
-BERT fine-tuning experiments
-============================
+# BERT fine-tuning experiments
 
-``` {.python .numberLines startFrom="1"}
+``` python numberLines
 import altair as alt
 import pandas as pd
 import numpy as np
@@ -9,10 +8,9 @@ from bert_finetune_experiment import *
 from stagedml.stages.all import *
 ```
 
-Fine-tuning on GLUE tasks
--------------------------
+## Fine-tuning on GLUE tasks
 
-``` {.python .numberLines startFrom="1"}
+``` python numberLines
 experiment_allglue(n:int=1)->Dict[str,List[RRef]]:
   result={}
   for task_name in [t for t in glue_tasks() if t.upper() not in ['COLA']]:
@@ -31,11 +29,11 @@ experiment_allglue(n:int=1)->Dict[str,List[RRef]]:
   return result
 ```
 
-``` {.python .numberLines startFrom="6"}
+``` python numberLines
 results=experiment_allglue()
 ```
 
-``` {.stdout}
+``` stdout
 Fine-tuning SST-2
 Fine-tuning MRPC
 Fine-tuning QQP
@@ -47,7 +45,7 @@ Fine-tuning RTE
 Fine-tuning WNLI
 ```
 
-``` {.python .numberLines startFrom="7"}
+``` python numberLines
 t=BeautifulTable(max_width=1000)
 t.set_style(BeautifulTable.STYLE_MARKDOWN)
 t.width_exceed_policy = BeautifulTable.WEP_ELLIPSIS
@@ -60,22 +58,18 @@ t.append_row(['buildtime']+[store_buildelta(rrefs[0])
 print(t)
 ```
 
-  -------------------------------------------------------------------------------------------------------
-  Name        SST-2     MRPC     QQP        MNLI-m     MNLI-mm    SNLI       QNLI       RTE      WNLI
-  ----------- --------- -------- ---------- ---------- ---------- ---------- ---------- -------- --------
-  accuracy    0.868     0.757    0.877      0.723      0.741      0.847      0.84       0.607    0.328
-
-  buildtime   781.831   50.946   4029.925   2049.392   2077.004   3037.395   1172.757   39.715   18.213
-  -------------------------------------------------------------------------------------------------------
+| Name      | SST-2   | MRPC   | QQP      | MNLI-m   | MNLI-mm  | SNLI     | QNLI     | RTE    | WNLI   |
+| --------- | ------- | ------ | -------- | -------- | -------- | -------- | -------- | ------ | ------ |
+| accuracy  | 0.868   | 0.757  | 0.877    | 0.723    | 0.741    | 0.847    | 0.84     | 0.607  | 0.328  |
+| buildtime | 781.831 | 50.946 | 4029.925 | 2049.392 | 2077.004 | 3037.395 | 1172.757 | 39.715 | 18.213 |
 
 Ref. [Upstream results](https://github.com/google-research/bert#bert)
 
-Batch size in BERT-\>MRPC fine-tuning
--------------------------------------
+## Batch size in BERT-\>MRPC fine-tuning
 
 The top-level procedure of the experiment:
 
-``` {.python .numberLines startFrom="1"}
+``` python numberLines
 experiment_bs(n:int=1, exclude=[])->Dict[int,List[RRef]]:
   result={}
   for bs in [2,8,16,32,64]:
@@ -130,14 +124,14 @@ future). By using `match_some(5)` matcher we are saying that we want at
 least 5 realizations of every configuration. Now we execute the
 experiment.
 
-``` {.python .numberLines startFrom="17"}
+``` python numberLines
 results=experiment_bs(exclude=[])
 ```
 
 Here is the code to process results. First, we build a collection of
 `DataFrame`s.
 
-``` {.python .numberLines startFrom="18"}
+``` python numberLines
 dfs=[]
 for bs,rrefs in results.items():
   for iid,rref in enumerate(rrefs):
@@ -156,7 +150,7 @@ for bs,rrefs in results.items():
 ds=pd.concat(dfs)
 ```
 
-``` {.stdout}
+``` stdout
 {'steps': [3482, 6964, 10446, 13928, 17410], 'valid_accuracy': [0.7663043737411499, 0.7880434989929199, 0.7880434989929199, 0.8260869383811951, 0.804347813129425], 'batch_size': [2, 2, 2, 2, 2], 'iid': [0, 0, 0, 0, 0], 'valid_loss': [0.8980810046195984, 0.9873740077018738, 1.1126651763916016, 0.8929693698883057, 1.0717772245407104]}
 {'steps': [3480, 6960, 10440, 13920, 17400], 'valid_accuracy': [0.75, 0.7663043737411499, 0.7771739363670349, 0.79347825050354, 0.8097826242446899], 'batch_size': [8, 8, 8, 8, 8], 'iid': [0, 0, 0, 0, 0], 'valid_loss': [0.5367669463157654, 0.5429021716117859, 0.5023452043533325, 0.553193986415863, 0.5063174962997437]}
 {'steps': [3472, 6944, 10416, 13888, 17360], 'valid_accuracy': [0.7159090638160706, 0.7272727489471436, 0.7784090638160706, 0.75, 0.7556818127632141], 'batch_size': [16, 16, 16, 16, 16], 'iid': [0, 0, 0, 0, 0], 'valid_loss': [0.5679369568824768, 0.5936899781227112, 0.513241708278656, 0.5550832748413086, 0.5548913478851318]}
@@ -166,13 +160,15 @@ ds=pd.concat(dfs)
 
 Finally, we print the validation accuracy of our models. Here:
 
--   `iid` is the instance identifier of the model.
--   `batch_size` is the batch size used during fine-tuning
--   `steps` is the number of sentences passed through the model.
+  - `iid` is the instance identifier of the model.
+  - `batch_size` is the batch size used during fine-tuning
+  - `steps` is the number of sentences passed through the model.
     According to the value of `max_seq_length` parameter, each sentence
     contains maximum 128 tokens.
 
-``` {.python .numberLines startFrom="34"}
+<!-- end list -->
+
+``` python numberLines
 metric='valid_accuracy'
 chart=alt.Chart(ds).mark_line().encode(
   x='steps', y=metric, color='batch_size',
@@ -182,17 +178,16 @@ altair_print(chart, f'figure_{metric}.png')
 
 ![](./figure_valid_accuracy.png)
 
-``` {.stderr}
+``` stderr
 WARN StrokeDash channel should be used with only discrete data.
 WARN Using discrete channel "strokeDash" to encode "quantitative" field can be misleading as it does not encode magnitude.
 ```
 
--   TODO: find out why do models with smaller batch sizes train better?
-    -   Is it the effect of batch-normalization?
-    -   Is it the effect of un-disabled dropout?
+  - TODO: find out why do models with smaller batch sizes train better?
+      - Is it the effect of batch-normalization?
+      - Is it the effect of un-disabled dropout?
 
-Junk
-----
+## Junk
 
     {.python .cb.nb show=code+stdout:raw+stderr}
     metric='train-lr'

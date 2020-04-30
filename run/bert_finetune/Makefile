@@ -17,7 +17,7 @@ endif
 out/Report.md: Report.md.in Makefile $(SRC) $(TESTS) .stamp_check
 	mkdir out; REPOUT=out REPIMG=. PYTHONPATH=. codebraid pandoc \
 		-f markdown -t markdown --no-cache --overwrite --standalone \
-		--self-contained -o $@ $<
+		--self-contained -t gfm  -o $@ $<
 	-rm geckodriver.log
 
 out_html/Report.html: Report.md.in Makefile $(SRC) $(TESTS) .stamp_check
