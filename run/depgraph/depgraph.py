@@ -38,11 +38,11 @@ def mkgraph_finetune()->None:
   G=mkgraph(stages=[partial(all_minibert_finetune_glue, task_name=t) for t
     in glue_tasks()])
   G.layout(prog='dot')
-  G.draw(f'graph-finetune-{l}-{mode}.png')
+  G.draw(f'graph-finetune.png')
 
 def mkgraph_pretrain()->None:
   mkgraph(stages=[all_minibert_pretrain],
-    filename=f'graph-pretrain-{l}.png', layout='dot')
+    filename=f'graph-pretrain.png', layout='dot')
 
 
 def mkgraph_demo()->None:
