@@ -12,6 +12,7 @@ immutable data management engine named
 StagedML formalizes the concepts of model configuration and dependency, provides
 stable grounds for experimentation by tracking their realizations, takes possible
 non-determenism into account.
+
 ![graph-demo](./run/depgraph/graph-demo.png)
 *<p align=center>Stage configuration dependencies related to BERT
 fine-tuning</p>*
