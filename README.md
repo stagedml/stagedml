@@ -9,6 +9,9 @@ immutable data management engine named
 [Pylightnix](https://github.com/stagedml/pylightnix).
 
 
+![graph-demo](./run/depgraph/graph-demo.png)
+
+
 Contents
 --------
 
@@ -38,9 +41,9 @@ Features
   3. Any _stage_ object could be created in just one line
      of Python code, not counting the imports. Example:
      ```python
-     > from stagedml.stages.all import all_convnn_mnist, realize, instantiate, rref2path, shell
-     > rref=realize(instantiate(all_convnn_mnist))
-     > rref
+     >>> from stagedml.stages.all import all_convnn_mnist, realize, instantiate, rref2path, shell
+     >>> rref=realize(instantiate(all_convnn_mnist))
+     >>> rref
      'rref:2bf51e3ce37061ccff6168ccefac7221-3b9f88037f737f06af0fe82b6f6ac3c8-convnn-mnist'
      ```
      Realization reference identifies a folder containing final checkpoints and
@@ -50,10 +53,10 @@ Features
   5. For every _stage_, users could access it's full configuration, including the
      configurations of it's dependencies
      ```python
-     > from pylightnix import mklens
-     > mklens(rref).learning_rate.val   # Learning rate of the model
+     >>> from pylightnix import mklens
+     >>> mklens(rref).learning_rate.val   # Learning rate of the model
      0.001
-     > mklens(rref).mnist.url.val       # URL of the dataset used to train the model
+     >>> mklens(rref).mnist.url.val       # URL of the dataset used to train the model
      'https://storage.googleapis.com/tensorflow/tf-keras-datasets/mnist.npz'
      ```
   6. StagedML **evaluates all the configurations before executing all the
@@ -71,14 +74,14 @@ Features
        low-level details.
      - In many cases we can tweak configurations in-place:
        ```python
-       > from pylightnix import redefine, mkconfig
-       > def _new_config(old_config):
-       >   old_config['learning_rate'] = 1e-5
-       >   return mkconfig(old_config)
-       > rref5=realize(instantiate(redefine(all_convnn_mnist, new_config=_new_config)))
-       > rref5
+       >>> from pylightnix import redefine, mkconfig
+       >>> def _new_config(old_config):
+       >>>   old_config['learning_rate'] = 1e-5
+       >>>   return mkconfig(old_config)
+       >>> rref5=realize(instantiate(redefine(all_convnn_mnist, new_config=_new_config)))
+       >>> rref5
        'rref:1ece593a8e761fa28fdc0da0fed00eb8-dd084d4a8b75a787b7c230474549e5db-convnn-mnist'
-       > mklens(rref5).learning_rate.val
+       >>> mklens(rref5).learning_rate.val
        1e-05
        ```
      [NL2bash report](/run/nl2bash/out/Report.md) illustrates how to review and
@@ -95,7 +98,7 @@ Features
      in subsequent stages. Selection criteria are up to the user. See `Matcher`
      topic of the Pylightnix documentation.
      ```python
-     > rref2path(rref)
+     >>> rref2path(rref)
      '/tmp/pylightnix/store-v0/3b9f88037f737f06af0fe82b6f6ac3c8-convnn-mnist/2bf51e3ce37061ccff6168ccefac7221'
      # ^^^ Storage root        ^^^ Stage configuration                       ^^^ Stage realization (one of)
      ```
@@ -226,18 +229,18 @@ automatically.
 An example IPython session may look like the following:
 
 ```python
-> from stagedml.stages.all import *                    # Import the collection of toplevel stages
-> store_initialize()                                   # Make sure that Pylightnix storage is initialized
-> realize(instantiate(all_bert_finetune_glue, 'MRPC')) # Train our model of choice
+>>> from stagedml.stages.all import *                    # Import the collection of toplevel stages
+>>> store_initialize()                                   # Make sure that Pylightnix storage is initialized
+>>> realize(instantiate(all_bert_finetune_glue, 'MRPC')) # Train our model of choice
 
-                                                       # During the realize, StagedML will:
-                                                       # * Download GLUE Dataset...
-                                                       # * Download pretrained BERT checkpoint
-                                                       # * Convert the Dataset into TFRecord format
-                                                       # * Fine tune the BERT model on MRPC classification task
-                                                       #   (~15 min on Nv1080Ti GPU)
-                                                       # * Save model's checkpoint and other data
-                                                       # * Return the handle to this data
+                                                         # During the realize, StagedML will:
+                                                         # * Download GLUE Dataset...
+                                                         # * Download pretrained BERT checkpoint
+                                                         # * Convert the Dataset into TFRecord format
+                                                         # * Fine tune the BERT model on MRPC classification task
+                                                         #   (~15 min on Nv1080Ti GPU)
+                                                         # * Save model's checkpoint and other data
+                                                         # * Return the handle to this data
 
 'rref:eedaa6f13fee251b9451283ef1932ca0-c32bccd3f671d6a3da075cc655ee0a09-bert'
 ```
@@ -248,7 +251,7 @@ They could be converted into system paths by calling `pylightnix.rref2path`
 function:
 
 ```python
-> print(rref2path(rref))
+>>> print(rref2path(rref))
 /var/run/pylightnix/store-v0/c32bccd3f671d6a3da075cc655ee0a09/eedaa6f13fee251b9451283ef1932ca0/
 ```
 
