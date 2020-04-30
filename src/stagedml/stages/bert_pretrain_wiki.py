@@ -121,7 +121,7 @@ def realize_pretraining(b:Build)->None:
     print('')
 
 
-def bert_pretraining_tfrecords(m:Manager, vocab_file:RefPath, wiki:Wikitext)->WikiTFR:
+def bert_pretrain_tfrecords(m:Manager, vocab_file:RefPath, wiki:Wikitext)->WikiTFR:
 
   def _config():
     name='bert_pretraining'
@@ -423,6 +423,7 @@ basebert_pretrain_wiki=partial(bert_pretrain_wiki_, cfg=basebert_pretrain_config
 
 def minibert_pretrain_config(tfrecs, train_epoches):
   cfg=basebert_pretrain_config(tfrecs, train_epoches)
+  cfg['name']='minibert-pretrain-wiki'
   cfg['bert_config_template']={
       "attention_probs_dropout_prob": 0.1,
       "hidden_act": "gelu",
