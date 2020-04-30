@@ -13,7 +13,7 @@ StagedML formalizes the concepts of model configuration and dependency, provides
 stable grounds for experimentation by tracking their realizations, takes possible
 non-determenism into account.
 ![graph-demo](./run/depgraph/graph-demo.png)
-*<p align=center>Example: stage configuration dependencies related to BERT
+*<p align=center>Stage configuration dependencies related to BERT
 fine-tuning</p>*
 
 Contents
