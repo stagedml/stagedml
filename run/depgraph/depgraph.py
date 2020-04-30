@@ -35,27 +35,19 @@ def mkgraph(stages:List[Stage]=STAGES, filename:Optional[str]=None,
   return G
 
 def mkgraph_finetune()->None:
-  for mode in ['major','KK','hier','ipsep','maxent']:
-    for l in ['dot']:
-      G=mkgraph(stages=[partial(all_minibert_finetune_glue, task_name=t) for t
-        in glue_tasks()])
-      # G.graph_attr['size']='1000'
-      # G.graph_attr['mode']=mode
-      # G.graph_attr['levelsgap']=2
-      # G.graph_attr['newrank']=True
-      # G.graph_attr['pagedir']='LT'
-      # G.graph_attr['packmode']='graph'
-      # G.graph_attr['pencolor']='red:black'
-      G.layout(prog=l)
-      G.draw(f'graph-finetune-{l}-{mode}.png')
+  G=mkgraph(stages=[partial(all_minibert_finetune_glue, task_name=t) for t
+    in glue_tasks()])
+  G.layout(prog='dot')
+  G.draw(f'graph-finetune-{l}-{mode}.png')
 
 def mkgraph_pretrain()->None:
-  for l in ['neato','dot','twopi','circo','fdp']:
-    mkgraph(stages=[all_minibert_pretrain],
-      filename=f'graph-pretrain-{l}.png', layout=l)
+  mkgraph(stages=[all_minibert_pretrain],
+    filename=f'graph-pretrain-{l}.png', layout='dot')
 
 
 def mkgraph_demo()->None:
+  """ Build a graph demonstrated in top-level README.md. We change some
+  misleading names before processing """
 
   def _pretrain_stage(nepoch:int)->Stage:
     return partial(all_minibert_pretrain,train_epoches=nepoch)
