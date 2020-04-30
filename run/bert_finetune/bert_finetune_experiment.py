@@ -1,8 +1,10 @@
 from stagedml.imports import makedirs
 from stagedml.stages.all import *
 
-from pylightnix import RRef, rref2path, match_some, realizeMany, match_latest
+from pylightnix import ( RRef, rref2path, match_some, realizeMany, match_latest,
+    store_buildtime, store_buildelta )
 from stagedml.types import Dict, Union, Optional
+from stagedml.core import ( protocol_rref_metric )
 import numpy as np
 from tensorboard.backend.event_processing.event_accumulator import (
     EventAccumulator, STORE_EVERYTHING_SIZE_GUIDANCE )
@@ -93,10 +95,12 @@ def experiment_allglue(n:int=1)->Dict[str,List[RRef]]:
   result={}
   for task_name in [t for t in glue_tasks() if t.upper() not in ['COLA']]:
     print(f"Fine-tuning {task_name}")
-    batch_size={'MRPC':8}.get(task_name,32)
+    batch_size={'MNLI-M':64,
+                'MNLI-MM':64,
+                'SNLI':64}.get(task_name.upper(),8)
     def _new_config(cfg:dict):
       cfg['train_batch_size']=batch_size
-      cfg['train_epoches']=3
+      cfg['train_epoches']=4
       return mkconfig(cfg)
     result[task_name]=realizeMany(instantiate(
       redefine(all_minibert_finetune_glue,

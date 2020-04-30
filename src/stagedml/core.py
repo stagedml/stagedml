@@ -191,7 +191,6 @@ def protocol_add_eval(fname:Path,
 # |_|  |_|\__,_|\__\___|_| |_|\___|_|  |___/
 
 
-
 def protocol_metric(p:Protocol, op_name:str, metric_name:str)->Optional[float]:
   found_ops=0
   metric_val=None
@@ -213,6 +212,7 @@ def protocol_metric(p:Protocol, op_name:str, metric_name:str)->Optional[float]:
   if found_ops==0:
     print(f"Warning: '{op_name}' operation was found in protocol")
   return metric_val
+
 
 def best_(op_name:str, metric_name:str, rrefgs:List[RRefGroup])->RRefGroup:
   """ Return best model in terms of a metric, received by the given operation.
@@ -248,4 +248,9 @@ def protocol_match(op_name:str, metric_name:str)->Matcher:
     return [best_(op_name, metric_name, rgs)]
   return _matcher
 
+def protocol_rref_metric(rref:RRef,
+                         op_name:str,
+                         metric_name:str)->Optional[float]:
+  p=protocol_load_def(mklens(rref).protocol.syspath, [])
+  return protocol_metric(p, op_name, metric_name)
 

@@ -9,6 +9,34 @@ from bert_finetune_experiment import *
 from stagedml.stages.all import *
 ```
 
+
+Fine-tuning on GLUE tasks
+-------------------------
+
+```{.python .cb.code
+    include_file=bert_finetune_experiment.py
+    include_regex="experiment_allglue.*return result"}
+```
+
+```{.python .cb.nb}
+results=experiment_allglue()
+```
+
+```{.python .cb.nb show=code+stdout:raw+stderr}
+t=BeautifulTable(max_width=1000)
+t.set_style(BeautifulTable.STYLE_MARKDOWN)
+t.width_exceed_policy = BeautifulTable.WEP_ELLIPSIS
+t.column_headers=['Name']+list(results.keys())
+t.append_row(['accuracy']+[
+  protocol_rref_metric(results[tn][0],'evaluate','eval_accuracy')
+    for tn in results.keys()])
+t.append_row(['buildtime']+[store_buildelta(rrefs[0])
+                            for rrefs in list(results.values())])
+print(t)
+```
+
+Ref. [Upstream results](https://github.com/google-research/bert#bert)
+
 Batch size in BERT->MRPC fine-tuning
 ------------------------------------
 
@@ -72,12 +100,8 @@ altair_print(chart, f'figure_{metric}.png')
   - Is it the effect of batch-normalization?
   - Is it the effect of un-disabled dropout?
 
-
-Fine-tuning on GLUE tasks
--------------------------
-
-
-
+Junk
+----
 
 ```
 {.python .cb.nb show=code+stdout:raw+stderr}
@@ -90,3 +114,4 @@ chart=alt.Chart(df).mark_line().encode(
   strokeDash='optver')
 altair_print(chart, f'figure_{metric}.png')
 ```
+

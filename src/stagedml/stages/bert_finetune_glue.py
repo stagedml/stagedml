@@ -347,8 +347,9 @@ def bert_finetune_glue(m:Manager, refbert:BertCP,
     task_config = mklens(tfrecs).outputs.meta.refpath
     bert_config = mklens(refbert).bert_config.refpath
     bert_ckpt_in = mklens(refbert).bert_ckpt.refpath
-    assert mklens(refbert).bert_vocab.refpath==mklens(tfrecs).bert_vocab.refpath, \
-        "Model dictionary path doesn't match the dataset dictionary path"
+    assert mklens(refbert).bert_vocab.refpath==\
+           mklens(tfrecs).bert_vocab.refpath, \
+      "Model dictionary path doesn't match the dataset dictionary path"
 
     checkpoint_full = [claim, 'checkpoint_full.ckpt']
     bert_ckpt = [claim, 'checkpoint_bert.ckpt']
