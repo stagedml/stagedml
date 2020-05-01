@@ -65,6 +65,18 @@ def all_fetchbert(m:Manager)->BertCP:
     bert_ckpt=[claim,'uncased_L-12_H-768_A-12','bert_model.ckpt']
     ))
 
+def all_fetch_multibert(m:Manager)->BertCP:
+  """ Fetch BERT-base pretrained checkpoint from the Google cloud """
+  return BertCP(fetchurl(m,
+    name='basebert-multi-cased',
+    url='https://storage.googleapis.com/bert_models/2018_11_23/multi_cased_L-12_H-768_A-12.zip',
+    sha256='60ec8d9a7c3cc1c15f6509a6cbe1a8d30b7f823b77cb7460f6d31383200aec9d',
+    bert_config=[promise,'multi_cased_L-12_H-768_A-12','bert_config.json'],
+    bert_vocab=[promise,'multi_cased_L-12_H-768_A-12','vocab.txt'],
+    bert_ckpt=[claim,'multi_cased_L-12_H-768_A-12','bert_model.ckpt']
+    ))
+
+
 def all_fetchminibert(m:Manager)->BertCP:
   return BertCP(fetchurl(m,
     name='minibert-uncased',
@@ -80,8 +92,8 @@ def all_glue_tfrecords(m:Manager, task_name:str)->GlueTFR:
   `glue_tasks()` """
   refbert=all_fetchbert(m)
   refglue=all_fetchglue(m)
-  return glue_tfrecords(m, task_name,
-    bert_vocab=mklens(refbert).bert_vocab.refpath, refdataset=refglue)
+  vocab=bert_vocab=mklens(refbert).bert_vocab.refpath
+  return glue_tfrecords(m, task_name, bert_vocab=vocab, refdataset=refglue)
 
 def all_squad11_tfrecords(m:Manager)->Squad11TFR:
   """ Fetch and preprocess Squad-1.1 dataset """
@@ -108,10 +120,25 @@ def all_minibert_finetune_glue(m:Manager, task_name:str='MRPC',
     (m,refbert,glueref, num_instances=num_instances)
 
 def all_bert_finetune_glue(m:Manager, task_name:str='MRPC')->BertGlue:
-  """ Finetune base-BERT on GLUE dataset """
+  """ Finetune base-BERT on GLUE dataset
+
+  Ref. https://github.com/google-research/bert
+  """
   refbert=all_fetchbert(m)
   refglue=all_fetchglue(m)
-  glueref=glue_tfrecords(m, task_name, bert_vocab=mklens(refbert).bert_vocab.refpath, refdataset=refglue)
+  vocab=mklens(refbert).bert_vocab.refpath
+  glueref=glue_tfrecords(m, task_name, bert_vocab=vocab, refdataset=refglue)
+  return bert_finetune_glue(m,refbert,glueref)
+
+def all_multibert_finetune_glue(m:Manager, task_name:str='MRPC')->BertGlue:
+  """ Finetune milti-lingual base-BERT on GLUE dataset
+
+  Ref. https://github.com/google-research/bert/blob/master/multilingual.md
+  """
+  refbert=all_fetch_multibert(m)
+  refglue=all_fetchglue(m)
+  vocab=mklens(refbert).bert_vocab.refpath
+  glueref=glue_tfrecords(m, task_name, bert_vocab=vocab, refdataset=refglue)
   return bert_finetune_glue(m,refbert,glueref)
 
 # def all_bert_finetune_glue(m:Manager, task_name:str='MRPC')->BertGlue:
