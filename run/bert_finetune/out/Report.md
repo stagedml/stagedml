@@ -50,18 +50,22 @@ t=BeautifulTable(max_width=1000)
 t.set_style(BeautifulTable.STYLE_MARKDOWN)
 t.width_exceed_policy = BeautifulTable.WEP_ELLIPSIS
 t.column_headers=['Name']+list(results.keys())
-t.append_row(['accuracy']+[
-  protocol_rref_metric(results[tn][0],'evaluate','eval_accuracy')
+t.append_row(['Accuracy']+[
+  100*protocol_rref_metric(results[tn][0],'evaluate','eval_accuracy')
     for tn in results.keys()])
-t.append_row(['buildtime']+[store_buildelta(rrefs[0])
-                            for rrefs in list(results.values())])
+t.append_row(['F1_score']+[
+  100*protocol_rref_metric(results[tn][0],'evaluate','f1_score')
+    for tn in results.keys()])
+t.append_row(['Training time, min']+[f"{store_buildelta(rrefs[0])/60:.1f}"
+                                     for rrefs in list(results.values())])
 print(t)
 ```
 
-| Name      | SST-2   | MRPC   | QQP      | MNLI-m   | MNLI-mm  | SNLI     | QNLI     | RTE    | WNLI   |
-| --------- | ------- | ------ | -------- | -------- | -------- | -------- | -------- | ------ | ------ |
-| accuracy  | 0.868   | 0.757  | 0.877    | 0.723    | 0.741    | 0.847    | 0.84     | 0.607  | 0.328  |
-| buildtime | 781.831 | 50.946 | 4029.925 | 2049.392 | 2077.004 | 3037.395 | 1172.757 | 39.715 | 18.213 |
+| Name               | SST-2  | MRPC   | QQP    | MNLI-m | MNLI-mm | SNLI   | QNLI   | RTE    | WNLI   |
+| ------------------ | ------ | ------ | ------ | ------ | ------- | ------ | ------ | ------ | ------ |
+| Accuracy           | 86.227 | 76.0   | 87.572 | 72.349 | 73.585  | 84.858 | 84.238 | 63.235 | 40.625 |
+| F1\_score          | 55.0   | 75.784 | 43.775 | 43.673 | 44.235  | 40.232 | 53.395 | 38.915 | 33.696 |
+| Training time, min | 13.3   | 0.9    | 70.0   | 34.8   | 34.8    | 48.3   | 20.3   | 0.7    | 0.4    |
 
 Ref. [Upstream results](https://github.com/google-research/bert#bert)
 
@@ -125,7 +129,7 @@ least 5 realizations of every configuration. Now we execute the
 experiment.
 
 ``` python numberLines
-results=experiment_bs(exclude=[])
+results=experiment_bs(exclude=['+f1v2'])
 ```
 
 Here is the code to process results. First, we build a collection of

@@ -8,12 +8,9 @@ export PATH="$STAGEDML_ROOT/.nix_docker_inject.env/bin:$STAGEDML_ROOT/3rdparty/w
 export FZF_DEFAULT_COMMAND='fd --type f --hidden --follow --exclude 3rdparty --exclude .git'
 export PYTHONPATH=""
 export MYPYPATH=""
-for p in \
-  $STAGEDML_ROOT/3rdparty/tensorflow_models \
-  $STAGEDML_ROOT/3rdparty/pylightnix/src \
-  $STAGEDML_ROOT/3rdparty/nl2bash_essence/src \
-  $STAGEDML_ROOT/src \
-  ; do
+
+update_pythonpath() {
+  p="$1"
   if test -d "$p" ; then
     export PYTHONPATH="$p:$PYTHONPATH"
     export MYPYPATH="$p:$MYPYPATH"
@@ -21,6 +18,15 @@ for p in \
   else
     echo "Directory '$p' doesn't exists. Not adding to PYTHONPATH" >&2
   fi
+}
+
+for p in \
+  $STAGEDML_ROOT/3rdparty/tensorflow_models \
+  $STAGEDML_ROOT/3rdparty/pylightnix/src \
+  $STAGEDML_ROOT/3rdparty/nl2bash_essence/src \
+  $STAGEDML_ROOT/src \
+  ; do
+  update_pythonpath "$p"
 done
 
 if test -f $HOME/.bashrc ; then
@@ -66,10 +72,32 @@ runchrome() {(
 cudarestart() {
   sudo rmmod nvidia_uvm ; sudo modprobe nvidia_uvm
 }
-
 runnetron() {
   netron --host 0.0.0.0 -p 6006 "$@"
 }
+
+buildtfa() {(
+  set -e -x
+  cd $STAGEDML_ROOT/3rdparty/tensorflow_addons/
+
+  export TF_NEED_CUDA="1"
+  case $CUDA_VERSION in
+    10.0*) export TF_CUDA_VERSION="10.0" ;;
+    10.1*) export TF_CUDA_VERSION="10.1" ;;
+    *) echo "Unknown CUDA_VERSION ($CUDA_VERSION)" >&2; exit 1;;
+  esac
+  export TF_CUDNN_VERSION="7"
+  export CUDA_TOOLKIT_PATH="/usr/local/cuda"
+  export CUDNN_INSTALL_PATH="/usr/lib/x86_64-linux-gnu"
+  python3 ./configure.py
+  bazel build --enable_runfiles build_pip_pkg
+  bazel-bin/build_pip_pkg $STAGEDML_ROOT/_tfa
+)}
+
+installtfa() {(
+  cd $STAGEDML_ROOT/_tfa
+  sudo -H pip install --force `ls -t *whl | head -n 1`
+)}
 
 buildtf() {(
   set -e -x

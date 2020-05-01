@@ -24,15 +24,14 @@ from stagedml.datasets.glue.tfdataset import ( dataset, dataset_eval,
 from stagedml.models.bert import ( BertLayer, BertInput, BertOutput,
     BertModel, classification_logits, create_optimizer as create_optimizer_v2 )
 from stagedml.imports.tf import ( load_checkpoint, NotFoundError, Tensor, Mean,
-    SparseCategoricalAccuracy )
+    SparseCategoricalAccuracy, Input )
 from stagedml.imports.sys import ( join )
 from stagedml.utils.tf import ( runtb, runtensorboard, thash, dpurge,
-    modelhash, print_model_checkpoint_diff )
+    modelhash, print_model_checkpoint_diff, SparseF1Score )
 from stagedml.core import ( protocol_add, protocol_add_hist,
     protocol_add_eval, protocol_match )
 from stagedml.types import ( BertCP, GlueTFR, BertGlue,
     Optional,Any,List,Tuple,Union )
-
 
 class ModelBuild(Build):
   model:tf.keras.Model
@@ -71,9 +70,12 @@ def build(b:ModelBuild, iid:int=0, clear_session:bool=True):
 
   b.strategy=tf.distribute.MirroredStrategy()
   with b.strategy.scope():
-    input_word_ids = tf.keras.Input(shape=(c.max_seq_length,), name='input_word_ids', dtype=tf.int32)
-    input_mask     = tf.keras.Input(shape=(c.max_seq_length,), name='input_mask', dtype=tf.int32)
-    input_type_ids = tf.keras.Input(shape=(c.max_seq_length,), name='input_type_ids', dtype=tf.int32)
+    input_word_ids=Input(shape=(c.max_seq_length,), name='input_word_ids',
+        dtype=tf.int32)
+    input_mask=Input(shape=(c.max_seq_length,), name='input_mask',
+        dtype=tf.int32)
+    input_type_ids=Input(shape=(c.max_seq_length,), name='input_type_ids',
+        dtype=tf.int32)
 
 
     teacher_ins = BertInput(input_word_ids, input_mask, input_type_ids)
@@ -195,7 +197,8 @@ def train_custom(b:ModelBuild, iid:int=0):
   valid_summary_writer = tf.summary.create_file_writer(join(o,'valid'))
   loss_metric = Mean('loss', dtype=tf.float32)
   lr_metric = Mean('lr', dtype=tf.float32)
-  metrics = [ SparseCategoricalAccuracy('accuracy', dtype=tf.float32) ]
+  metrics = [ SparseCategoricalAccuracy('accuracy', dtype=tf.float32),
+              SparseF1Score(num_classes=c.num_labels, average='micro')]
   loss_fn=get_loss_fn(num_classes=c.num_labels, loss_factor=1.0)
   b.model.compile(b.optimizer, loss=loss_fn, metrics=metrics)
 
@@ -273,7 +276,8 @@ def train_custom(b:ModelBuild, iid:int=0):
       next_epoch=(current_step//c.train_steps_per_epoch)+1
       print(f"Next epoch is {next_epoch}")
       while current_step<next_epoch*c.train_steps_per_epoch:
-        print(f"Current step is {current_step}/{next_epoch*c.train_steps_per_epoch}")
+        if current_step % 10 == 0:
+          print(f"Current step is {current_step}/{next_epoch*c.train_steps_per_epoch}/{c.train_epoches*c.train_steps_per_epoch}")
         _metrics_reset()
         _train_step(tf.constant(current_step), train_iterator)
         current_step += 1
@@ -303,10 +307,11 @@ def evaluate(b:ModelBuild, iid:int=0)->None:
   print('Evaluating')
 
   with b.strategy.scope():
-    metric_fn = SparseCategoricalAccuracy('eval_accuracy', dtype=tf.float32)
+    metrics = [ SparseCategoricalAccuracy('eval_accuracy', dtype=tf.float32),
+                SparseF1Score(num_classes=c.num_labels, average='micro') ]
     loss_fn = get_loss_fn(num_classes=int(c.num_labels), loss_factor=1.0)
     k = b.model_eval
-    k.compile(b.optimizer, loss=loss_fn, metrics=[metric_fn])
+    k.compile(b.optimizer, loss=loss_fn, metrics=metrics)
 
     de = dataset_eval(l.task_eval.syspath, c.eval_batch_size, c.max_seq_length)
     h = k.evaluate(de, steps=c.eval_steps_per_epoch)
@@ -360,7 +365,7 @@ def bert_finetune_glue(m:Manager, refbert:BertCP,
     train_batch_size = 32
     eval_batch_size = 32
     train_epoches = 3
-    flags=['opt_v2']
+    flags=['opt_v2','+f1v2']
     return locals()
 
   return BertGlue(mkdrv(m,

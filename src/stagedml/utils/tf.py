@@ -1,30 +1,26 @@
 """ Utility functions which require TensorFlow as a dependency """
 import json
-import numpy
+import numpy as np
 import tensorflow as tf
 assert tf.version.VERSION.startswith('2.1') or \
        tf.version.VERSION.startswith('2.2'), \
        (f"sbtagedml requires TensorFlow version '2.1.*' or '2.2.*', "
         f"not '{tf.version.VERSION}'")
 
-from re import search as re_search
-from os import remove, listdir
-from os.path import join
-from tensorflow.keras.callbacks import History
-from hashlib import md5
-from subprocess import run as os_run, Popen
-from typing import ( Union, List, Any, Optional, Tuple, Callable, TypeVar )
-from pickle import ( dump as pickle_dump, load as pickle_load)
-from tensorflow.keras.backend import batch_get_value
-
-from stagedml.imports.tf import ( TensorBoard, list_variables )
-from stagedml.imports.sys import ( Popen )
-
 from pylightnix import ( Closure, Path, Build, Hash, DRef, assert_valid_rref,
     assert_serializable, PYLIGHTNIX_TMP, Realizer, build_outpath, mkbuild, RRef,
     rref2path, readjson, json_dumps, store_rrefs, dirhash, Context,
     build_wrapper_, BuildArgs, repl_realize, repl_continue, repl_build, isrref )
 
+from stagedml.imports.tf import ( TensorBoard, list_variables, History )
+from stagedml.imports.sys import ( Popen, join, remove, listdir, re_search, md5,
+    os_run, Popen )
+
+from stagedml.types import ( Union, List, Any, Optional, Tuple, Callable,
+    TypeVar )
+
+FloatTensorLike = Union[tf.Tensor, float, np.float16, np.float32, np.float64]
+AcceptableDTypes = Union[tf.DType, np.dtype, type, int, str, None]
 
 #  _   _ _   _ _
 # | | | | |_(_) |___
@@ -39,13 +35,13 @@ def memlimit(mem_gb:float)->None:
        gpus[0],
        [tf.config.experimental.VirtualDeviceConfiguration(memory_limit=mem_gb*1024)])
 
-def ndhashl(arrays:List[numpy.array])->str:
+def ndhashl(arrays:List[np.array])->str:
   e=md5()
   for l in arrays:
     e.update(l)
   return e.hexdigest()
 
-def ndhash(a:numpy.array)->str:
+def ndhash(a:np.array)->str:
   return md5(a.tobytes()).hexdigest()
 
 def thash(t:tf.Tensor)->str:
@@ -130,3 +126,123 @@ class TensorBoardFixed(TensorBoard):
           self._train_run_name: init_steps,
           self._validation_run_name: init_steps
       }
+
+class FBetaScore(tf.keras.metrics.Metric):
+  def __init__(self,
+               num_classes: FloatTensorLike,
+               average: Optional[str] = None,
+               beta: FloatTensorLike = 1.0,
+               threshold: Optional[FloatTensorLike] = None,
+               name: str = "fbeta_score",
+               dtype: AcceptableDTypes = None,
+               **kwargs):
+    super().__init__(name=name, dtype=dtype)
+
+    if average not in (None, "micro", "macro", "weighted"):
+      raise ValueError(
+        "Unknown average type. Acceptable values "
+        "are: [None, micro, macro, weighted]")
+
+    if not isinstance(beta, float):
+      raise TypeError("The value of beta should be a python float")
+
+    if beta <= 0.0:
+      raise ValueError("beta value should be greater than zero")
+
+    if threshold is not None:
+      if not isinstance(threshold, float):
+        raise TypeError("The value of threshold should be a python float")
+      if threshold > 1.0 or threshold <= 0.0:
+        raise ValueError("threshold should be between 0 and 1")
+
+    self.num_classes = num_classes
+    self.average = average
+    self.beta = beta
+    self.threshold = threshold
+    self.axis = None
+    self.init_shape = []
+
+    if self.average != "micro":
+      self.axis = 0
+      self.init_shape = [self.num_classes]
+
+    def _zero_wt_init(name):
+      return self.add_weight(
+          name, shape=self.init_shape, initializer="zeros", dtype=self.dtype)
+
+    self.true_positives = _zero_wt_init("true_positives")
+    self.false_positives = _zero_wt_init("false_positives")
+    self.false_negatives = _zero_wt_init("false_negatives")
+    self.weights_intermediate = _zero_wt_init("weights_intermediate")
+
+  # TODO: Add sample_weight support, currently it is
+  # ignored during calculations.
+  def update_state(self, y_true, y_pred, sample_weight=None):
+    if self.threshold is None:
+      threshold = tf.reduce_max(y_pred, axis=-1, keepdims=True)
+      # make sure [0, 0, 0] doesn't become [1, 1, 1]
+      # Use abs(x) > eps, instead of x != 0 to check for zero
+      y_pred = tf.logical_and(y_pred >= threshold, tf.abs(y_pred) > 1e-12)
+    else:
+      y_pred = y_pred > self.threshold
+
+    y_true = tf.cast(y_true, tf.int32)
+    y_pred = tf.cast(y_pred, tf.int32)
+
+    def _count_non_zero(val):
+      non_zeros = tf.math.count_nonzero(val, axis=self.axis)
+      return tf.cast(non_zeros, self.dtype)
+
+    self.true_positives.assign_add(_count_non_zero(y_pred * y_true))
+    self.false_positives.assign_add(_count_non_zero(y_pred * (y_true - 1)))
+    self.false_negatives.assign_add(_count_non_zero((y_pred - 1) * y_true))
+    self.weights_intermediate.assign_add(_count_non_zero(y_true))
+
+  def result(self):
+    precision = tf.math.divide_no_nan(
+      self.true_positives, self.true_positives + self.false_positives)
+    recall = tf.math.divide_no_nan(
+      self.true_positives, self.true_positives + self.false_negatives)
+
+    mul_value = precision * recall
+    add_value = (tf.math.square(self.beta) * precision) + recall
+    mean = tf.math.divide_no_nan(mul_value, add_value)
+    f1_score = mean * (1 + tf.math.square(self.beta))
+
+    if self.average == "weighted":
+      weights = tf.math.divide_no_nan(
+        self.weights_intermediate, tf.reduce_sum(self.weights_intermediate))
+      f1_score = tf.reduce_sum(f1_score * weights)
+
+    elif self.average is not None:  # [micro, macro]
+      f1_score = tf.reduce_mean(f1_score)
+
+    return f1_score
+
+  def reset_states(self):
+    self.true_positives.assign(tf.zeros(self.init_shape, self.dtype))
+    self.false_positives.assign(tf.zeros(self.init_shape, self.dtype))
+    self.false_negatives.assign(tf.zeros(self.init_shape, self.dtype))
+    self.weights_intermediate.assign(tf.zeros(self.init_shape, self.dtype))
+
+
+class F1Score(FBetaScore):
+  def __init__(self,
+    num_classes: FloatTensorLike,
+    average: str = None,
+    threshold: Optional[FloatTensorLike] = None,
+    name: str = "f1_score",
+    dtype: AcceptableDTypes = None,
+    **kwargs):
+    super().__init__(num_classes, average, 1.0, threshold,
+                     name=name, dtype=dtype)
+
+from tensorflow.python.ops import math_ops
+
+class SparseF1Score(F1Score):
+  def __init__(self, **kwargs):
+    super().__init__(**kwargs)
+  def update_state(self, y_true, y_pred, sample_weight=None):
+    y_pred = tf.cast(math_ops.argmax(y_pred, axis=-1), self.dtype)
+    return super().update_state(y_true, y_pred, sample_weight=sample_weight)
+

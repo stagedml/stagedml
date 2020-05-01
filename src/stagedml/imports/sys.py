@@ -11,7 +11,7 @@ from copy import copy, deepcopy
 from shutil import copyfile, copytree
 from random import shuffle, random, Random
 from distutils.spawn import find_executable
-from subprocess import Popen
+from subprocess import Popen, run as os_run
 from json import load as json_load
 from functools import partial
 from itertools import chain
@@ -20,3 +20,5 @@ from json import ( loads as json_loads )
 from multiprocessing.pool import Pool
 from beautifultable import BeautifulTable
 from collections import defaultdict
+from re import search as re_search
+from hashlib import md5

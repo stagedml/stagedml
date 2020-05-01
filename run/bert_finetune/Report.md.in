@@ -27,11 +27,14 @@ t=BeautifulTable(max_width=1000)
 t.set_style(BeautifulTable.STYLE_MARKDOWN)
 t.width_exceed_policy = BeautifulTable.WEP_ELLIPSIS
 t.column_headers=['Name']+list(results.keys())
-t.append_row(['accuracy']+[
-  protocol_rref_metric(results[tn][0],'evaluate','eval_accuracy')
+t.append_row(['Accuracy']+[
+  100*protocol_rref_metric(results[tn][0],'evaluate','eval_accuracy')
     for tn in results.keys()])
-t.append_row(['buildtime']+[store_buildelta(rrefs[0])
-                            for rrefs in list(results.values())])
+t.append_row(['F1_score']+[
+  100*protocol_rref_metric(results[tn][0],'evaluate','f1_score')
+    for tn in results.keys()])
+t.append_row(['Training time, min']+[f"{store_buildelta(rrefs[0])/60:.1f}"
+                                     for rrefs in list(results.values())])
 print(t)
 ```
 
@@ -55,7 +58,7 @@ matcher we are saying that we want at least 5 realizations of every
 configuration. Now we execute the experiment.
 
 ```{.python .cb.nb}
-results=experiment_bs(exclude=[])
+results=experiment_bs(exclude=['+f1v2'])
 ```
 
 Here is the code to process results. First, we build a collection of

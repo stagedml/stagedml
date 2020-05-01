@@ -151,12 +151,12 @@ for continuous integration tests in future.
 We show how to run the project in development docker
 
 1. Clone the Stagedml repo recursively
-   ```
+   ```sh
    $ git clone --recursive https://github.com/stagedml/stagedml
    ```
 
 2. Cd to project's root and run the docker script to build the container.
-   ```
+   ```sh
    $ cd stagedml
    $ ./rundocker.sh
    ```
@@ -167,10 +167,9 @@ We show how to run the project in development docker
    open Bash shell with `PYTHONPATH` pointing to local Python sources, and a
    collection of [helper shell functions](./env.sh).
 
-3. Now, we have to make sure we are using a compatible version of TensorFlow.
-   At the time of this writing, the default TF from Deepo Docker was a bit old,
-   so we provide our favorite version as  `./3rdparty/tensorflow` Git submodule.
-   You have the following options:
+3. Install TensorFlow. At the time of this writing, the default TF from Deepo
+   Docker was a bit old, so we provide our favorite version as
+   `./3rdparty/tensorflow` Git submodule.  You have the following options:
 
    * (a) Check the current version of TF shipped with the Docker's base image.
      StagedML wants it to be >=`2.1`, maybe this requirement is already
@@ -180,24 +179,17 @@ We show how to run the project in development docker
      apt-get install tensorflow-gpu`.
    * (c) Build our favorite version of TensorFlow from sources. We link it under
      `./3rdparty/tensorflow` Git submodule. First, make sure that submodules are
-     initialized by `git submodule update --init --recursive`. After that try
-     the helper shell functions we have defined in `env.sh` (it should be already
-     sourced at the start of the Docker). To compile TF, type:
+     initialized by `git submodule update --init --recursive`. After that, run
+     helper functions defined in `env.sh` (should be sourced at shell login):
 
-     ```
+     ```sh
      (docker) $ buildtf
-     ```
-
-     Building takes a long time. The resulting `*wheel` will appear in `./_tf`
-     folder. Once it is ready, call
-
-     ```
      (docker) $ installtf
      ```
 
-     to actually install the TF wheel into the container. Note, that you need to
-     call `installtf` (but not `buildtf`) at each start of the container for now.
-
+     Building takes a long time. The resulting `*wheel` will appear in `./_tf`
+     folder. Note, that you need to call `installtf` (but not `buildtf`) at each
+     start of the container for now.
 
 4. (Optional) Now we should have (a) Git submodules updated, (b) PYTHONPATH
    pointing to the local sources and (c) recent version of TensorFlow is
@@ -207,7 +199,7 @@ We show how to run the project in development docker
    In order to run experiments from the `run` folder we also do require
    installing Pylightnix, StagedML and other dependencies systemwide:
 
-   ```
+   ```sh
    (docker) $ make wheels; sudo -H make install
    ```
 
@@ -216,8 +208,8 @@ We show how to run the project in development docker
 
 5. (Optional) StagedML supports `mypy`-based typechecking:
 
-   ```
-   (docker) $ make test
+   ```sh
+   (docker) $ make typecheck
    ```
 
 
