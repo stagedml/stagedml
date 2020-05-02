@@ -29,11 +29,32 @@ experiment_allglue(n:int=1)->Dict[str,List[RRef]]:
   return result_allglue
 ```
 
+Here, we:
+
+  - Loop over all tasks excluding COLA (TODO: remember why do we exclude
+    COLA?)
+  - For every task, we realize minibert model
+      - `realizeMany(instantiate(...))` is the generic procedure of
+        realizing Pylightnix stages
+      - `redefine(..)` allows us re-define stage’s configuration
+        in-place. In our case we adjust parameters to match the upstream
+        settings (set `batch_size`, 4 epoch)
+      - Note, that we don’t evaluate all possible parameters like the
+        upstream did due to time/hardware constraints.
+      - `all_minibert_finetune_glue` is one of StagedML stages, defined
+        in `stagedml.stages.all`. By realizing it we also realize all
+        it’s dependencies, which includes fetching the required images
+        and datasets from the Internet.
+  - We build a dictionary containing `RRef` realization reference for
+    every task.
+
+<!-- end list -->
+
 ``` python numberLines
 results=experiment_allglue()
 ```
 
-Results are:
+We display results in a table
 
 ``` python numberLines
 t=BeautifulTable(max_width=1000)
@@ -79,20 +100,31 @@ experiment_bs(n:int=1, exclude=[])->Dict[int,List[RRef]]:
   return result_bs
 ```
 
-In the above code we fine-tune BERT-mini model on MRPC task. We increase
-the number of epoch to 5 from the default 3, also we want to train
-`num_instances=5` models of every batch\_size at once (Actually, current
-implementation trains them one-by-one, we could parallelize this in
-future). By using `match_some(5)` matcher we are saying that we want at
-least 5 realizations of every configuration. Now we execute the
-experiment.
+In the above code we:
+
+  - Loop over certain batch\_sizes. For every batch\_size we evaluate
+    min-bert model
+      - `realizeMany(instance(..))` runs generice two-pass stage
+        realization mechanism of Pylightnix.
+      - `redefine(..)` tweaks stage configuration before the
+        realization. Besides setting batch\_size, we increase number of
+        epoches up to 5.
+      - `all_minibert_finetune_glue` is one of StagedML stages, defined
+        in `stagedml.stages.all`. By realizing it we also realize all
+        it’s dependencies, which includes fetching the required images
+        and datasets from the Internet.
+  - In a version of this experiment we could increase a number stages
+    instances which shares same configuration by setting
+    `num_instances`.
+  - We collect resulting realization references in a dictionary.
+
+<!-- end list -->
 
 ``` python numberLines
 results=experiment_bs(exclude=['+f1v2'])
 ```
 
-Here is the code to process results. First, we build a collection of
-`DataFrame`s.
+Results are shown below.
 
 ``` python numberLines
 dfs=[]
@@ -112,8 +144,10 @@ for bs,rrefs in results.items():
 ds=pd.concat(dfs)
 ```
 
-Finally, we print the validation accuracy of our models. Here:
+Comments:
 
+  - `tensorboard_tensor_events` is a helper method which access stages
+    tensorboard journals stored in realization folder.
   - `iid` is the instance identifier of the model.
   - `batch_size` is the batch size used during fine-tuning
   - `steps` is the number of sentences passed through the model.
