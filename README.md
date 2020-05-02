@@ -28,7 +28,7 @@ Contents
 4. [Documentation](#documentation)
    - [Pylightnix](#pylightnix-core)
    - [Repository structure](#repository-structure)
-   - [List of experiments](#experiment-reports)
+   - [Models and experiments](#models-and-experiments)
 
 
 Features
@@ -345,9 +345,9 @@ Overall repository structure:
 └── setup.py
 ```
 
-### Experiment reports
+### Models and experiments
 
-* [NL2BASH](/run/nl2bash/out/Report.md)
 * [BERT fine-tuning on GLUE](/run/bert_finetune/out/Report.md)
 * [BERT pre-training (Work in progress)](/run/bert_pretrain/out/Report.md)
+* [NL2BASH](/run/nl2bash/out/Report.md)
 
