@@ -333,5 +333,6 @@ do apply here:
 ### Experiment reports
 
 * [NL2BASH](/run/nl2bash/out/Report.md)
-* [BERT fine-tuning (GLUE)](/run/bert_finetune/out/Report.md)
+* [BERT fine-tuning on GLUE](/run/bert_finetune/out/Report.md)
+* [BERT pre-training (Work in progress)](/run/bert_pretrain/out/Report.md)
 
