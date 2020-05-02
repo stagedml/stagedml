@@ -64,18 +64,18 @@ def altair_print(chart:Chart, png_filename:str, alt:str='', attrs:str='')->None:
 
 
 def experiment_bs(n:int=1, exclude=[])->Dict[int,List[RRef]]:
-  result={}
+  result_bs={}
   for bs in [2,8,16,32,64]:
     def _new_config(cfg:dict):
       cfg['train_batch_size']=bs
       cfg['train_epoches']=5
       cfg['flags']=[f for f in cfg['flags'] if f not in exclude]
       return mkconfig(cfg)
-    result[bs]=realizeMany(instantiate(
+    result_bs[bs]=realizeMany(instantiate(
       redefine(all_minibert_finetune_glue, new_config=_new_config,
                                            new_matcher=match_some(n)),
       num_instances=n))
-  return result
+  return result_bs
 
 
 def experiment_trainmethod()->Dict[str,RRef]:
@@ -92,7 +92,7 @@ def experiment_trainmethod()->Dict[str,RRef]:
 
 
 def experiment_allglue(n:int=1)->Dict[str,List[RRef]]:
-  result={}
+  result_allglue={}
   for task_name in [t for t in glue_tasks() if t.upper() not in ['COLA']]:
     print(f"Fine-tuning {task_name}")
     batch_size={'MNLI-M':64,
@@ -102,8 +102,8 @@ def experiment_allglue(n:int=1)->Dict[str,List[RRef]]:
       cfg['train_batch_size']=batch_size
       cfg['train_epoches']=4
       return mkconfig(cfg)
-    result[task_name]=realizeMany(instantiate(
+    result_allglue[task_name]=realizeMany(instantiate(
       redefine(all_minibert_finetune_glue,
         new_config=_new_config, new_matcher=match_some(n)),
       task_name=task_name, num_instances=n))
-  return result
+  return result_allglue

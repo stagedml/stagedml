@@ -12,7 +12,7 @@ from stagedml.stages.all import *
 
 ``` python numberLines
 experiment_allglue(n:int=1)->Dict[str,List[RRef]]:
-  result={}
+  result_allglue={}
   for task_name in [t for t in glue_tasks() if t.upper() not in ['COLA']]:
     print(f"Fine-tuning {task_name}")
     batch_size={'MNLI-M':64,
@@ -22,50 +22,40 @@ experiment_allglue(n:int=1)->Dict[str,List[RRef]]:
       cfg['train_batch_size']=batch_size
       cfg['train_epoches']=4
       return mkconfig(cfg)
-    result[task_name]=realizeMany(instantiate(
+    result_allglue[task_name]=realizeMany(instantiate(
       redefine(all_minibert_finetune_glue,
         new_config=_new_config, new_matcher=match_some(n)),
       task_name=task_name, num_instances=n))
-  return result
+  return result_allglue
 ```
 
 ``` python numberLines
 results=experiment_allglue()
 ```
 
-``` stdout
-Fine-tuning SST-2
-Fine-tuning MRPC
-Fine-tuning QQP
-Fine-tuning MNLI-m
-Fine-tuning MNLI-mm
-Fine-tuning SNLI
-Fine-tuning QNLI
-Fine-tuning RTE
-Fine-tuning WNLI
-```
+Results are:
 
 ``` python numberLines
 t=BeautifulTable(max_width=1000)
 t.set_style(BeautifulTable.STYLE_MARKDOWN)
 t.width_exceed_policy = BeautifulTable.WEP_ELLIPSIS
 t.column_headers=['Name']+list(results.keys())
-t.append_row(['Accuracy']+[
+t.append_row(['Accuracy, %']+[
   100*protocol_rref_metric(results[tn][0],'evaluate','eval_accuracy')
     for tn in results.keys()])
-t.append_row(['F1_score']+[
+t.append_row(['F1_score*100']+[
   100*protocol_rref_metric(results[tn][0],'evaluate','f1_score')
     for tn in results.keys()])
-t.append_row(['Training time, min']+[f"{store_buildelta(rrefs[0])/60:.1f}"
+t.append_row(['Tr.time, min']+[f"{store_buildelta(rrefs[0])/60:.1f}"
                                      for rrefs in list(results.values())])
 print(t)
 ```
 
-| Name               | SST-2  | MRPC   | QQP    | MNLI-m | MNLI-mm | SNLI   | QNLI   | RTE    | WNLI   |
-| ------------------ | ------ | ------ | ------ | ------ | ------- | ------ | ------ | ------ | ------ |
-| Accuracy           | 86.227 | 76.0   | 87.572 | 72.349 | 73.585  | 84.858 | 84.238 | 63.235 | 40.625 |
-| F1\_score          | 55.0   | 75.784 | 43.775 | 43.673 | 44.235  | 40.232 | 53.395 | 38.915 | 33.696 |
-| Training time, min | 13.3   | 0.9    | 70.0   | 34.8   | 34.8    | 48.3   | 20.3   | 0.7    | 0.4    |
+| Name           | SST-2  | MRPC   | QQP    | MNLI-m | MNLI-mm | SNLI   | QNLI   | RTE    | WNLI   |
+| -------------- | ------ | ------ | ------ | ------ | ------- | ------ | ------ | ------ | ------ |
+| Accuracy, %    | 86.227 | 76.0   | 87.572 | 72.349 | 73.585  | 84.858 | 84.238 | 63.235 | 40.625 |
+| F1\_score\*100 | 55.0   | 75.784 | 43.775 | 43.673 | 44.235  | 40.232 | 53.395 | 38.915 | 33.696 |
+| Tr.time, min   | 13.3   | 0.9    | 70.0   | 34.8   | 34.8    | 48.3   | 20.3   | 0.7    | 0.4    |
 
 Ref. [Upstream results](https://github.com/google-research/bert#bert)
 
@@ -75,49 +65,18 @@ The top-level procedure of the experiment:
 
 ``` python numberLines
 experiment_bs(n:int=1, exclude=[])->Dict[int,List[RRef]]:
-  result={}
+  result_bs={}
   for bs in [2,8,16,32,64]:
     def _new_config(cfg:dict):
       cfg['train_batch_size']=bs
       cfg['train_epoches']=5
       cfg['flags']=[f for f in cfg['flags'] if f not in exclude]
       return mkconfig(cfg)
-    result[bs]=realizeMany(instantiate(
+    result_bs[bs]=realizeMany(instantiate(
       redefine(all_minibert_finetune_glue, new_config=_new_config,
                                            new_matcher=match_some(n)),
       num_instances=n))
-  return result
-
-
-def experiment_trainmethod()->Dict[str,RRef]:
-  result={}
-  for tm in ['fit','custom']:
-    def _new_config(cfg:dict):
-      cfg['train_epoches']=5
-      cfg['train_method']=tm
-      return mkconfig(cfg)
-    result[tm]=realize(instantiate(
-      redefine(all_minibert_finetune_glue,
-        new_config=_new_config, new_matcher=match_latest())))
-  return result
-
-
-def experiment_allglue(n:int=1)->Dict[str,List[RRef]]:
-  result={}
-  for task_name in [t for t in glue_tasks() if t.upper() not in ['COLA']]:
-    print(f"Fine-tuning {task_name}")
-    batch_size={'MNLI-M':64,
-                'MNLI-MM':64,
-                'SNLI':64}.get(task_name.upper(),8)
-    def _new_config(cfg:dict):
-      cfg['train_batch_size']=batch_size
-      cfg['train_epoches']=4
-      return mkconfig(cfg)
-    result[task_name]=realizeMany(instantiate(
-      redefine(all_minibert_finetune_glue,
-        new_config=_new_config, new_matcher=match_some(n)),
-      task_name=task_name, num_instances=n))
-  return result
+  return result_bs
 ```
 
 In the above code we fine-tune BERT-mini model on MRPC task. We increase
@@ -149,17 +108,8 @@ for bs,rrefs in results.items():
     es=tensorboard_tensor_events(rref,'valid','loss')
     assert len(cols['steps'])==len(es)
     cols['valid_loss']=[te2float(e) for e in es]
-    print(cols)
     dfs.append(DataFrame(cols))
 ds=pd.concat(dfs)
-```
-
-``` stdout
-{'steps': [3482, 6964, 10446, 13928, 17410], 'valid_accuracy': [0.7663043737411499, 0.7880434989929199, 0.7880434989929199, 0.8260869383811951, 0.804347813129425], 'batch_size': [2, 2, 2, 2, 2], 'iid': [0, 0, 0, 0, 0], 'valid_loss': [0.8980810046195984, 0.9873740077018738, 1.1126651763916016, 0.8929693698883057, 1.0717772245407104]}
-{'steps': [3480, 6960, 10440, 13920, 17400], 'valid_accuracy': [0.75, 0.7663043737411499, 0.7771739363670349, 0.79347825050354, 0.8097826242446899], 'batch_size': [8, 8, 8, 8, 8], 'iid': [0, 0, 0, 0, 0], 'valid_loss': [0.5367669463157654, 0.5429021716117859, 0.5023452043533325, 0.553193986415863, 0.5063174962997437]}
-{'steps': [3472, 6944, 10416, 13888, 17360], 'valid_accuracy': [0.7159090638160706, 0.7272727489471436, 0.7784090638160706, 0.75, 0.7556818127632141], 'batch_size': [16, 16, 16, 16, 16], 'iid': [0, 0, 0, 0, 0], 'valid_loss': [0.5679369568824768, 0.5936899781227112, 0.513241708278656, 0.5550832748413086, 0.5548913478851318]}
-{'steps': [3456, 6912, 10368, 13824, 17280], 'valid_accuracy': [0.6625000238418579, 0.6937500238418579, 0.8062499761581421, 0.731249988079071, 0.7562500238418579], 'batch_size': [32, 32, 32, 32, 32], 'iid': [0, 0, 0, 0, 0], 'valid_loss': [0.5832815766334534, 0.5862361192703247, 0.496770441532135, 0.5832360982894897, 0.533299446105957]}
-{'steps': [3456, 6912, 10368, 13824, 17280], 'valid_accuracy': [0.65625, 0.6953125, 0.7109375, 0.7265625, 0.6875], 'batch_size': [64, 64, 64, 64, 64], 'iid': [0, 0, 0, 0, 0], 'valid_loss': [0.6326533555984497, 0.5831466317176819, 0.5478577613830566, 0.6125747561454773, 0.6100413203239441]}
 ```
 
 Finally, we print the validation accuracy of our models. Here:

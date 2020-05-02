@@ -15,25 +15,27 @@ Fine-tuning on GLUE tasks
 
 ```{.python .cb.code
     include_file=bert_finetune_experiment.py
-    include_regex="experiment_allglue.*return result"}
+    include_regex="experiment_allglue.*return result_allglue"}
 ```
 
-```{.python .cb.nb}
+```{.python .cb.nb show=code}
 results=experiment_allglue()
 ```
+
+Results are:
 
 ```{.python .cb.nb show=code+stdout:raw+stderr}
 t=BeautifulTable(max_width=1000)
 t.set_style(BeautifulTable.STYLE_MARKDOWN)
 t.width_exceed_policy = BeautifulTable.WEP_ELLIPSIS
 t.column_headers=['Name']+list(results.keys())
-t.append_row(['Accuracy']+[
+t.append_row(['Accuracy, %']+[
   100*protocol_rref_metric(results[tn][0],'evaluate','eval_accuracy')
     for tn in results.keys()])
-t.append_row(['F1_score']+[
+t.append_row(['F1_score*100']+[
   100*protocol_rref_metric(results[tn][0],'evaluate','f1_score')
     for tn in results.keys()])
-t.append_row(['Training time, min']+[f"{store_buildelta(rrefs[0])/60:.1f}"
+t.append_row(['Tr.time, min']+[f"{store_buildelta(rrefs[0])/60:.1f}"
                                      for rrefs in list(results.values())])
 print(t)
 ```
@@ -47,7 +49,7 @@ The top-level procedure of the experiment:
 
 ```{.python .cb.code
     include_file=bert_finetune_experiment.py
-    include_regex="experiment_bs.*return result"}
+    include_regex="experiment_bs.*return result_bs"}
 ```
 
 In the above code we fine-tune BERT-mini model on MRPC task. We increase the
@@ -57,7 +59,7 @@ one-by-one, we could parallelize this in future). By using `match_some(5)`
 matcher we are saying that we want at least 5 realizations of every
 configuration. Now we execute the experiment.
 
-```{.python .cb.nb}
+```{.python .cb.nb show=code}
 results=experiment_bs(exclude=['+f1v2'])
 ```
 
@@ -78,7 +80,6 @@ for bs,rrefs in results.items():
     es=tensorboard_tensor_events(rref,'valid','loss')
     assert len(cols['steps'])==len(es)
     cols['valid_loss']=[te2float(e) for e in es]
-    print(cols)
     dfs.append(DataFrame(cols))
 ds=pd.concat(dfs)
 ```
