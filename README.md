@@ -26,7 +26,7 @@ Contents
    - [Running the docker container](#running-docker-containers)
 3. [Quick Start](#quick-start)
 4. [Documentation](#documentation)
-   - [Pylightnix](#pylightnix-core)
+   - [Pylightnix](#pylightnix)
    - [Repository structure](#repository-structure)
    - [Models and experiments](#models-and-experiments)
 
