@@ -31,6 +31,7 @@ from stagedml.stages.convnn_mnist import fetchmnist, convnn_mnist
 from stagedml.stages.fetchenwiki import fetchwiki, extractwiki
 from stagedml.stages.bert_pretrain_wiki import ( bert_pretrain_tfrecords,
     basebert_pretrain_wiki, minibert_pretrain_wiki )
+from stagedml.stages.fetchrusent import fetchrusent
 
 from stagedml.types import ( Dict, Set, Tuple, List, Optional, Union, DRef,
     Glue, Squad11, GlueTFR, Squad11TFR, BertCP, BertGlue, BertSquad, NL2Bash,
@@ -40,8 +41,16 @@ from stagedml.core import ( lrealize, tryrealize, STAGEDML_EXPERIMENTS,
 from stagedml.imports import ( walk, join, abspath, islink, partial,
     get_terminal_size, BeautifulTable )
 
+#: Glue dataset
 all_fetchglue = fetchglue
+
+#: SQuad dataset
 all_fetchsquad11 = fetchsquad11
+
+#: RuSentiment dataset:
+#: - [The Paper](https://www.aclweb.org/anthology/C18-1064.pdf)
+#: - [Annotation guidelines](https://github.com/text-machine-lab/rusentiment)
+all_fetchrusent = fetchrusent
 
 def all_fetcholdbert(m:Manager)->BertCP:
   """ Fetch BERT-base pretrained checkpoint from the Google cloud """

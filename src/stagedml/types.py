@@ -12,6 +12,9 @@ BertCP=NewType('BertCP',DRef)
 
 Glue=NewType('Glue',DRef)
 
+#: Reference to the RuSentiment dataset
+Rusent=NewType('Rusent',DRef)
+
 Squad11=NewType('Squad11',DRef)
 
 GlueTFR=NewType('GlueTFR',DRef)

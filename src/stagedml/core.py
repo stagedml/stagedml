@@ -22,7 +22,8 @@ STAGEDML_ROOT=environ.get('STAGEDML_ROOT', environ.get('HOME','/tmp'))
 
 #: Folder which has meaining for garbage collector. Symlinks to pylightnix
 #: storage found here are preserved by the GC.
-STAGEDML_EXPERIMENTS=environ.get('STAGEDML_EXPERIMENTS', join(STAGEDML_ROOT,'_experiments'))
+STAGEDML_EXPERIMENTS=environ.get('STAGEDML_EXPERIMENTS',
+                                 join(STAGEDML_ROOT,'_experiments'))
 
 assert isdir(STAGEDML_ROOT), (
     f"StagedML root folder doesn't exist ('{STAGEDML_ROOT}'). Consider assigning "
