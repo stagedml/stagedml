@@ -15,7 +15,7 @@ package managers, StagedML takes possible non-determenism of training into accou
 
 ![graph-demo](./run/depgraph/graph-demo.png)
 *<p align=center>Stage configuration dependencies related to BERT
-fine-tuning</p>*
+fine-tuning ([Source](./run/depgraph/depgraph.py#L48))</p>*
 
 Contents
 --------
