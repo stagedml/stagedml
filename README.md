@@ -26,6 +26,9 @@ Contents
    - [Running the docker container](#running-docker-containers)
 3. [Quick Start](#quick-start)
 4. [Documentation](#documentation)
+   - [Pylightnix](#pylightnix-core)
+   - [Repository structure](#repository-structure)
+   - [List of experiments](#experiment-reports)
 
 
 Features
@@ -272,15 +275,43 @@ With the realization reference in hands, we could:
 Documentation
 -------------
 
+### Pylightnix
+
+The core library of StagedML is called _Pylightnix_. StagedML is basically a
+collection of Pylightnix _stages_. The following
+[Pylightnix documentation and manuals](https://github.com/stagedml/pylightnix/blob/master/README.md#Documentation)
+do apply:
+
+* [MNIST demo](https://github.com/stagedml/pylightnix/blob/master/docs/demos/MNIST.md)
+  shows the machine learning specifics of Pylightnix.
+* [REPL demo](https://github.com/stagedml/pylightnix/blob/master/docs/demos/REPL.md)
+  illustrates how to debug stages using Read-Eval-Print-friendly routines
+  [(wiki)](https://en.wikipedia.org/wiki/Read%E2%80%93eval%E2%80%93print_loop).
+* [Ultimatum tutorial](https://github.com/grwlf/ultimatum-game/blob/master/docs/Pylightnix.md)
+  is a note on organizing experiments.
+* [Pylightnix API Reference](https://github.com/stagedml/pylightnix/blob/master/docs/Reference.md)
+
 ### Repository structure
 
-Most of the _stages_ are defined in [stagedml.stages](./src/stagedml/stages)
-packages. The [stagedml.stages.all](./src/stagedml/stages/all.py) module contains
-top-level definitions. Machine learning models are mostly borrowed from the
+StagedML is a report-oriented library. An end-user report typically contains
+results of certain machine learning experiment, including task-specific
+utilities, plots and tables. This kind of content is often stored in Jupyter
+notebooks, but we prefer Markdown-based rendering using
+[codebraid](https://github.com/gpoore/codebraid) toolset. Examples are in a
+[run](/run) subfolders.
+
+The [stagedml.stages.all](./src/stagedml/stages/all.py) module contains
+top-level _stages_ definitions.  Most of the intermediate stages are defined in
+[stagedml.stages](./src/stagedml/stages) packages.
+
+Machine learning models are mostly borrowed from the
 [TensorFlow Official Models](https://github.com/tensorflow/models), we keep
 their main parts under the [stagedml.models](./src/stagedml/models)
 module.
 
+Low-level utilities are defined in [utils](./src/stagedml/utils).
+
+Overall repository structure:
 
 ```
 .
@@ -295,7 +326,7 @@ module.
 ├── nix/
 │   └── docker_inject.nix
 ├── run/                           # Experiments, have own Makefile
-│   └── nl2bash/
+│   └── ...
 ├── src/                           # Python sources
 │   └── stagedml/
 │       ├── datasets/              # Dataset utilities
@@ -305,7 +336,7 @@ module.
 │       └── utils/                 # Utilities
 ├── LICENSE
 ├── Makefile                       # Rules for building wheels, testing, etc.
-├── README.md                      # <-- You are here
+├── README.md                      # <-- (You are here)
 ├── env.sh
 ├── ipython.sh
 ├── localrc.vim
@@ -313,22 +344,6 @@ module.
 ├── rundocker.sh*                  # Docker container runner
 └── setup.py
 ```
-
-
-### Pylightnix core
-
-StagedML is a collection of Pylightnix _stages_, so the following
-[Pylightnix documentation and manuals](https://github.com/stagedml/pylightnix/blob/master/README.md#Documentation)
-do apply here:
-
-* [MNIST demo](https://github.com/stagedml/pylightnix/blob/master/docs/demos/MNIST.md)
-  shows the machine learning specifics of Pylightnix.
-* [REPL demo](https://github.com/stagedml/pylightnix/blob/master/docs/demos/REPL.md)
-  illustrates how to debug stages using Read-Eval-Print-friendly routines
-  [(wiki)](https://en.wikipedia.org/wiki/Read%E2%80%93eval%E2%80%93print_loop).
-* [Ultimatum tutorial](https://github.com/grwlf/ultimatum-game/blob/master/docs/Pylightnix.md)
-  is a note on organizing experiments.
-* [Pylightnix API Reference](https://github.com/stagedml/pylightnix/blob/master/docs/Reference.md)
 
 ### Experiment reports
 
