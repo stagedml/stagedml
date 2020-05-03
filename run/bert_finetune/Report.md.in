@@ -39,6 +39,7 @@ Here, we:
 
 Below we display the graph of stages to be realized in order to realize the
 top-level stage of `all_minibert_finetune_glue(task_name='QQP')`:
+
 ```{.python .cb.nb show=code+stdout:raw+stderr}
 p=join(environ['REPOUT'],"graph.png")
 depgraph([partial(all_minibert_finetune_glue,task_name='QQP')],filename=p)
@@ -51,7 +52,7 @@ results=experiment_allglue()
 
 We display results in a table
 
-```{.python .cb.nb}
+```{.python .cb.nb show=code+stdout:raw+stderr}
 t=BeautifulTable(max_width=1000)
 t.set_style(BeautifulTable.STYLE_MARKDOWN)
 t.width_exceed_policy = BeautifulTable.WEP_ELLIPSIS
@@ -63,7 +64,7 @@ t.append_row(['F1_score*100']+[
   100*protocol_rref_metric(results[tn][0],'evaluate','f1_score')
     for tn in results.keys()])
 t.append_row(['Tr.time, min']+[f"{store_buildelta(rrefs[0])/60:.1f}"
-                                     for rrefs in list(results.values())])
+                                  for rrefs in list(results.values())])
 print(t)
 ```
 

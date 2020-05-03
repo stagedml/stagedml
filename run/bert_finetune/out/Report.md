@@ -78,17 +78,15 @@ t.append_row(['F1_score*100']+[
   100*protocol_rref_metric(results[tn][0],'evaluate','f1_score')
     for tn in results.keys()])
 t.append_row(['Tr.time, min']+[f"{store_buildelta(rrefs[0])/60:.1f}"
-                                     for rrefs in list(results.values())])
+                                  for rrefs in list(results.values())])
 print(t)
 ```
 
-``` stdout
-|     Name     | SST-2  |  MRPC  |  QQP   | MNLI-m | MNLI-mm |  SNLI  |  QNLI  |  RTE   |  WNLI  |
-|--------------|--------|--------|--------|--------|---------|--------|--------|--------|--------|
-| Accuracy, %  | 86.227 |  76.0  | 87.572 | 72.349 | 73.585  | 84.858 | 84.238 | 63.235 | 40.625 |
-| F1_score*100 |  55.0  | 75.784 | 43.775 | 43.673 | 44.235  | 40.232 | 53.395 | 38.915 | 33.696 |
-| Tr.time, min |  13.3  |  0.9   |  70.0  |  34.8  |  34.8   |  48.3  |  20.3  |  0.7   |  0.4   |
-```
+| Name           | SST-2  | MRPC   | QQP    | MNLI-m | MNLI-mm | SNLI   | QNLI   | RTE    | WNLI   |
+| -------------- | ------ | ------ | ------ | ------ | ------- | ------ | ------ | ------ | ------ |
+| Accuracy, %    | 86.227 | 76.0   | 87.572 | 72.349 | 73.585  | 84.858 | 84.238 | 63.235 | 40.625 |
+| F1\_score\*100 | 55.0   | 75.784 | 43.775 | 43.673 | 44.235  | 40.232 | 53.395 | 38.915 | 33.696 |
+| Tr.time, min   | 13.3   | 0.9    | 70.0   | 34.8   | 34.8    | 48.3   | 20.3   | 0.7    | 0.4    |
 
 Ref. [Upstream results](https://github.com/google-research/bert#bert)
 
