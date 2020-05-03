@@ -1,13 +1,13 @@
-from pylightnix import ( Manager, Context, Hash, Path, DRef, RRef, Closure,
-    Build, BuildArgs, Matcher, repl_realize, repl_continue, repl_build,
+from pylightnix import ( Stage, Manager, Context, Hash, Path, DRef, RRef,
+    Closure, Build, BuildArgs, Matcher, repl_realize, repl_continue, repl_build,
     build_outpath, realize, rref2path, store_config, config_name, mksymlink,
     isdir, dirhash, json_dump, json_load, assert_serializable,
     assert_valid_rref, build_wrapper_, readjson, store_rrefs, repl_rref,
     repl_cancel, rmref, store_gc, instantiate, tryreadjson, tryreadjson_def,
-    mklens, Tag, RRefGroup)
+    mklens, Tag, RRefGroup, store_deps)
 
 from stagedml.imports import ( join, environ, remove, copytree, copy_tree,
-    partial )
+    partial, AGraph )
 from stagedml.utils import ( runtensorboard, ndhashl )
 from stagedml.types import ( Callable, List, Optional, Any, Tuple, Set,
     NamedTuple, Dict )
@@ -108,6 +108,30 @@ def realize_recursive(step:Callable[[int,Optional[RRef]],Closure],
     rrefs[e+epoches_step]=realize(step(e+epoches_step, prev), force_rebuild=force_rebuild)
     prev=rrefs[e+epoches_step]
   return rrefs
+
+def depgraph(stages:List[Stage],
+             filename:Optional[str]=None,
+             layout:str='dot')->AGraph:
+  """ Build a graph of dependencies for given stages. If `filename` is not
+  None, save the graph into this file. """
+  G=AGraph(strict=False,directed=True)
+  touched:Set[DRef]=set()
+  frontier=[instantiate(s).dref for s in stages]
+  while len(frontier)>0:
+    dref=frontier.pop()
+    G.add_node(mklens(dref).name.val)
+    for dep_dref in store_deps([dref]):
+      G.add_node(mklens(dep_dref).name.val)
+      G.add_edge(mklens(dref).name.val, mklens(dep_dref).name.val or dep_dref)
+      if dep_dref not in touched:
+        frontier.append(dep_dref)
+      touched.add(dep_dref)
+
+  if layout is not None:
+    G.layout(prog=layout)
+  if filename is not None:
+    G.draw(filename)
+  return G
 
 
 #  ____            _                  _

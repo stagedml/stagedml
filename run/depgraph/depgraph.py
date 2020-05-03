@@ -1,6 +1,7 @@
-from stagedml.stages.all import *
 from pylightnix import *
 from pygraphviz import AGraph
+from stagedml.stages.all import *
+from stagedml.core import depgraph
 
 STAGES:List[Stage]=[
     all_convnn_mnist,
@@ -35,13 +36,13 @@ def mkgraph(stages:List[Stage]=STAGES, filename:Optional[str]=None,
   return G
 
 def mkgraph_finetune()->None:
-  G=mkgraph(stages=[partial(all_minibert_finetune_glue, task_name=t) for t
+  G=depgraph(stages=[partial(all_minibert_finetune_glue, task_name=t) for t
     in glue_tasks()])
   G.layout(prog='dot')
   G.draw(f'graph-finetune.png')
 
 def mkgraph_pretrain()->None:
-  mkgraph(stages=[all_minibert_pretrain],
+  depgraph(stages=[all_minibert_pretrain],
     filename=f'graph-pretrain.png', layout='dot')
 
 
@@ -66,6 +67,6 @@ def mkgraph_demo()->None:
       return tfbert
     return _stage
 
-  mkgraph(stages=[_finetune_stage(t,1000) for t in ['MRPC', 'MNLI-m', 'SST-2']],
+  depgraph(stages=[_finetune_stage(t,1000) for t in ['MRPC', 'MNLI-m', 'SST-2']],
     filename=f'graph-demo.png', layout='dot')
 

@@ -7,6 +7,7 @@ import pandas as pd
 import numpy as np
 from bert_finetune_experiment import *
 from stagedml.stages.all import *
+from stagedml.core import depgraph
 ```
 
 
@@ -36,13 +37,21 @@ Here, we:
 * We build a dictionary containing `RRef` realization reference for
   every task.
 
+Below we display the graph of stages to be realized in order to realize the
+top-level stage of `all_minibert_finetune_glue(task_name='QQP')`:
+```{.python .cb.nb show=code+stdout:raw+stderr}
+p=join(environ['REPOUT'],"graph.png")
+depgraph([partial(all_minibert_finetune_glue,task_name='QQP')],filename=p)
+print(f"![]({p})")
+```
+
 ```{.python .cb.nb show=code}
 results=experiment_allglue()
 ```
 
 We display results in a table
 
-```{.python .cb.nb show=code+stdout:raw+stderr}
+```{.python .cb.nb}
 t=BeautifulTable(max_width=1000)
 t.set_style(BeautifulTable.STYLE_MARKDOWN)
 t.width_exceed_policy = BeautifulTable.WEP_ELLIPSIS

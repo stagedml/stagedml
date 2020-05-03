@@ -6,6 +6,7 @@ import pandas as pd
 import numpy as np
 from bert_finetune_experiment import *
 from stagedml.stages.all import *
+from stagedml.core import depgraph
 ```
 
 ## Fine-tuning on GLUE tasks
@@ -48,7 +49,16 @@ Here, we:
   - We build a dictionary containing `RRef` realization reference for
     every task.
 
-<!-- end list -->
+Below we display the graph of stages to be realized in order to realize
+the top-level stage of `all_minibert_finetune_glue(task_name='QQP')`:
+
+``` python numberLines
+p=join(environ['REPOUT'],"graph.png")
+depgraph([partial(all_minibert_finetune_glue,task_name='QQP')],filename=p)
+print(f"![]({p})")
+```
+
+![](out/graph.png)
 
 ``` python numberLines
 results=experiment_allglue()
@@ -72,11 +82,13 @@ t.append_row(['Tr.time, min']+[f"{store_buildelta(rrefs[0])/60:.1f}"
 print(t)
 ```
 
-| Name           | SST-2  | MRPC   | QQP    | MNLI-m | MNLI-mm | SNLI   | QNLI   | RTE    | WNLI   |
-| -------------- | ------ | ------ | ------ | ------ | ------- | ------ | ------ | ------ | ------ |
-| Accuracy, %    | 86.227 | 76.0   | 87.572 | 72.349 | 73.585  | 84.858 | 84.238 | 63.235 | 40.625 |
-| F1\_score\*100 | 55.0   | 75.784 | 43.775 | 43.673 | 44.235  | 40.232 | 53.395 | 38.915 | 33.696 |
-| Tr.time, min   | 13.3   | 0.9    | 70.0   | 34.8   | 34.8    | 48.3   | 20.3   | 0.7    | 0.4    |
+``` stdout
+|     Name     | SST-2  |  MRPC  |  QQP   | MNLI-m | MNLI-mm |  SNLI  |  QNLI  |  RTE   |  WNLI  |
+|--------------|--------|--------|--------|--------|---------|--------|--------|--------|--------|
+| Accuracy, %  | 86.227 |  76.0  | 87.572 | 72.349 | 73.585  | 84.858 | 84.238 | 63.235 | 40.625 |
+| F1_score*100 |  55.0  | 75.784 | 43.775 | 43.673 | 44.235  | 40.232 | 53.395 | 38.915 | 33.696 |
+| Tr.time, min |  13.3  |  0.9   |  70.0  |  34.8  |  34.8   |  48.3  |  20.3  |  0.7   |  0.4   |
+```
 
 Ref. [Upstream results](https://github.com/google-research/bert#bert)
 

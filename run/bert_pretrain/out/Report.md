@@ -11,38 +11,50 @@ from bert_pretrain_experiment import *
 from stagedml.stages.all import *
 ```
 
-TODO: Try to examine the source code of the function
+The source code of the main training function is as follows:
+
+``` {.html .numberLines startFrom="1"}
+run_bert_pretrain(task_name:str='MRPC', epoches:int=200, epoches_step:int=20
+                     )->Tuple[Dict[int,RRef],Dict[int,RRef]]:
+  """ Run the pre-training of BERT-mini models for a number of `epoches`. Make
+  fine-tuning after every `epoches_step` epoch on the `task_name` GLUE task,
+  collect the results. Return the dictionaries of all models. """
+
+  def _pretrain_stage(nepoch:int, resume_rref:Optional[RRef])->Stage:
+    def _stage(m)->BertCP:
+      return all_minibert_pretrain(m, train_epoches=nepoch, resume_rref=resume_rref)
+    return _stage
+
+  def _finetune_stage(nepoch:int)->Stage:
+    def _stage(m)->BertGlue:
+      refglue=all_fetchglue(m)
+      refbert=_pretrain_stage(nepoch, None)(m)
+      gluetfr=glue_tfrecords(m, task_name,
+          bert_vocab=mklens(refbert).bert_vocab.refpath,
+          refdataset=refglue)
+      tfbert=bert_finetune_glue(m,refbert,gluetfr)
+      return tfbert
+    return _stage
+
+  pretrained:Dict[int,RRef]={}
+  finetuned:Dict[int,RRef]={}
+  for e in range(epoches_step,epoches+epoches_step,epoches_step):
+    out=Path(join(STAGEDML_EXPERIMENTS,'bert_pretrain',f'epoch-{e}'))
+    makedirs(out, exist_ok=True)
+    pretrained[e]=\
+        realize(instantiate(_pretrain_stage(e, pretrained.get(e-epoches_step))))
+    linkrref(pretrained[e],out)
+    finetuned[e]=realize(instantiate(_finetune_stage(e)))
+    linkrref(finetuned[e],out)
+  return pretrained,finetuned
+```
 
 We now run the experiment. We assume that Pylightnix already has the
 results in it's storage because otherwize the report generation would
 take too long to complete.
 
 ``` {.python .numberLines startFrom="6"}
-pretrained,finetuned=run() # TODO: assert cached
-```
-
-``` {.stdout}
-Begin pretraining
-Pre-training up to epoch 20
-Fine-tunining up to epoch 20
-Pre-training up to epoch 40
-Fine-tunining up to epoch 40
-Pre-training up to epoch 60
-Fine-tunining up to epoch 60
-Pre-training up to epoch 80
-Fine-tunining up to epoch 80
-Pre-training up to epoch 100
-Fine-tunining up to epoch 100
-Pre-training up to epoch 120
-Fine-tunining up to epoch 120
-Pre-training up to epoch 140
-Fine-tunining up to epoch 140
-Pre-training up to epoch 160
-Fine-tunining up to epoch 160
-Pre-training up to epoch 180
-Fine-tunining up to epoch 180
-Pre-training up to epoch 200
-Fine-tunining up to epoch 200
+pretrained,finetuned=run_bert_pretrain()
 ```
 
 TODO: results
