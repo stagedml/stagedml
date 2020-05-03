@@ -31,13 +31,14 @@ from stagedml.stages.convnn_mnist import fetchmnist, convnn_mnist
 from stagedml.stages.fetchenwiki import fetchwiki, extractwiki
 from stagedml.stages.bert_pretrain_wiki import ( bert_pretrain_tfrecords,
     basebert_pretrain_wiki, minibert_pretrain_wiki )
-from stagedml.stages.fetchrusent import fetchrusent
+from stagedml.stages.fetchrusent import ( fetchrusent, rusent_tfrecords )
 
 from stagedml.types import ( Dict, Set, Tuple, List, Optional, Union, DRef,
     Glue, Squad11, GlueTFR, Squad11TFR, BertCP, BertGlue, BertSquad, NL2Bash,
-    TransWmt, WmtSubtok, ConvnnMnist, Wikidump, Wikitext, WikiTFR, BertPretrain )
+    TransWmt, WmtSubtok, ConvnnMnist, Wikidump, Wikitext, WikiTFR, BertPretrain,
+    BertFinetuneTFR )
 from stagedml.core import ( lrealize, tryrealize, STAGEDML_EXPERIMENTS,
-    diskspace_h, linkrref, realize_recursive )
+    diskspace_h, linkrref, realize_recursive, depgraph )
 from stagedml.imports import ( walk, join, abspath, islink, partial,
     get_terminal_size, BeautifulTable )
 
@@ -71,7 +72,8 @@ def all_fetchbert(m:Manager)->BertCP:
     sha256='d15224e1e7d950fb9a8b29497ce962201dff7d27b379f5bfb4638b4a73540a04',
     bert_config=[promise,'uncased_L-12_H-768_A-12','bert_config.json'],
     bert_vocab=[promise,'uncased_L-12_H-768_A-12','vocab.txt'],
-    bert_ckpt=[claim,'uncased_L-12_H-768_A-12','bert_model.ckpt']
+    bert_ckpt=[claim,'uncased_L-12_H-768_A-12','bert_model.ckpt'],
+    cased=False
     ))
 
 def all_fetch_multibert(m:Manager)->BertCP:
@@ -82,7 +84,8 @@ def all_fetch_multibert(m:Manager)->BertCP:
     sha256='60ec8d9a7c3cc1c15f6509a6cbe1a8d30b7f823b77cb7460f6d31383200aec9d',
     bert_config=[promise,'multi_cased_L-12_H-768_A-12','bert_config.json'],
     bert_vocab=[promise,'multi_cased_L-12_H-768_A-12','vocab.txt'],
-    bert_ckpt=[claim,'multi_cased_L-12_H-768_A-12','bert_model.ckpt']
+    bert_ckpt=[claim,'multi_cased_L-12_H-768_A-12','bert_model.ckpt'],
+    cased=True
     ))
 
 
@@ -93,22 +96,32 @@ def all_fetchminibert(m:Manager)->BertCP:
     sha256='5f087a0c6c73aed0b0a13f9a99dade56bece97d0594b713195821e031266fae9',
     bert_config=[promise,'uncased_L-4_H-256_A-4','bert_config.json'],
     bert_vocab=[promise,'uncased_L-4_H-256_A-4','vocab.txt'],
-    bert_ckpt=[claim,'uncased_L-4_H-256_A-4','bert_model.ckpt']
+    bert_ckpt=[claim,'uncased_L-4_H-256_A-4','bert_model.ckpt'],
+    cased=False
     ))
 
-def all_glue_tfrecords(m:Manager, task_name:str)->GlueTFR:
+def all_glue_tfrecords(m:Manager, task_name:str, lower_case:bool)->GlueTFR:
   """ Fetch and preprocess GLUE dataset. `task_name` should be one of
   `glue_tasks()` """
   refbert=all_fetchbert(m)
   refglue=all_fetchglue(m)
   vocab=bert_vocab=mklens(refbert).bert_vocab.refpath
-  return glue_tfrecords(m, task_name, bert_vocab=vocab, refdataset=refglue)
+  return glue_tfrecords(m, task_name, bert_vocab=vocab,
+    lower_case=lower_case, refdataset=refglue)
 
 def all_squad11_tfrecords(m:Manager)->Squad11TFR:
   """ Fetch and preprocess Squad-1.1 dataset """
   bertref=all_fetchbert(m)
   squadref=all_fetchsquad11(m)
   return squad11_tfrecords(m, bertref, squadref)
+
+def all_rusentiment_tfrecords(m:Manager)->BertFinetuneTFR:
+  """ Fetch and preprocess RuSentiment dataset """
+  bertref=all_fetchbert(m)
+  rusentref=all_fetchrusent(m)
+  return rusent_tfrecords(m, bert_vocab=mklens(bertref).bert_vocab.refpath,
+                             lower_case=mklens(bertref).cased.val==False,
+                             refdataset=rusentref)
 
 def all_minibert_finetune_glue(m:Manager, task_name:str='MRPC',
                                num_instances:int=1)->BertGlue:
@@ -119,7 +132,8 @@ def all_minibert_finetune_glue(m:Manager, task_name:str='MRPC',
   refbert=all_fetchminibert(m)
   refglue=all_fetchglue(m)
   glueref=glue_tfrecords(m, task_name,
-    bert_vocab=mklens(refbert).bert_vocab.refpath, refdataset=refglue)
+    bert_vocab=mklens(refbert).bert_vocab.refpath,
+    lower_case=mklens(refbert).cased.val==False, refdataset=refglue)
   def _new(d):
     d['name']+='-mini'
     d['train_batch_size']=8
@@ -136,7 +150,8 @@ def all_bert_finetune_glue(m:Manager, task_name:str='MRPC')->BertGlue:
   refbert=all_fetchbert(m)
   refglue=all_fetchglue(m)
   vocab=mklens(refbert).bert_vocab.refpath
-  glueref=glue_tfrecords(m, task_name, bert_vocab=vocab, refdataset=refglue)
+  glueref=glue_tfrecords(m, task_name, bert_vocab=vocab,
+    lower_case=mklens(refbert).cased.val==False, refdataset=refglue)
   return bert_finetune_glue(m,refbert,glueref)
 
 def all_multibert_finetune_glue(m:Manager, task_name:str='MRPC')->BertGlue:
@@ -147,7 +162,8 @@ def all_multibert_finetune_glue(m:Manager, task_name:str='MRPC')->BertGlue:
   refbert=all_fetch_multibert(m)
   refglue=all_fetchglue(m)
   vocab=mklens(refbert).bert_vocab.refpath
-  glueref=glue_tfrecords(m, task_name, bert_vocab=vocab, refdataset=refglue)
+  glueref=glue_tfrecords(m, task_name, bert_vocab=vocab,
+    lower_case=mklens(refbert).cased.val==False, refdataset=refglue)
   return bert_finetune_glue(m,refbert,glueref)
 
 # def all_bert_finetune_glue(m:Manager, task_name:str='MRPC')->BertGlue:
@@ -164,6 +180,15 @@ def dryrun_bert_finetune_glue(m:Manager, task_name:str='MRPC')->BertGlue:
     d['dataset_size']=100
     return mkconfig(d)
   return redefine(partial(all_bert_finetune_glue, task_name=task_name), new_config=_new_config)(m)
+
+
+def all_minibert_finetune_rusentiment(m:Manager):
+  refbert=all_fetch_multibert(m)
+  refdata=all_fetchrusent(m)
+  vocab=mklens(refbert).bert_vocab.refpath
+  reftfr=rusent_tfrecords(m, bert_vocab=vocab,
+    lower_case=mklens(refbert).cased.val==False, refdataset=refdata)
+  return bert_finetune_glue(m,refbert,reftfr)
 
 def all_bert_finetune_squad11(m:Manager)->BertSquad:
   """ Finetune BERT on Squad-1.1 dataset """

@@ -22,6 +22,10 @@ Dataset=data.Dataset
 FixedLenFeature=io.FixedLenFeature
 parse_single_example=io.parse_single_example
 
+INFINITE_CARDINALITY=data.experimental.INFINITE_CARDINALITY
+UNKNOWN_CARDINALITY=data.experimental.UNKNOWN_CARDINALITY
+cardinality=data.experimental.cardinality
+
 def get_single_element(x):
   import tensorflow as tf
   return tf.data.experimental.get_single_element(x)

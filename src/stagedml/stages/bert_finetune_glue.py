@@ -19,19 +19,20 @@ from pylightnix import ( Build, Path, Config, Manager, RRef, DRef, Context,
     build_config, mklens, build_wrapper_, mkconfig, promise, claim,
     build_setoutpaths )
 
-from stagedml.datasets.glue.tfdataset import ( dataset, dataset_eval,
-    dataset_train, dataset_valid )
+from stagedml.datasets.glue.tfdataset import ( dataset_test,
+    dataset_train, dataset_valid, bert_finetune_dataset )
 from stagedml.models.bert import ( BertLayer, BertInput, BertOutput,
     BertModel, classification_logits, create_optimizer as create_optimizer_v2 )
 from stagedml.imports.tf import ( load_checkpoint, NotFoundError, Tensor, Mean,
     SparseCategoricalAccuracy, Input )
-from stagedml.imports.sys import ( join )
+from stagedml.imports.sys import ( join, partial )
 from stagedml.utils.tf import ( runtb, runtensorboard, thash, dpurge,
-    modelhash, print_model_checkpoint_diff, SparseF1Score )
+    modelhash, print_model_checkpoint_diff, SparseF1Score,
+    dataset_cardinality_size, dataset_iter_size )
 from stagedml.core import ( protocol_add, protocol_add_hist,
     protocol_add_eval, protocol_match )
 from stagedml.types import ( BertCP, GlueTFR, BertGlue,
-    Optional,Any,List,Tuple,Union )
+    Optional,Any,List,Tuple,Union,BertFinetuneTFR )
 
 class ModelBuild(Build):
   model:tf.keras.Model
@@ -50,22 +51,27 @@ def build(b:ModelBuild, iid:int=0, clear_session:bool=True):
   with open(l.bert_config.syspath, "r") as f:
     bert_config = BertConfig.from_dict(json_load(f))
 
-  with open(l.task_config.syspath, "r") as f:
-    task_config = json_load(f)
+  train_data_size=dataset_iter_size(
+    partial(bert_finetune_dataset,
+      path=mklens(b).datasets.train.syspath, max_seq_length=c.max_seq_length))
+  assert train_data_size is not None
+  c.train_data_size=train_data_size
 
-  c.num_labels = int(task_config['num_classes'])
-  c.max_seq_length = int(task_config['max_seq_length'])
+  valid_data_size=dataset_iter_size(
+    partial(bert_finetune_dataset,
+      path=mklens(b).datasets.valid.syspath, max_seq_length=c.max_seq_length))
+  assert valid_data_size is not None
+  c.valid_data_size = valid_data_size
 
-  c.train_batch_size = c.train_batch_size
-  c.eval_batch_size = c.eval_batch_size
-  if c.dataset_size is None:
-    c.dataset_size = int(task_config['train_data_size'])
-  c.train_data_size = int(c.dataset_size*0.95)
-  c.valid_data_size = int(c.dataset_size)-c.train_data_size
-  c.eval_data_size = task_config['dev_data_size']
+  test_data_size=dataset_iter_size(
+    partial(bert_finetune_dataset,
+      path=mklens(b).datasets.test.syspath, max_seq_length=c.max_seq_length))
+  assert test_data_size is not None
+  c.test_data_size = test_data_size
+
   c.train_steps_per_epoch = int(c.train_data_size / c.train_batch_size)
   c.valid_steps_per_epoch = int(c.valid_data_size / c.train_batch_size)
-  c.eval_steps_per_epoch = int(c.eval_data_size / c.eval_batch_size)
+  c.test_steps_per_epoch = int(c.test_data_size / c.test_batch_size)
   c.train_warmup_steps = int(c.train_epoches * c.train_data_size * 0.1 / c.train_batch_size)
 
   b.strategy=tf.distribute.MirroredStrategy()
@@ -85,7 +91,7 @@ def build(b:ModelBuild, iid:int=0, clear_session:bool=True):
 
     teacher_outs = teacher_model(teacher_ins)
     teacher_cls_logits = classification_logits(config=bert_config,
-                                               num_labels=c.num_labels,
+                                               num_labels=c.num_classes,
                                                pooled_input=teacher_outs.cls_output)
 
     teacher_cls_probs = tf.keras.layers.Activation('softmax')(teacher_cls_logits)
@@ -161,12 +167,10 @@ def train(b:ModelBuild, iid:int=0)->None:
   l=mklens(b,build_output_idx=iid)
   with b.strategy.scope():
 
-    dt = dataset_train(l.task_train.syspath,
-                       c.train_data_size,
+    dt = dataset_train(l.datasets.train.syspath,
                        train_batch_size=c.train_batch_size,
                        max_seq_length=c.max_seq_length)
-    dv = dataset_valid(l.task_train.syspath,
-                       c.train_data_size,
+    dv = dataset_valid(l.datasets.valid.syspath,
                        valid_batch_size=c.train_batch_size,
                        max_seq_length=c.max_seq_length)
 
@@ -174,7 +178,7 @@ def train(b:ModelBuild, iid:int=0)->None:
                                        write_graph=False, update_freq='batch')
 
     print('Training')
-    loss_fn = get_loss_fn(num_classes=c.num_labels, loss_factor=1.0)
+    loss_fn = get_loss_fn(num_classes=c.num_classes, loss_factor=1.0)
     metric_fn = SparseCategoricalAccuracy('accuracy', dtype=tf.float32)
     b.model.compile(b.optimizer, loss=loss_fn, metrics=[metric_fn])
     h = b.model.fit(
@@ -198,23 +202,21 @@ def train_custom(b:ModelBuild, iid:int=0):
   loss_metric = Mean('loss', dtype=tf.float32)
   lr_metric = Mean('lr', dtype=tf.float32)
   metrics = [ SparseCategoricalAccuracy('accuracy', dtype=tf.float32),
-              SparseF1Score(num_classes=c.num_labels, average='micro')]
-  loss_fn=get_loss_fn(num_classes=c.num_labels, loss_factor=1.0)
+              SparseF1Score(num_classes=c.num_classes, average='micro')]
+  loss_fn=get_loss_fn(num_classes=c.num_classes, loss_factor=1.0)
   b.model.compile(b.optimizer, loss=loss_fn, metrics=metrics)
 
   def _train_input_fn(ctx:Any)->Any:
     global_batch_size=c.train_batch_size
     batch_size=ctx.get_per_replica_batch_size(global_batch_size) \
                if ctx else global_batch_size
-    return dataset_train(l.task_train.syspath, c.train_data_size,
-                         batch_size, c.max_seq_length)
+    return dataset_train(l.datasets.train.syspath, batch_size, c.max_seq_length)
 
   def _valid_input_fn(ctx:Any)->Any:
     global_batch_size=c.train_batch_size
     batch_size=ctx.get_per_replica_batch_size(global_batch_size) \
                if ctx else global_batch_size
-    return dataset_valid(l.task_train.syspath, c.train_data_size,
-                         batch_size, c.max_seq_length)
+    return dataset_valid(l.datasets.valid.syspath, batch_size, c.max_seq_length)
 
   def _metrics_reset()->None:
     for m in b.model.metrics + [loss_metric, lr_metric]:
@@ -277,7 +279,9 @@ def train_custom(b:ModelBuild, iid:int=0):
       print(f"Next epoch is {next_epoch}")
       while current_step<next_epoch*c.train_steps_per_epoch:
         if current_step % 10 == 0:
-          print(f"Current step is {current_step}/{next_epoch*c.train_steps_per_epoch}/{c.train_epoches*c.train_steps_per_epoch}")
+          print((f"Current step is {current_step}/"
+                 f"{next_epoch*c.train_steps_per_epoch}/"
+                 f"{c.train_epoches*c.train_steps_per_epoch}"))
         _metrics_reset()
         _train_step(tf.constant(current_step), train_iterator)
         current_step += 1
@@ -308,13 +312,13 @@ def evaluate(b:ModelBuild, iid:int=0)->None:
 
   with b.strategy.scope():
     metrics = [ SparseCategoricalAccuracy('eval_accuracy', dtype=tf.float32),
-                SparseF1Score(num_classes=c.num_labels, average='micro') ]
-    loss_fn = get_loss_fn(num_classes=int(c.num_labels), loss_factor=1.0)
+                SparseF1Score(num_classes=c.num_classes, average='micro') ]
+    loss_fn = get_loss_fn(num_classes=int(c.num_classes), loss_factor=1.0)
     k = b.model_eval
     k.compile(b.optimizer, loss=loss_fn, metrics=metrics)
 
-    de = dataset_eval(l.task_eval.syspath, c.eval_batch_size, c.max_seq_length)
-    h = k.evaluate(de, steps=c.eval_steps_per_epoch)
+    dt = dataset_test(l.datasets.test.syspath, c.test_batch_size, c.max_seq_length)
+    h = k.evaluate(dt, steps=c.test_steps_per_epoch)
 
     filewriter = tf.summary.create_file_writer(join(o,'eval'))
     with filewriter.as_default():
@@ -324,7 +328,7 @@ def evaluate(b:ModelBuild, iid:int=0)->None:
     protocol_add_eval(l.protocol.syspath, 'evaluate',
                       modelhash(b.model), k.metrics_names, h)
 
-def bert_finetune_glue(m:Manager, refbert:BertCP,
+def bert_finetune_glue(m:Manager, refbert:BertFinetuneTFR,
                        tfrecs:GlueTFR, num_instances:int=1)->BertGlue:
 
   def _realize(b:ModelBuild)->None:
@@ -334,7 +338,7 @@ def bert_finetune_glue(m:Manager, refbert:BertCP,
       runtb(build_outpaths(b)[i]) # FIXME
       build(b,i);
       cpload(b,i)
-      tm=mklens(b,build_output_idx=i).train_method.val
+      tm=mklens(b,build_output_idx=i).train_method.optval
       if tm is None or tm=='custom':
         train_custom(b,i);
       elif tm=='fit':
@@ -347,23 +351,26 @@ def bert_finetune_glue(m:Manager, refbert:BertCP,
     nonlocal tfrecs
     name = 'bert-finetune-'+mklens(tfrecs).task_name.val.lower()
 
-    task_train = mklens(tfrecs).outputs.train.refpath
-    task_eval = mklens(tfrecs).outputs.dev.refpath
-    task_config = mklens(tfrecs).outputs.meta.refpath
+    datasets={
+      'train':mklens(tfrecs).outputs.train.refpath,
+      'valid':mklens(tfrecs).outputs.valid.refpath,
+      'test':mklens(tfrecs).outputs.test.refpath}
     bert_config = mklens(refbert).bert_config.refpath
     bert_ckpt_in = mklens(refbert).bert_ckpt.refpath
     assert mklens(refbert).bert_vocab.refpath==\
            mklens(tfrecs).bert_vocab.refpath, \
       "Model dictionary path doesn't match the dataset dictionary path"
+    num_classes=mklens(tfrecs).num_classes.val
+    max_seq_length=mklens(tfrecs).max_seq_length.val
 
     checkpoint_full = [claim, 'checkpoint_full.ckpt']
     bert_ckpt = [claim, 'checkpoint_bert.ckpt']
     protocol = [promise, 'protocol.json']
-    dataset_size = None # Use default value
+    # dataset_size = None # Use default value
 
     lr = 2e-5
     train_batch_size = 32
-    eval_batch_size = 32
+    test_batch_size = 32
     train_epoches = 3
     flags=['opt_v2','+f1v2']
     return locals()

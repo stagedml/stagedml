@@ -59,6 +59,7 @@ def mkgraph_demo()->None:
       refbert=_pretrain_stage(nepoch)(m)
       gluetfr=glue_tfrecords(m, task_name,
           bert_vocab=mklens(refbert).bert_vocab.refpath,
+          lower_case=mklens(refbert).cased.val==False,
           refdataset=refglue)
       def _nc(cfg):
         cfg['name']='mini'+cfg['name']

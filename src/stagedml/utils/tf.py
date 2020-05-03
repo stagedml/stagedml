@@ -12,7 +12,7 @@ from pylightnix import ( Closure, Path, Build, Hash, DRef, assert_valid_rref,
     rref2path, readjson, json_dumps, store_rrefs, dirhash, Context,
     build_wrapper_, BuildArgs, repl_realize, repl_continue, repl_build, isrref )
 
-from stagedml.imports.tf import ( TensorBoard, list_variables, History )
+from stagedml.imports.tf import ( TensorBoard, list_variables, History, Dataset )
 from stagedml.imports.sys import ( Popen, join, remove, listdir, re_search, md5,
     os_run, Popen )
 
@@ -245,4 +245,26 @@ class SparseF1Score(F1Score):
   def update_state(self, y_true, y_pred, sample_weight=None):
     y_pred = tf.cast(math_ops.argmax(y_pred, axis=-1), self.dtype)
     return super().update_state(y_true, y_pred, sample_weight=sample_weight)
+
+from stagedml.imports.tf import (INFINITE_CARDINALITY, UNKNOWN_CARDINALITY,
+    cardinality)
+
+def dataset_cardinality_size(d:Dataset)->Optional[int]:
+  c=cardinality(d)
+  if c==INFINITE_CARDINALITY:
+    return None
+  if c==UNKNOWN_CARDINALITY:
+    return None
+  return int(c)
+
+
+def dataset_iter_size(d_fn:Callable[[],Dataset])->int:
+  d=d_fn()
+  c=dataset_cardinality_size(d)
+  if c is not None:
+    return c
+  cnt=0
+  for _ in d:
+    cnt+=1
+  return cnt
 
