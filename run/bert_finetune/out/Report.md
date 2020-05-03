@@ -52,13 +52,7 @@ Here, we:
 Below we display the graph of stages to be realized in order to realize
 the top-level stage of `all_minibert_finetune_glue(task_name='QQP')`:
 
-``` python numberLines
-p=join(environ['REPOUT'],"graph.png")
-depgraph([partial(all_minibert_finetune_glue,task_name='QQP')],filename=p)
-print(f"![]({p})")
-```
-
-![](out/graph.png)
+![](./graph.png)
 
 ``` python numberLines
 results=experiment_allglue()

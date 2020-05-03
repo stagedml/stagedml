@@ -40,8 +40,8 @@ Here, we:
 Below we display the graph of stages to be realized in order to realize the
 top-level stage of `all_minibert_finetune_glue(task_name='QQP')`:
 
-```{.python .cb.nb show=code+stdout:raw+stderr}
-p=join(environ['REPOUT'],"graph.png")
+```{.python .cb.nb show=stdout:raw+stderr}
+p=join(environ.get('REPIMG',environ['REPOUT']),"graph.png")
 depgraph([partial(all_minibert_finetune_glue,task_name='QQP')],filename=p)
 print(f"![]({p})")
 ```
