@@ -110,3 +110,7 @@ def experiment_allglue(n:int=1)->Dict[str,List[RRef]]:
 
 
 
+if __name__== '__main__':
+  print(experiment_allglue())
+  print(experiment_bs())
+

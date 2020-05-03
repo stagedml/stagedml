@@ -96,7 +96,7 @@ In the above code we:
 * We collect resulting realization references in a dictionary.
 
 ```{.python .cb.nb show=code}
-results=experiment_bs(exclude=['+f1v2'])
+results=experiment_bs()
 ```
 
 Results are shown below.

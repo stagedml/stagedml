@@ -1,6 +1,6 @@
 .DEFAULT_GOAL = all
-SRC = $(shell find $(STAGEDML_ROOT)/src -name '*\.py') \
-			$(shell find $(STAGEDML_ROOT)/run/bert_finetune -name '*\.py')
+SRC = $(shell find $(STAGEDML_ROOT)/src -name '*\.py')
+SRC_EXP = $(shell find $(STAGEDML_ROOT)/run/bert_finetune -name '*\.py')
 TESTS = $(shell find $(STAGEDML_ROOT)/tests -name '*\.py')
 
 .stamp_check: $(SRC) $(TESTS)
@@ -14,13 +14,17 @@ endif
 	fi
 	touch $@
 
-out/Report.md: Report.md.in Makefile $(SRC) $(TESTS) .stamp_check
+.stamp_trained: .stamp_check $(SRC_EXP)
+	python3 ./bert_finetune_experiment.py
+	touch $@
+
+out/Report.md: Report.md.in Makefile $(SRC_EXP) .stamp_trained
 	mkdir out; REPOUT=out REPIMG=. PYTHONPATH=. codebraid pandoc \
 		-f markdown -t markdown --no-cache --overwrite --standalone \
 		--self-contained -t gfm  -o $@ $<
 	-rm geckodriver.log
 
-out_html/Report.html: Report.md.in Makefile $(SRC) $(TESTS) .stamp_check
+out_html/Report.html: Report.md.in Makefile $(SRC_EXP) .stamp_trained
 	mkdir out_html ; REPOUT=`dirname $@` PYTHONPATH=. codebraid pandoc \
 		-f markdown -t html --no-cache --overwrite --standalone --self-contained \
 		--metadata pagetitle="BERT finetuning" -o $@ $<

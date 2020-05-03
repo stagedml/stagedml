@@ -78,9 +78,9 @@ print(t)
 
 | Name           | SST-2  | MRPC   | QQP    | MNLI-m | MNLI-mm | SNLI   | QNLI   | RTE    | WNLI   |
 | -------------- | ------ | ------ | ------ | ------ | ------- | ------ | ------ | ------ | ------ |
-| Accuracy, %    | 86.227 | 76.0   | 87.572 | 72.349 | 73.585  | 84.858 | 84.238 | 63.235 | 40.625 |
-| F1\_score\*100 | 55.0   | 75.784 | 43.775 | 43.673 | 44.235  | 40.232 | 53.395 | 38.915 | 33.696 |
-| Tr.time, min   | 13.3   | 0.9    | 70.0   | 34.8   | 34.8    | 48.3   | 20.3   | 0.7    | 0.4    |
+| Accuracy, %    | 86.111 | 75.781 | 87.601 | 72.631 | 74.389  | 84.65  | 84.026 | 62.5   | 32.812 |
+| F1\_score\*100 | 52.135 | 74.796 | 39.476 | 40.741 | 40.66   | 39.618 | 50.424 | 36.224 | 47.336 |
+| Tr.time, min   | 13.3   | 0.9    | 71.4   | 34.0   | 34.0    | 47.6   | 20.4   | 0.7    | 0.3    |
 
 Ref. [Upstream results](https://github.com/google-research/bert#bert)
 
@@ -125,7 +125,7 @@ In the above code we:
 <!-- end list -->
 
 ``` python numberLines
-results=experiment_bs(exclude=['+f1v2'])
+results=experiment_bs()
 ```
 
 Results are shown below.
