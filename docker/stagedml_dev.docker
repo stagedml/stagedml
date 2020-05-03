@@ -37,3 +37,5 @@ RUN /bin/sh /install/install_altair.sh
 
 # FIXME: Move hotfixes into install folders
 RUN apt-get install -y rsync
+RUN apt-get install -y graphviz-dev
+RUN pip3 install pygraphviz
