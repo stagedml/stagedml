@@ -21,12 +21,14 @@ Contents
 --------
 
 1. [Features](#Features)
+2. [Requirements](#requirements)
 2. [Install](#Install)
-   - [System requirements](#system-requirements)
-   - [Running the docker container](#running-docker-containers)
+   - [General information](#general-information)
+   - [User track](#install-user-track)
+   - [Developer track](#install-developer-track)
 3. [Quick Start](#quick-start)
 4. [Documentation](#documentation)
-   - [Pylightnix](#pylightnix)
+   - [About Pylightnix](#about-pylightnix)
    - [Repository structure](#repository-structure)
    - [Models and experiments](#models-and-experiments)
 
@@ -143,6 +145,8 @@ Requirements
 
 Install
 -------
+
+#### General information
 
 StagedML currently depends on slightly customized versions of TensorFlow and
 TensorFlow/models. While TensorFlow changes are negligible (minor fixes in
@@ -299,7 +303,7 @@ With the realization reference in hands, we could:
 Documentation
 -------------
 
-### Pylightnix
+### About Pylightnix
 
 The core library of StagedML is called _Pylightnix_. StagedML is basically a
 collection of Pylightnix _stages_. The following
