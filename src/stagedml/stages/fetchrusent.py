@@ -29,10 +29,12 @@ def fetchrusent(m:Manager, shuffle:bool=True)->Rusent:
     output_tests=[promise, 'rusentiment.tar', 'rusentiment_test.csv']))
 
 
-def created_examples(df:DataFrame, type_hint:str)->Iterable[InputExample]:
+def create_examples(df:DataFrame, type_hint:str)->List[InputExample]:
+  result=[]
   for i,row in df.iterrows():
-    yield InputExample(guid=f"{type_hint}_{i:04d}", text_a=row.text, text_b=None,
-      label=row.label)
+    result.append(InputExample(guid=f"{type_hint}_{i:04d}", text_a=row.text, text_b=None,
+      label=row.label))
+  return result
 
 def rusent_process(b:Build)->None:
   c=build_cattrs(b)
@@ -58,13 +60,13 @@ def rusent_process(b:Build)->None:
   tokenizer = FullTokenizer(vocab_file=vocab_path, do_lower_case=c.lower_case)
 
   file_based_convert_examples_to_features(
-    created_examples(df_train, 'train'),
+    create_examples(df_train, 'train'),
     labels, c.max_seq_length, tokenizer, mklens(b).outputs.train.syspath)
   file_based_convert_examples_to_features(
-    created_examples(df_valid, 'valid'),
+    create_examples(df_valid, 'valid'),
     labels, c.max_seq_length, tokenizer, mklens(b).outputs.valid.syspath)
   file_based_convert_examples_to_features(
-    created_examples(df_test, 'test'),
+    create_examples(df_test, 'test'),
     labels, c.max_seq_length, tokenizer, mklens(b).outputs.test.syspath)
 
 
