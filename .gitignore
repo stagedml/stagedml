@@ -10,3 +10,4 @@ tags
 result
 result-*
 out_html/
+docker/wheels/*
