@@ -46,7 +46,8 @@ EOF
 
 set -e -x
 
-DOCKER_IMGNAME="$USER-nlp-`basename $DOCKERFILE .docker`"
+DOCKER_SUFFIX=`echo $DOCKERFILE | sed -n 's@.*_\(.*\)\.docker$@\1@p'`
+DOCKER_IMGNAME=stagedml/$DOCKER_SUFFIX
 
 docker build \
   --build-arg=http_proxy=$https_proxy \

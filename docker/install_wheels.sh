@@ -1,19 +1,8 @@
 #!/bin/sh
 
-cat >>/etc/bash.bashrc <<EOF
-(
 set -e -x
-cd /workspace/3rdparty/pylightnix
-rm -rf build dist || true
-python3 setup.py sdist bdist_wheel
-sudo pip3 install --force dist/*whl
-)
+for whl in /install/wheels/* ; do
+  pip3 install --force $whl
+done
 
-(
-set -e -x
-cd /workspace
-rm -rf build dist || true
-python3 setup.py sdist bdist_wheel
-sudo pip3 install --force dist/*whl
-)
-EOF
+pip3 install tensorflow_hub

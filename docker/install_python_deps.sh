@@ -11,5 +11,6 @@ pip3 install seaborn PyQT5 PySide2 \
              git+https://github.com/stagedml/pydoc-markdown.git@develop \
              codecov coverage \
              pweave \
-             sentencepiece
+             sentencepiece \
+             pygraphviz
 

@@ -3,12 +3,14 @@ from os.path import join, islink, isdir, isfile
 from stagedml.utils.files import assert_link
 
 import tensorflow as tf
-assert tf.version.VERSION.startswith('2.1'), \
-    (f"StagedML requires TensorFlow version '2.1.*', but got '{tf.version.VERSION}'. "
-     f"You may need to install it using `sudo -H pip3 install tensorflow-gpu`, or "
-     f"build from sources which are located in "
+assert tf.version.VERSION.startswith('2.1') or \
+       tf.version.VERSION.startswith('2.2'), \
+    (f"StagedML requires TensorFlow versions '2.1.*' or '2.2.*', but got"
+     f"{tf.version.VERSION}. You may need to install it using `sudo -H pip3"
+     f"install tensorflow-gpu`, or build from sources which are located in "
      f"`3rdparty/tensorflow` submodule. For building, please check helper "
-     f"shell-functions defined in `env.sh`, namely `conftf`, `buildtf`, `installtf`.")
+     f"shell-functions defined in `env.sh`, namely `conftf`, `buildtf`,"
+     f"`installtf`.")
 
 STAGEDML_ROOT=environ.get('STAGEDML_ROOT')
 if STAGEDML_ROOT is not None:

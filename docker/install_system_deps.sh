@@ -10,5 +10,7 @@ apt-get install -y sudo wget \
 apt-get install -y locales && \
 apt-get install -y ondir less figlet psmisc && \
 apt-get install -y atool && \
+apt-get install -y rsync && \
+apt-get install -y graphviz-dev && \
 locale-gen "en_US.UTF-8"
 

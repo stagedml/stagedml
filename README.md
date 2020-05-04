@@ -168,7 +168,7 @@ We show how to run the project in development docker
    image and additional dependencies. After the image is ready, the script will
    bind-mount project root folder as container's `/workspace`. Finally, it will
    open Bash shell with `PYTHONPATH` pointing to local Python sources, and a
-   collection of [helper shell functions](./env.sh).
+   collection of [helper shell functions](./docker/devenv.sh).
 
 3. Install TensorFlow. At the time of this writing, the default TF from Deepo
    Docker was a bit old, so we provide our favorite version as
@@ -178,12 +178,12 @@ We show how to run the project in development docker
      StagedML wants it to be >=`2.1`, maybe this requirement is already
      satisfied by default.
    * (b) Install TensorFlow from some Ubuntu repositories. Typically one have to
-     execute shell commands like `sudo -H pip3 install tensorflow-gpu` or `sudo
+     execute shell commands like `sudo -E pip3 install tensorflow-gpu` or `sudo
      apt-get install tensorflow-gpu`.
    * (c) Build our favorite version of TensorFlow from sources. We link it under
      `./3rdparty/tensorflow` Git submodule. First, make sure that submodules are
      initialized by `git submodule update --init --recursive`. After that, run
-     helper functions defined in `env.sh` (should be sourced at shell login):
+     helper functions defined in `devenv.sh` (should be sourced at shell login):
 
      ```sh
      (docker) $ buildtf
@@ -203,7 +203,7 @@ We show how to run the project in development docker
    installing Pylightnix, StagedML and other dependencies systemwide:
 
    ```sh
-   (docker) $ make wheels; sudo -H make install
+   (docker) $ make wheels; sudo -E make install
    ```
 
    This is it. Note that the experiments tun `make check` to make sure that
@@ -321,6 +321,7 @@ Overall repository structure:
 │   ├── tensorflow/
 │   └── tensorflow_models/
 ├── docker/                        # Docker scripts and install rules
+│   ├── devenv.sh                  # Development shell-functions
 │   ├── stagedml_ci.docker
 │   └── stagedml_dev.docker
 ├── nix/
@@ -337,7 +338,6 @@ Overall repository structure:
 ├── LICENSE
 ├── Makefile                       # Rules for building wheels, testing, etc.
 ├── README.md                      # <-- (You are here)
-├── env.sh
 ├── ipython.sh
 ├── localrc.vim
 ├── runchrome.sh*                  # Chrome browser runner, TensorBoard ports are open

@@ -26,16 +26,12 @@ RUN /bin/sh /install/install_bazel.sh
 COPY install_python_deps.sh /install/install_python_deps.sh
 RUN /bin/sh /install/install_python_deps.sh
 
-COPY install_devenv.sh /install/install_devenv.sh
-RUN /bin/sh /install/install_devenv.sh
-
 COPY install_codebraid.sh /install/install_codebraid.sh
 RUN /bin/sh /install/install_codebraid.sh
 
 COPY install_altair.sh /install/install_altair.sh
 RUN /bin/sh /install/install_altair.sh
 
-# FIXME: Move hotfixes into install folders
-RUN apt-get install -y rsync
-RUN apt-get install -y graphviz-dev
-RUN pip3 install pygraphviz
+COPY devenv.sh /install/devenv.sh
+COPY install_devenv.sh /install/install_devenv.sh
+RUN /bin/sh /install/install_devenv.sh

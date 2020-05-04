@@ -136,4 +136,11 @@ installtf() {(
   sudo -H pip3 install --force `ls -t *whl | head -n 1` tensorflow-hub
 )}
 
-
+cat <<EOF
+StagedML development environment assumes user to do the following:
+- Clone StagedML repo in "\$STAGEDML_ROOT" ($STAGEDML_ROOT)
+- Checkout git submodules of StagedML repo with
+    \`git submodules update --init --recursive\`
+- Build TensorFlow wheel from source with \`buildtf\`
+- Install TensorFlow wheel with \`installtf\`
+EOF
