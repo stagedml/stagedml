@@ -209,16 +209,23 @@ FIXME: Currently, `./rundocker.sh` cant' pull the image from Docker Hub.
    `./3rdparty/tensorflow` Git submodule. You have the following options:
 
    * (a, preferred) Build our favorite version of TensorFlow from source. We
-     link it under `./3rdparty/tensorflow` Git submodule folder. First, make
-     sure that submodules are initialized (`git submodule update --init
-     --recursive`). After that, run the following commands:
-     ```sh
-     (docker) $ buildtf # defined in `./docker/devenv.sh`
-     (docker) $ sudo -E make install_tf
-     ```
-     Typically, `buildtf` takes a long time to complete. It requires considerable
-     amount of RAM and HDD, but we need to run it only once. `make install_tf`
-     should be run every time we start the container.
+     link it under `./3rdparty/tensorflow` Git submodule folder.
+     1. Make sure that submodules are initialized
+        ```sh
+        $ git submodule update --init --recursive
+        ```
+     2. Run the `buildtf` shell function to configure and build TensorFlow wheel.
+        ```sh
+        (docker) $ buildtf
+        ```
+        Typically, `buildtf` takes a long time to complete. It requires
+        considerable amount of RAM and HDD, but we need to run it only once.
+     3. Install the tensorflow wheel.
+        ```sh
+        (docker) $ sudo -E make install_tf
+        ```
+        This command should be re-run every time we start the developer
+        container.
    * (b) Check the current version of TF shipped with the base docker image of
      `deepo`.  StagedML wants it to be >=`2.1`, maybe this requirement is
      already satisfied by default.
@@ -227,7 +234,6 @@ FIXME: Currently, `./rundocker.sh` cant' pull the image from Docker Hub.
      `sudo apt-get install tensorflow-gpu`. Please, consult the Internet.
 
 4. (Optional) StagedML supports `mypy`-based type checking:
-
    ```sh
    (docker) $ make typecheck
    ```
