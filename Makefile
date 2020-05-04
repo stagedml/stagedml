@@ -54,6 +54,7 @@ install_tf: # Has to be run by root
 	test -f $(WHEEL_TF) || ( echo 'run `make wheel_tf` first'; exit 1; )
 	pip3 install --force $(WHEEL_TF)
 	pip3 hash $(WHEEL_TF) > .install_tf-stamp-$(HOSTNAME)
+	pip3 install tensorflow_hub
 
 ## TensorFlow Models
 
