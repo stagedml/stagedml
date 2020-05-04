@@ -219,7 +219,8 @@ FIXME: Currently, `./rundocker.sh` cant' pull the image from Docker Hub.
         (docker) $ buildtf
         ```
         Typically, `buildtf` takes a long time to complete. It requires
-        considerable amount of RAM and HDD, but we need to run it only once.
+        considerable amount of RAM and HDD, but we need to run it only once. The
+        wheel apper in `./_tf` folder.
      3. Install the tensorflow wheel.
         ```sh
         (docker) $ sudo -E make install_tf
