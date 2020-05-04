@@ -162,7 +162,7 @@ kinds of Docker containers:
 | Cloned repo is required  | No         | Yes            |
 | Pylightnix installed | System-wide    | via PYTHONPATH |
 | StagedML installed   | System-wide    | via PYTHONPATH |
-| TensorFlow installed | System-wide    | No[1]          |
+| TensorFlow installed | System-wide    | No (*1)        |
 | TF/Models installed  | System-wide    | via PYTHONPATH |
 
 * [1] - TensorFlow can't be 'installed' by setting PYTHONPATH, so the
