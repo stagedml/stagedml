@@ -141,6 +141,54 @@ altair_print(chart, f'figure_{metric}.png')
   - Is it the effect of batch-normalization?
   - Is it the effect of un-disabled dropout?
 
+
+Learning rate in BERT->MRPC fine-tuning
+---------------------------------------
+
+The top-level procedure of the experiment:
+
+```{.python .cb.code
+    include_file=bert_finetune_experiment.py
+    include_regex="experiment_lr.*return result_lr"}
+```
+Execute the code
+
+```{.python .cb.nb show=code}
+results=experiment_lr()
+```
+
+Processing the results
+
+```{.python .cb.nb}
+dfs=[]
+for lr_,rrefs in results.items():
+  lr=float(lr_)
+  for iid,rref in enumerate(rrefs):
+    cols={}
+    es=tensorboard_tensor_events(rref,'valid','accuracy')
+    assert len(es)>0
+    cols['steps']=[e.step for e in es]
+    cols['valid_accuracy']=[te2float(e) for e in es]
+    cols['learning_rate']=[lr for _ in es]
+    cols['iid']=[iid for _ in es]
+    es=tensorboard_tensor_events(rref,'valid','loss')
+    assert len(cols['steps'])==len(es)
+    cols['valid_loss']=[te2float(e) for e in es]
+    dfs.append(DataFrame(cols))
+ds=pd.concat(dfs)
+```
+
+Print the results:
+
+```{.python .cb.nb show=code+stdout:raw+stderr}
+metric='valid_accuracy'
+chart=alt.Chart(ds).mark_line().encode(
+  x='steps', y=metric, color='learning_rate',
+  strokeDash='iid')
+altair_print(chart, f'figure_{metric}_lr.png')
+```
+
+
 Junk
 ----
 

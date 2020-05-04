@@ -63,7 +63,7 @@ def altair_print(chart:Chart, png_filename:str, alt:str='', attrs:str='')->None:
   print("![%s](%s){%s}"%(alt, join(repimgdir,png_filename), attrs))
 
 
-def experiment_bs(n:int=1, exclude=[])->Dict[int,List[RRef]]:
+def experiment_bs(n:int=4, exclude=[])->Dict[int,List[RRef]]:
   result_bs={}
   for bs in [2,8,16,32,64]:
     def _new_config(cfg:dict):
@@ -76,6 +76,21 @@ def experiment_bs(n:int=1, exclude=[])->Dict[int,List[RRef]]:
                                            new_matcher=match_some(n)),
       num_instances=n))
   return result_bs
+
+def experiment_lr(n:int=4, exclude=[])->Dict[str,List[RRef]]:
+  result_lr={}
+  for lr in [3e-4, 1e-4, 5e-5, 3e-5]:
+    def _new_config(cfg:dict):
+      cfg['train_batch_size']=8
+      cfg['lr']=lr
+      cfg['train_epoches']=5
+      cfg['flags']=[f for f in cfg['flags'] if f not in exclude]
+      return mkconfig(cfg)
+    result_lr[str(lr)]=realizeMany(instantiate(
+      redefine(all_minibert_finetune_glue, new_config=_new_config,
+                                           new_matcher=match_some(n)),
+      num_instances=n))
+  return result_lr
 
 
 def experiment_trainmethod()->Dict[str,RRef]:
@@ -113,4 +128,5 @@ def experiment_allglue(n:int=1)->Dict[str,List[RRef]]:
 if __name__== '__main__':
   print(experiment_allglue())
   print(experiment_bs())
+  print(experiment_lr())
 

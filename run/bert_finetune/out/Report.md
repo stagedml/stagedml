@@ -89,7 +89,7 @@ Ref. [Upstream results](https://github.com/google-research/bert#bert)
 The top-level procedure of the experiment:
 
 ``` python numberLines
-experiment_bs(n:int=1, exclude=[])->Dict[int,List[RRef]]:
+experiment_bs(n:int=4, exclude=[])->Dict[int,List[RRef]]:
   result_bs={}
   for bs in [2,8,16,32,64]:
     def _new_config(cfg:dict):
@@ -178,6 +178,71 @@ WARN Using discrete channel "strokeDash" to encode "quantitative" field can be m
   - TODO: find out why do models with smaller batch sizes train better?
       - Is it the effect of batch-normalization?
       - Is it the effect of un-disabled dropout?
+
+## Learning rate in BERT-\>MRPC fine-tuning
+
+The top-level procedure of the experiment:
+
+``` python numberLines
+experiment_lr(n:int=4, exclude=[])->Dict[str,List[RRef]]:
+  result_lr={}
+  for lr in [3e-4, 1e-4, 5e-5, 3e-5]:
+    def _new_config(cfg:dict):
+      cfg['train_batch_size']=8
+      cfg['lr']=lr
+      cfg['train_epoches']=5
+      cfg['flags']=[f for f in cfg['flags'] if f not in exclude]
+      return mkconfig(cfg)
+    result_lr[str(lr)]=realizeMany(instantiate(
+      redefine(all_minibert_finetune_glue, new_config=_new_config,
+                                           new_matcher=match_some(n)),
+      num_instances=n))
+  return result_lr
+```
+
+Execute the code
+
+``` python numberLines
+results=experiment_lr()
+```
+
+Processing the results
+
+``` python numberLines
+dfs=[]
+for lr_,rrefs in results.items():
+  lr=float(lr_)
+  for iid,rref in enumerate(rrefs):
+    cols={}
+    es=tensorboard_tensor_events(rref,'valid','accuracy')
+    assert len(es)>0
+    cols['steps']=[e.step for e in es]
+    cols['valid_accuracy']=[te2float(e) for e in es]
+    cols['learning_rate']=[lr for _ in es]
+    cols['iid']=[iid for _ in es]
+    es=tensorboard_tensor_events(rref,'valid','loss')
+    assert len(cols['steps'])==len(es)
+    cols['valid_loss']=[te2float(e) for e in es]
+    dfs.append(DataFrame(cols))
+ds=pd.concat(dfs)
+```
+
+Print the results:
+
+``` python numberLines
+metric='valid_accuracy'
+chart=alt.Chart(ds).mark_line().encode(
+  x='steps', y=metric, color='learning_rate',
+  strokeDash='iid')
+altair_print(chart, f'figure_{metric}_lr.png')
+```
+
+![](./figure_valid_accuracy_lr.png)
+
+``` stderr
+WARN StrokeDash channel should be used with only discrete data.
+WARN Using discrete channel "strokeDash" to encode "quantitative" field can be misleading as it does not encode magnitude.
+```
 
 ## Junk
 
