@@ -212,30 +212,30 @@ FIXME: Currently, `./rundocker.sh` cant' pull the image from Docker Hub.
    Docker was a bit old, so we provide our favorite version as
    `./3rdparty/tensorflow` Git submodule. You have the following options:
 
-   * (a, preferred) Build our favorite version of TensorFlow from source. We
-     link it under `./3rdparty/tensorflow` Git submodule folder.
-     1. Make sure that submodules are initialized
-        ```sh
-        $ git submodule update --init --recursive
-        ```
-     2. Run the `buildtf` shell function to configure and build TensorFlow wheel.
-        ```sh
-        (docker) $ buildtf
-        ```
-        Typically, `buildtf` takes a long time to complete. It requires
-        considerable amount of RAM and HDD, but we need to run it only once. The
-        wheel apper in `./_tf` folder.
-     3. Install the tensorflow wheel.
-        ```sh
-        (docker) $ sudo -E make install_tf
-        ```
-        This command should be re-run every time we start the developer
-        container.
-   * (b) Check the current version of TF shipped with the base docker image of
-     `deepo`.  StagedML wants it to be >=`2.1`, maybe this requirement is
-     already satisfied by default.
-   * (c) Install TensorFlow from custom Debian repositories. Typically one have
-     to execute shell commands like `sudo -E pip3 install tensorflow-gpu` or
+   1. (preferred) Build our favorite version of TensorFlow from source. We
+      link it under `./3rdparty/tensorflow` Git submodule folder.
+      1. Make sure that submodules are initialized
+         ```sh
+         $ git submodule update --init --recursive
+         ```
+      2. Run the `buildtf` shell function to configure and build TensorFlow wheel.
+         ```sh
+         (docker) $ buildtf
+         ```
+         Typically, `buildtf` takes a long time to complete. It requires
+         considerable amount of RAM and HDD, but we need to run it only once. The
+         wheel apper in `./_tf` folder.
+      3. Install the tensorflow wheel.
+         ```sh
+         (docker) $ sudo -E make install_tf
+         ```
+         This command should be re-run every time we start the developer
+         container.
+   2. Check the current version of TF shipped with the base docker image of
+      `deepo`.  StagedML wants it to be >=`2.1`, maybe this requirement is
+      already satisfied by default.
+   3. Install TensorFlow from custom Debian repositories. Typically one have
+      to execute shell commands like `sudo -E pip3 install tensorflow-gpu` or
      `sudo apt-get install tensorflow-gpu`. Please, consult the Internet.
 
 4. (Optional) StagedML supports `mypy`-based type checking:
