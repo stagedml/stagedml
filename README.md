@@ -133,83 +133,100 @@ Features
     core library.
   - We extensively use [Mypy](http://mypy-lang.org/)-compatible type annotations.
 
+Requirements
+------------
+
+* Linux system as Docker host (other OS may accidently work too)
+* GPU suitable for machine learning acceleration. We use NVidia 1080Ti.
+* Considerable amount of hard drive space. Some tasks, like BERT pretraining,
+  may require >=200 Gb datasets.
+
 Install
 -------
 
-The project is in its early stages, so we mainly focus on Docker-driven
-environment for development and evaluation. We provide 2 docker containers, one
-is defined by **[./docker/stagedml_dev.docker](./docker/stagedml_dev.docker)** and
-describes development environment, another one is defined by
-[./docker/stagedml_ci.docker](./docker/stagedml_ci.docker).  We plan to use it
-for continuous integration tests in future.
+StagedML currently depends on slightly customized versions of TensorFlow and
+TensorFlow/models. While TensorFlow changes are negligible (minor fixes in
+build system), we do modify TensorFlow/models
+[in a non-trivial way](https://github.com/tensorflow/models/pulls?q=is%3Apr+author%3Agrwlf+is%3Aclosed).
 
-### System requirements
+To simplify the distribution procedure, we decide to ship StagedML with two
+kinds of Docker containers:
 
-* Linux system (other OS may accidently work too)
-* GPU NVidia 1080Ti
-* Docker with `nvidia-docker` runner and internet connection
+| Feature              | stagedml_user  | stagedml_dev   |
+|:-------------------- |:--------------:|:--------------:|
+| Where to get         | Docker hub     | `docker build` |
+| Cloned repo is required  | No         | Yes            |
+| Pylightnix installed | System-wide    | via PYTHONPATH |
+| StagedML installed   | System-wide    | via PYTHONPATH |
+| TensorFlow installed | System-wide    | No[1]          |
+| TF/Models installed  | System-wide    | via PYTHONPATH |
 
-### Running docker containers
+* [1] - TensorFlow can't be 'installed' by setting PYTHONPATH, so the
+  installation from source is required. We provide reference scripts for this
+  task.
 
-We show how to run the project in development docker
+Depending on your needs, you could follow either a user or a developer
+installation track.
+
+#### Install: User track
+
+User-friendly docker container may be pulled directly from
+[Docker Hub account](https://hub.docker.com/repository/docker/stagedml/user)
+
+```sh
+$ docker pull stagedml/user:latest
+```
+
+We recommend to use our [./runocker.sh](./rundocker.sh) script to run this
+container. It will do additional work of bind-mounting Hosts's project folder,
+forwarding TCP ports required by TensorBoard and Jupyter, forwarding X session,
+setting correct Unix user IDs, etc.
+
+FIXME: Currently, `./rundocker.sh` cant' pull the image from Docker Hub.
+
+#### Install: Developer track
 
 1. Clone the Stagedml repo recursively
    ```sh
    $ git clone --recursive https://github.com/stagedml/stagedml
    ```
 
-2. Cd to project's root and run the docker script to build the container.
+2. Cd to project's root and run the docker script to build the development
+   docker container.
    ```sh
    $ cd stagedml
    $ ./rundocker.sh
    ```
 
    The docker builder will download [deepo](https://github.com/ufoym/deepo) base
-   image and additional dependencies. After the image is ready, the script will
-   bind-mount project root folder as container's `/workspace`. Finally, it will
-   open Bash shell with `PYTHONPATH` pointing to local Python sources, and a
-   collection of [helper shell functions](./docker/devenv.sh).
+   image and additional dependencies. Among other actions, the script will
+   bind-mount host's project folder to container's `/workspace`. Finally, it will
+   open Bash shell with `PYTHONPATH` pointing to Python sources of required
+   libraries.
 
 3. Install TensorFlow. At the time of this writing, the default TF from Deepo
    Docker was a bit old, so we provide our favorite version as
-   `./3rdparty/tensorflow` Git submodule.  You have the following options:
+   `./3rdparty/tensorflow` Git submodule. You have the following options:
 
-   * (a) Check the current version of TF shipped with the Docker's base image.
-     StagedML wants it to be >=`2.1`, maybe this requirement is already
-     satisfied by default.
-   * (b) Install TensorFlow from some Ubuntu repositories. Typically one have to
-     execute shell commands like `sudo -E pip3 install tensorflow-gpu` or `sudo
-     apt-get install tensorflow-gpu`.
-   * (c) Build our favorite version of TensorFlow from sources. We link it under
-     `./3rdparty/tensorflow` Git submodule. First, make sure that submodules are
-     initialized by `git submodule update --init --recursive`. After that, run
-     helper functions defined in `devenv.sh` (should be sourced at shell login):
-
+   * (a, preferred) Build our favorite version of TensorFlow from source. We
+     link it under `./3rdparty/tensorflow` Git submodule folder. First, make
+     sure that submodules are initialized (`git submodule update --init
+     --recursive`). After that, run the following commands:
      ```sh
-     (docker) $ buildtf
-     (docker) $ installtf
+     (docker) $ buildtf # defined in `./docker/devenv.sh`
+     (docker) $ sudo -E make install_tf
      ```
+     Typically, `buildtf` takes a long time to complete. It requires considerable
+     amount of RAM and HDD, but we need to run it only once. `make install_tf`
+     should be run every time we start the container.
+   * (b) Check the current version of TF shipped with the base docker image of
+     `deepo`.  StagedML wants it to be >=`2.1`, maybe this requirement is
+     already satisfied by default.
+   * (c) Install TensorFlow from custom Debian repositories. Typically one have
+     to execute shell commands like `sudo -E pip3 install tensorflow-gpu` or
+     `sudo apt-get install tensorflow-gpu`. Please, consult the Internet.
 
-     Building takes a long time. The resulting `*wheel` will appear in `./_tf`
-     folder. Note, that you need to call `installtf` (but not `buildtf`) at each
-     start of the container for now.
-
-4. (Optional) Now we should have (a) Git submodules updated, (b) PYTHONPATH
-   pointing to the local sources and (c) recent version of TensorFlow is
-   installed systemwide.  This is enough for the Quick Start and local
-   development.
-
-   In order to run experiments from the `run` folder we also do require
-   installing Pylightnix, StagedML and other dependencies systemwide:
-
-   ```sh
-   (docker) $ make wheels; sudo -E make install
-   ```
-
-   This is it. Note that the experiments tun `make check` to make sure that
-   version installed with `make install` does exactly match the current sources.
-
-5. (Optional) StagedML supports `mypy`-based typechecking:
+4. (Optional) StagedML supports `mypy`-based type checking:
 
    ```sh
    (docker) $ make typecheck
