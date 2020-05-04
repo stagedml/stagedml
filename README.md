@@ -153,7 +153,7 @@ TensorFlow/models. While TensorFlow changes are negligible (minor fixes in
 build system), we do modify TensorFlow/models
 [in a non-trivial way](https://github.com/tensorflow/models/pulls?q=is%3Apr+author%3Agrwlf+is%3Aclosed).
 
-To simplify the distribution procedure, we decide to ship StagedML with two
+To simplify the distribution procedure, we provide StagedML in two
 kinds of Docker containers:
 
 | Feature              | stagedml_user  | stagedml_dev   |
