@@ -2,6 +2,7 @@ if test -z "$STAGEDML_ROOT" ; then
   export STAGEDML_ROOT=`pwd`
 fi
 
+export STAGEDML_EXPERIMENTS="$STAGEDML_ROOT/_experiments"
 export STAGEDML_RUSENTIMENT="$STAGEDML_ROOT/3rdparty/rusentiment.tar.xz"
 export CWD="$STAGEDML_ROOT"
 export TERM=xterm-256color # TODO: check and document

@@ -148,15 +148,15 @@ Install
 
 #### General information
 
-StagedML currently depends on slightly customized versions of TensorFlow and
-TensorFlow/models. While TensorFlow changes are negligible (minor fixes in
-build system), we do modify TensorFlow/models
+StagedML depends on slightly customized versions of TensorFlow and
+TensorFlow/models. While TensorFlow changes are negligible (minor fixes in build
+system), we do modify TensorFlow/models
 [in a non-trivial way](https://github.com/tensorflow/models/pulls?q=is%3Apr+author%3Agrwlf+is%3Aclosed).
 
-To simplify the distribution procedure, we provide StagedML in two
-kinds of Docker containers:
+Currently, we provide StagedML in Docker containers of two kinds: 'User' and
+'Dev':
 
-| Feature              | stagedml_user  | stagedml_dev   |
+| Feature              | stagedml/user  | stagedml/dev   |
 |:-------------------- |:--------------:|:--------------:|
 | Where to get         | Docker hub     | `docker build` |
 | Cloned repo is required  | No         | Yes            |

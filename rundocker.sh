@@ -4,22 +4,29 @@ CWD=$(cd `dirname $0`; pwd;)
 
 GITHACK=n
 MAPPORTS=`expr $UID - 1000`
-DOCKERFILE=$CWD/docker/stagedml_dev.docker
+DOCKER_FILENAME=$CWD/docker/stagedml_dev.docker
+DOCKER_IMGNAME=""
 
 while test -n "$1" ; do
   case "$1" in
     -h|--help)
-      echo "Usage: $0 [-n|--no-map-sockets]" >&2
+      echo "Usage: $0 [-n|--no-map-ports] " \
+           "[-m INT|--map-ports-base INT] " \
+           "(FILE_NAME.docker|DOCKER_IMAGE_NAME)" >&2
       exit 1
       ;;
-    -n|--no-map-sockets)
+    -n|--no-map-ports)
       MAPPORTS=""
       ;;
     -m|--map-ports-base)
       MAPPORTS="$2"; shift
       ;;
     *)
-      DOCKERFILE="$1"
+      if test -f "$1" ; then
+        DOCKER_FILENAME="$1"
+      else
+        DOCKER_IMGNAME="$1"
+      fi
       ;;
   esac
   shift
@@ -37,7 +44,7 @@ else
   echo "No nix-expressions to inject into this container" >&2
 fi
 
-# Remap detach to Ctrl+e,e
+# Remap detach key to Ctrl+e,e
 DOCKER_CFG="/tmp/docker-stagedml-$UID"
 mkdir "$DOCKER_CFG" 2>/dev/null || true
 cat >$DOCKER_CFG/config.json <<EOF
@@ -46,16 +53,19 @@ EOF
 
 set -e -x
 
-DOCKER_SUFFIX=`echo $DOCKERFILE | sed -n 's@.*_\(.*\)\.docker$@\1@p'`
-DOCKER_IMGNAME=stagedml/$DOCKER_SUFFIX
+if test -n "$DOCKER_IMGNAME" ; then
+  docker pull "$DOCKER_IMGNAME:latest"
+else
+  DOCKER_SUFFIX=`echo $DOCKER_FILENAME | sed -n 's@.*_\(.*\)\.docker$@\1@p'`
+  DOCKER_IMGNAME=stagedml/$DOCKER_SUFFIX
 
-docker build \
-  --build-arg=http_proxy=$https_proxy \
-  --build-arg=https_proxy=$https_proxy \
-  --build-arg=ftp_proxy=$https_proxy \
-  -t "$DOCKER_IMGNAME" \
-  -f "$DOCKERFILE" "$CWD/docker"
-
+  docker build \
+    --build-arg=http_proxy=$https_proxy \
+    --build-arg=https_proxy=$https_proxy \
+    --build-arg=ftp_proxy=$https_proxy \
+    -t "$DOCKER_IMGNAME" \
+    -f "$DOCKER_FILENAME" "$CWD/docker"
+fi
 
 if test -n "$MAPPORTS"; then
   PORT_TENSORBOARD=`expr 6000 + $MAPPORTS`
