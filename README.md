@@ -162,10 +162,10 @@ Currently, we provide StagedML in Docker containers of two kinds: 'User' and
 | Cloned repo is required  | No         | Yes            |
 | Pylightnix installed | System-wide    | via PYTHONPATH |
 | StagedML installed   | System-wide    | via PYTHONPATH |
-| TensorFlow installed | System-wide    | No *1          |
+| TensorFlow installed | System-wide    | No(1)          |
 | TF/Models installed  | System-wide    | via PYTHONPATH |
 
-* [1] - TensorFlow can't be populated by setting PYTHONPATH, so the
+* (1) - TensorFlow can't be populated by setting PYTHONPATH, so the
   installation from source is required. We provide reference scripts for this
   task.
 
@@ -178,8 +178,8 @@ page](https://hub.docker.com/repository/docker/stagedml/user).
 ### Install: User track
 
 'User' docker container offers latest StagedML and it's dependencies, all
-installed system-wide.  we do recomend to use our [rundocker.sh](./rundocker.sh)
-script Instead of calling `docker pull` directly.  The script constructs docker
+installed system-wide. We do recomend to use our [rundocker.sh](./rundocker.sh)
+script instead of calling `docker pull` directly.  The script constructs docker
 command line and enables the following important functionality:
 
 - Bind-mounting Hosts's current folder as container's HOME folder
@@ -188,7 +188,7 @@ command line and enables the following important functionality:
 - Forwarding Host's X session into the container
 
 As a result, you use docker shell as a development console almost
-transparently. To run the container, follow this steps:
+transparently. In order to run the container, follow these steps:
 
 1. Get the [rundocker.sh](./rundocker.sh) script by saving it manually or by
    using your favorite command line downloader:
@@ -200,7 +200,7 @@ transparently. To run the container, follow this steps:
    ```sh
    $ ./rundocker.sh stagedml/user:latest
    ```
-3. Container should open the shell where we could execute Python code or open
+3. Container should open the shell where we can execute Python code or open
    IPython console.
 
 ### Install: Developer track
