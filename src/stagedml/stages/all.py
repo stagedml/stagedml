@@ -37,8 +37,8 @@ from stagedml.types import ( Dict, Set, Tuple, List, Optional, Union, DRef,
     Glue, Squad11, GlueTFR, Squad11TFR, BertCP, BertGlue, BertSquad, NL2Bash,
     TransWmt, WmtSubtok, ConvnnMnist, Wikidump, Wikitext, WikiTFR, BertPretrain,
     BertFinetuneTFR )
-from stagedml.core import ( lrealize, tryrealize, STAGEDML_EXPERIMENTS,
-    diskspace_h, linkrref, realize_recursive, depgraph )
+from stagedml.core import ( lrealize, tryrealize, diskspace_h, linkrref,
+    realize_recursive, depgraph )
 from stagedml.imports import ( walk, join, abspath, islink, partial,
     get_terminal_size, BeautifulTable )
 
@@ -182,7 +182,7 @@ def dryrun_bert_finetune_glue(m:Manager, task_name:str='MRPC')->BertGlue:
   return redefine(partial(all_bert_finetune_glue, task_name=task_name), new_config=_new_config)(m)
 
 
-def all_minibert_finetune_rusentiment(m:Manager):
+def all_multibert_finetune_rusentiment(m:Manager):
   refbert=all_fetch_multibert(m)
   refdata=all_fetchrusent(m)
   vocab=mklens(refbert).bert_vocab.refpath
@@ -305,7 +305,9 @@ def gcfind()->Tuple[Set[DRef],Set[RRef]]:
       instantiate(all_bert_finetune_squad11)
       ]) if x is not None]
 
-  for root, dirs, filenames in walk(STAGEDML_EXPERIMENTS, topdown=True):
+  import stagedml.core
+  for root, dirs, filenames in walk(stagedml.core.STAGEDML_EXPERIMENTS,
+                                    topdown=True):
     for dirname in sorted(dirs):
       a=Path(abspath(join(root, dirname)))
       if islink(a):

@@ -15,11 +15,13 @@ Glue=NewType('Glue',DRef)
 #: Reference to the RuSentiment dataset
 Rusent=NewType('Rusent',DRef)
 
-BertFinetuneTFR=NewType('BertFinetuneTFR',DRef)
+class BertFinetuneTFR(DRef):
+  pass
 
 Squad11=NewType('Squad11',DRef)
 
-GlueTFR=NewType('GlueTFR',BertFinetuneTFR)
+class GlueTFR(BertFinetuneTFR):
+  pass
 
 Squad11TFR=NewType('Squad11TFR',BertFinetuneTFR)
 

@@ -17,6 +17,17 @@ from tensorflow.python.training.checkpoint_utils import ( list_variables,
     load_checkpoint )
 from tensorflow.python.framework.errors import ( NotFoundError )
 from tensorflow.keras.metrics import Mean, SparseCategoricalAccuracy
+from tensorflow.python.framework.tensor_util import MakeNdarray
+from tensorboard.backend.event_processing.event_accumulator import (
+    EventAccumulator, STORE_EVERYTHING_SIZE_GUIDANCE )
+from tensorboard.backend.event_processing.event_accumulator import (
+    ScalarEvent, TensorEvent )
+from tensorflow import train
+
+Feature=train.Feature
+Features=train.Features
+Example=train.Example
+
 
 Dataset=data.Dataset
 FixedLenFeature=io.FixedLenFeature

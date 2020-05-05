@@ -34,7 +34,7 @@ from stagedml.core import ( protocol_add, protocol_add_hist,
 from stagedml.types import ( BertCP, GlueTFR, BertGlue,
     Optional,Any,List,Tuple,Union,BertFinetuneTFR )
 
-class ModelBuild(Build):
+class Model(Build):
   model:tf.keras.Model
   model_eval:tf.keras.Model
   core_model:tf.keras.Model
@@ -42,30 +42,30 @@ class ModelBuild(Build):
   optimizer:Any
 
 
-def build(b:ModelBuild, iid:int=0, clear_session:bool=True):
+def build(b:Model, clear_session:bool=True):
   tf.keras.backend.clear_session()
 
   c=build_cattrs(b)
-  l=mklens(b,build_output_idx=iid)
+  l=mklens(b.dref, ctx=b.context)
 
   with open(l.bert_config.syspath, "r") as f:
-    bert_config = BertConfig.from_dict(json_load(f))
+    bert_config=BertConfig.from_dict(json_load(f))
 
   train_data_size=dataset_iter_size(
     partial(bert_finetune_dataset,
-      path=mklens(b).datasets.train.syspath, max_seq_length=c.max_seq_length))
+      path=l.datasets.train.syspath, max_seq_length=c.max_seq_length))
   assert train_data_size is not None
   c.train_data_size=train_data_size
 
   valid_data_size=dataset_iter_size(
     partial(bert_finetune_dataset,
-      path=mklens(b).datasets.valid.syspath, max_seq_length=c.max_seq_length))
+      path=l.datasets.valid.syspath, max_seq_length=c.max_seq_length))
   assert valid_data_size is not None
-  c.valid_data_size = valid_data_size
+  c.valid_data_size=valid_data_size
 
   test_data_size=dataset_iter_size(
     partial(bert_finetune_dataset,
-      path=mklens(b).datasets.test.syspath, max_seq_length=c.max_seq_length))
+      path=l.datasets.test.syspath, max_seq_length=c.max_seq_length))
   assert test_data_size is not None
   c.test_data_size = test_data_size
 
@@ -99,7 +99,7 @@ def build(b:ModelBuild, iid:int=0, clear_session:bool=True):
     model = tf.keras.Model(inputs=teacher_ins, outputs=[teacher_cls_logits])
     model_eval = tf.keras.Model(inputs=teacher_ins, outputs=[teacher_cls_probs])
 
-    if 'opt_v2' in mklens(b).flags.val:
+    if 'opt_v2' in l.flags.val:
       b.optimizer = create_optimizer_v2(c.lr,
         c.train_steps_per_epoch*c.train_epoches, c.train_warmup_steps)
     else:
@@ -113,7 +113,7 @@ def build(b:ModelBuild, iid:int=0, clear_session:bool=True):
 
 
 
-def cpload(b:ModelBuild, iid:int=0)->None:
+def cpload(b:Model, iid:int=0)->None:
   """ Load checkpoint into model
   FIXME: invent a more productive approach to loading checkpoints """
   c=build_cattrs(b)
@@ -155,11 +155,11 @@ def cpload(b:ModelBuild, iid:int=0)->None:
   print("Unused variables:")
   print('\n'.join(['- '+w.name.split(':')[0]
                    for w in load_status._checkpoint.unused_attributes.keys()]))
-  assert False, f"None of the checkpoint loading methods have succeed"
+  assert False, f"None of the checkpoint loading methods have succeeded"
 
 
 
-def train(b:ModelBuild, iid:int=0)->None:
+def train(b:Model, iid:int=0)->None:
   """ Train the model by using `fit` method of Keras.model """
   assert b.model is not None
   c=build_cattrs(b)
@@ -192,7 +192,7 @@ def train(b:ModelBuild, iid:int=0)->None:
     b.model.save_weights(l.checkpoint_full.syspath)
     protocol_add_hist(l.protocol.syspath, 'train', modelhash(b.model), h)
 
-def train_custom(b:ModelBuild, iid:int=0):
+def train_custom(b:Model, iid:int=0):
   c=build_cattrs(b)
   o=build_outpaths(b)[iid]
   l=mklens(b,build_output_idx=iid)
@@ -304,7 +304,7 @@ def train_custom(b:ModelBuild, iid:int=0):
   protocol_add(l.protocol.syspath, 'train', modelhash(b.model))
 
 
-def evaluate(b:ModelBuild, iid:int=0)->None:
+def evaluate(b:Model, iid:int=0)->None:
   c=build_cattrs(b)
   o=build_outpaths(b)[iid]
   l=mklens(b,build_output_idx=iid)
@@ -331,12 +331,12 @@ def evaluate(b:ModelBuild, iid:int=0)->None:
 def bert_finetune_glue(m:Manager, refbert:BertFinetuneTFR,
                        tfrecs:GlueTFR, num_instances:int=1)->BertGlue:
 
-  def _realize(b:ModelBuild)->None:
+  def _realize(b:Model)->None:
     build_setoutpaths(b,num_instances)
     for i in range(num_instances):
       print(f"Training instance {i}")
       runtb(build_outpaths(b)[i]) # FIXME
-      build(b,i);
+      build(b);
       cpload(b,i)
       tm=mklens(b,build_output_idx=i).train_method.optval
       if tm is None or tm=='custom':
@@ -378,7 +378,7 @@ def bert_finetune_glue(m:Manager, refbert:BertFinetuneTFR,
   return BertGlue(mkdrv(m,
     config=mkconfig(_config()),
     matcher=protocol_match('evaluate', 'eval_accuracy'),
-    realizer=build_wrapper_(_realize, ModelBuild)))
+    realizer=build_wrapper_(_realize, Model)))
 
 
 

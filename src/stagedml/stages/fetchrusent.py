@@ -4,7 +4,6 @@ from pylightnix import ( Hash, RefPath, Build, Path, Config, Manager, RRef,
     lsref, catref, store_cattrs, dirhash, fetchlocal, mknode,
     mklens, instantiate, realize, repl_realize, repl_build, promise )
 
-from stagedml.core import STAGEDML_ROOT
 from stagedml.utils.files import ( system, flines, writelines, readlines )
 
 from stagedml.imports import ( environ, join, basename, dedent, contextmanager,
