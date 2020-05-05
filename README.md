@@ -162,10 +162,10 @@ Currently, we provide StagedML in Docker containers of two kinds: 'User' and
 | Cloned repo is required  | No         | Yes            |
 | Pylightnix installed | System-wide    | via PYTHONPATH |
 | StagedML installed   | System-wide    | via PYTHONPATH |
-| TensorFlow installed | System-wide    | No (*1)        |
+| TensorFlow installed | System-wide    | No *1          |
 | TF/Models installed  | System-wide    | via PYTHONPATH |
 
-* [1] - TensorFlow can't be 'installed' by setting PYTHONPATH, so the
+* [1] - TensorFlow can't be populated by setting PYTHONPATH, so the
   installation from source is required. We provide reference scripts for this
   task.
 
@@ -177,20 +177,18 @@ page](https://hub.docker.com/repository/docker/stagedml/user).
 
 #### Install: User track
 
-'User' container offers latest StagedML and all it's dependencies installed
-system-wide.
-
+'User' container offers latest StagedML and dependencies installed system-wide.
 Instead of calling `docker pull` directly we do recomend to use our
-[rundocker.sh](./rundocker.sh) script, which constructs docker command line,
-enabling the following important functionality:
+[rundocker.sh](./rundocker.sh) script, which constructs docker command line and
+enables the following important functionality:
 
-- Bind-mounting Hosts's curretn folder as container's HOME folder
-- Forwarding TCP ports for TensorBoard and Jupyter
-- Forwarding Host's X session key
-- Passing correct Host's user and group IDs to the container
+- Bind-mounting Hosts's current folder as container's HOME folder
+- Passing correct user and group IDs to the container
+- Forwarding TCP ports for TensorBoard and Jupyter Notebooks
+- Forwarding Host's X session into the container
 
-As a result, you use docker shell as a development shell almost
-transparently. To start the container, follow this steps:
+As a result, you use docker shell as a development console almost
+transparently. To run the container, follow this steps:
 
 1. Get the [rundocker.sh](./rundocker.sh) script by saving it manually or by
    using your favorite command line downloader:
@@ -210,9 +208,8 @@ transparently. To start the container, follow this steps:
 Development container does contain most of the Python dependencies (the notable
 exception is TensorFlow which should be installed manually). Pylightnix,
 StagedML and TensorFlow/Models are available via PYTHONPATH. Development
-container relies on StagedML repository and it's submodules checked out locally.
-
-The instalation procedure follows:
+container requires StagedML repository and it's submodules are checked out
+locally. The instalation procedure follows:
 
 1. Clone the Stagedml repo recursively
    ```sh
