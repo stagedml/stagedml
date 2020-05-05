@@ -175,7 +175,7 @@ installation track.
 Latest docker images should be available at our [Docker Hub
 page](https://hub.docker.com/repository/docker/stagedml/user).
 
-#### Install: User track
+### Install: User track
 
 'User' container offers latest StagedML and dependencies installed system-wide.
 Instead of calling `docker pull` directly we do recomend to use our
@@ -203,7 +203,7 @@ transparently. To run the container, follow this steps:
 3. Container should open the shell where we could execute Python code or open
    IPython console.
 
-#### Install: Developer track
+### Install: Developer track
 
 Development container does contain most of the Python dependencies (the notable
 exception is TensorFlow which should be installed manually). Pylightnix,
