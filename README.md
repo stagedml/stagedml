@@ -146,7 +146,7 @@ Requirements
 Install
 -------
 
-#### General information
+### General information
 
 StagedML depends on slightly customized versions of TensorFlow and
 TensorFlow/models. While TensorFlow changes are negligible (minor fixes in build
