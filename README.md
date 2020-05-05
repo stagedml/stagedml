@@ -177,10 +177,10 @@ page](https://hub.docker.com/repository/docker/stagedml/user).
 
 ### Install: User track
 
-'User' container offers latest StagedML and dependencies installed system-wide.
-Instead of calling `docker pull` directly we do recomend to use our
-[rundocker.sh](./rundocker.sh) script, which constructs docker command line and
-enables the following important functionality:
+'User' docker container offers latest StagedML and it's dependencies, all
+installed system-wide.  we do recomend to use our [rundocker.sh](./rundocker.sh)
+script Instead of calling `docker pull` directly.  The script constructs docker
+command line and enables the following important functionality:
 
 - Bind-mounting Hosts's current folder as container's HOME folder
 - Passing correct user and group IDs to the container
@@ -205,11 +205,11 @@ transparently. To run the container, follow this steps:
 
 ### Install: Developer track
 
-Development container does contain most of the Python dependencies (the notable
-exception is TensorFlow which should be installed manually). Pylightnix,
-StagedML and TensorFlow/Models are available via PYTHONPATH. Development
-container requires StagedML repository and it's submodules are checked out
-locally. The instalation procedure follows:
+Development docker container includes most of the Python dependencies (the
+notable exception is TensorFlow which should be installed manually), but not the
+packages themselves. Pylightnix, StagedML and TensorFlow/Models are propagated
+via PYTHONPATH. The StagedML repository and all it's submodules are required to
+be checked-out locally. The detailed instalation procedure follows:
 
 1. Clone the Stagedml repo recursively
    ```sh
