@@ -4,20 +4,19 @@ from pylightnix import ( Stage, Manager, Context, Hash, Path, DRef, RRef,
     isdir, dirhash, json_dump, json_load, assert_serializable,
     assert_valid_rref, build_wrapper_, readjson, store_rrefs, repl_rref,
     repl_cancel, rmref, store_gc, instantiate, tryreadjson, tryreadjson_def,
-    mklens, Tag, RRefGroup, store_deps)
+    mklens, Tag, RRefGroup, store_deps, store_initialize,
+    assert_store_initialized )
 
 from stagedml.imports import ( join, environ, remove, copytree, copy_tree,
-    partial, AGraph )
+    partial, AGraph, makedirs, History )
 from stagedml.utils import ( runtensorboard, ndhashl )
 from stagedml.types import ( Callable, List, Optional, Any, Tuple, Set,
     NamedTuple, Dict )
 
-from stagedml.imports.tf import ( History )
-
 import tensorflow as tf
 
-#: FOlder describes root of the project. Typically is the root of the local copy
-#: of the repository
+#: A default base for other global directories. Typically it is the root of the
+#: local copy of the StagedML repository.
 STAGEDML_ROOT=environ.get('STAGEDML_ROOT', environ.get('HOME','/tmp'))
 
 #: Folder which has meaining for garbage collector. Symlinks to pylightnix
@@ -25,11 +24,9 @@ STAGEDML_ROOT=environ.get('STAGEDML_ROOT', environ.get('HOME','/tmp'))
 STAGEDML_EXPERIMENTS=environ.get('STAGEDML_EXPERIMENTS', STAGEDML_ROOT)
 
 assert isdir(STAGEDML_ROOT), (
-    f"StagedML root folder doesn't exist ('{STAGEDML_ROOT}'). Consider assigning "
-    f"STAGEDML_ROOT environment variable to an existing direcory path." )
-
-assert isdir(STAGEDML_EXPERIMENTS), \
-    f"STAGEDML_EXPERIMENTS folder ('{STAGEDML_EXPERIMENTS}') doesn't exist"
+    f"StagedML root folder doesn't exist ('{STAGEDML_ROOT}'). Consider "
+    f"assigning STAGEDML_ROOT environment variable to an existing direcory "
+    f"path." )
 
 #  _   _ _   _ _
 # | | | | |_(_) |___
@@ -45,17 +42,44 @@ def linkrref(rref:RRef, tgtpath:Optional[Path]=None)->None:
   mksymlink(rref, tgtpath=tgtpath_, name=linkname, withtime=False)
 
 def diskspace_h(sz:int)->str:
-  return f"{sz//2**10} K" if sz<2**20 else f"{sz//2**20} M" if sz<2**30 else f"{sz//2**30} G"
+  return f"{sz//2**10} K" if sz<2**20 else \
+         f"{sz//2**20} M" if sz<2**30 else \
+         f"{sz//2**30} G"
 
-#  ____            _ _
-# |  _ \ ___  __ _| (_)_______ _ __ ___
-# | |_) / _ \/ _` | | |_  / _ \ '__/ __|
-# |  _ <  __/ (_| | | |/ /  __/ |  \__ \
-# |_| \_\___|\__,_|_|_/___\___|_|  |___/
+
+#   ____
+#  / ___|___  _ __ ___
+# | |   / _ \| '__/ _ \
+# | |__| (_) | | |  __/
+#  \____\___/|_|  \___|
+
+
+def assert_initialized()->None:
+  assert isdir(STAGEDML_EXPERIMENTS), \
+    (f"Looks like the StagedML experiments folder ('{STAGEDML_EXPERIMENTS}') "
+     f"is not initialized. Did you call `initialize`?")
+  assert_store_initialized()
+
+
+def initialize(custom_pylightnix_store:Optional[str]=None,
+               custom_pylightnix_tmp:Optional[str]=None,
+               custom_stagedml_experiments:Optional[str]=None,
+               check_not_exist:bool=False)->None:
+
+  global STAGEDML_EXPERIMENTS
+  store_initialize(custom_store=custom_pylightnix_store,
+                   custom_tmp=custom_pylightnix_tmp,
+                   check_not_exist=check_not_exist)
+  if custom_stagedml_experiments is not None:
+    STAGEDML_EXPERIMENTS=custom_stagedml_experiments
+  makedirs(STAGEDML_EXPERIMENTS, exist_ok=True)
+  assert_initialized()
+
 
 
 def lrealize(clo:Closure, tgtpath:Optional[Path]=None, **kwargs)->RRef:
   """ Realize the model and Link it's realization to `STAGEDML_EXPERIMENTS` folder """
+  assert_initialized()
   rref=realize(clo,**kwargs)
   linkrref(rref, tgtpath)
   return rref
@@ -71,6 +95,7 @@ def borrow(rref:RRef, clo:Closure)->RRef:
   - FIXME: Maybe print config difference of source and target with
     `pylightnix.bashlike.diff`.
   """
+  assert_initialized()
   rh=repl_realize(clo, force_interrupt=True)
   try:
     assert rh.drv is not None
