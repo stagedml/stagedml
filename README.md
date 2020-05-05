@@ -42,28 +42,30 @@ Features
   experimentation.
   1. StagedML is powered by [Pylightnix](https://github.com/stagedml/pylightnix/)
      immutable data management library.
-  2. All adopted models and datasets are defined as a linked graph of Pylightnix
-     core objects called
-     [stages](https://github.com/stagedml/pylightnix/blob/master/docs/Reference.md#pylightnix.types.Derivation).
-     A Stage is a direct analogy of a package manager's package.  Dependencies
-     between stages are encoded by passing special handlers called _derivation
-     references_.
-  3. Any _stage_ object could be created in just one line
-     of Python code, not counting the imports. Example:
      ```python
-     >>> from stagedml.stages.all import all_convnn_mnist, realize, instantiate, rref2path, shell
+     >>> from stagedml.stages.all import ( all_convnn_mnist, realize,
+     >>>     instantiate, rref2path, shell, mklens )
+     ```
+  2. Models and datasets are defined on top of linked graph of Pylightnix core
+     objects called
+     [stages](https://github.com/stagedml/pylightnix/blob/master/docs/Reference.md#pylightnix.types.Derivation).
+     A Stage is a direct analogy of a package manager's package.
+  3. _Stage_ objects are defined by python functions and could be created
+     (realized) in just one line of Python code. Dependencies between stages are
+     encoded by passing special handlers called _derivation references_ .For
+     example, here we realize an object representing trained MNIST classifier:
+     ```python
      >>> rref=realize(instantiate(all_convnn_mnist))
      >>> rref
      'rref:2bf51e3ce37061ccff6168ccefac7221-3b9f88037f737f06af0fe82b6f6ac3c8-convnn-mnist'
      ```
-     Realization reference identifies a folder containing final checkpoints and
-     training logs
-
-  4. StagedML attempts to re-use already trained models whenever possible.
-  5. For every _stage_, users could access it's full configuration, including the
-     configurations of it's dependencies
+  4. StagedML re-uses as much _stage_ realizations as possible. If no
+     realization match the criteria, the user-defined building procedure is
+     called. For ML models, this results it training of new model instances. For
+     datasets this may launch pre-processing or downloading from the Internet.
+  5. For every _stage_, user could access it's configuration fields and the
+     configuration filelds of any of it's dependencies:
      ```python
-     >>> from pylightnix import mklens
      >>> mklens(rref).learning_rate.val   # Learning rate of the model
      0.001
      >>> mklens(rref).mnist.url.val       # URL of the dataset used to train the model
@@ -76,33 +78,27 @@ Features
      [Promises](https://github.com/stagedml/pylightnix/blob/master/docs/Reference.md#pylightnix.types.PromisePath),
      we could catch configuration-time errors like misspelled parameter names
      and or incorrect paths before starting long training.
-  7. Users could overwrite stage configurations by editing the source code!
-     OK, sometimes we really can't avoid it. StagedML attempts to
-     keep this process less painful:
-     - Changing and running the code wouldn't overwrite any existing data.
-     - Stages may often be re-wired on a higher-level without accessing
-       low-level details.
-     - In many cases we can tweak configurations in-place:
-       ```python
-       >>> from pylightnix import redefine, mkconfig
-       >>> def _new_config(old_config):
-       >>>   old_config['learning_rate'] = 1e-5
-       >>>   return mkconfig(old_config)
-       >>> rref5=realize(instantiate(redefine(all_convnn_mnist, new_config=_new_config)))
-       >>> rref5
-       'rref:1ece593a8e761fa28fdc0da0fed00eb8-dd084d4a8b75a787b7c230474549e5db-convnn-mnist'
-       >>> mklens(rref5).learning_rate.val
-       1e-05
-       ```
-     [NL2bash report](/run/nl2bash/out/Report.md) illustrates how to review and
-     change stage configurations.
-  8. Thanks to the
-     [REPL
+  7. StagedML offers facilities to re-define existing stages and compose new
+     stages by using old ones as dependencies. Already existing stages couldn't
+     be altered or lost in this process:
+     ```python
+     >>> from pylightnix import redefine, mkconfig
+     >>> def _new_config(old_config):
+     >>>   old_config['learning_rate'] = 1e-5
+     >>>   return mkconfig(old_config)
+     >>> rref5=realize(instantiate(redefine(all_convnn_mnist, new_config=_new_config)))
+     >>> rref5
+     'rref:1ece593a8e761fa28fdc0da0fed00eb8-dd084d4a8b75a787b7c230474549e5db-convnn-mnist'
+     >>> mklens(rref5).learning_rate.val
+     1e-05
+     ```
+  8. Thanks to the [REPL
      API](https://github.com/stagedml/pylightnix/blob/master/docs/Reference.md#pylightnix.repl),
-     we could debug intermediate stages by instructing Pylightnix to pause
-     before starting certain building procedures. Using this API is similar to
-     that we see in `git-rebase --continue` workflow. See also
-     [REPL demo of Pylightnix](https://github.com/stagedml/pylightnix/blob/master/docs/demos/REPL.md).
+     it is possible to debug intermediate stages by instructing Pylightnix to
+     pause at certain building procedures. Using this API is similar to what we
+     experience during `git-rebase --continue` workflow. An example is [REPL
+     demo of
+     Pylightnix](https://github.com/stagedml/pylightnix/blob/master/docs/demos/REPL.md).
   9. StagedML supports non-determenistic build processes which means that we
      could train several instances of the model and pick up the best one to use
      in subsequent stages. Selection criteria are up to the user. See `Matcher`
@@ -112,10 +108,9 @@ Features
      '/tmp/pylightnix/store-v0/3b9f88037f737f06af0fe82b6f6ac3c8-convnn-mnist/2bf51e3ce37061ccff6168ccefac7221'
      # ^^^ Storage root        ^^^ Stage configuration                       ^^^ Stage realization (one of)
      ```
-  10. Finally, StagedML offers basic garbage collector `stagedml.stages.all.gc`
-      allowing users to keep the chosen set of stages (and thus all their
-      dependencies) and remove the rest. Besides manual removal, it is the only
-      we could delete information from the storage.
+  10. The only way to remove data in StagedML is to use a garbage
+      collector. GC removes unused stages but keeps the stages which are pointed
+      to by at least one symlink originated from special `experiments` directory.
 
 * Currently, we include some NLP models from
   [tensorflow-models](https://github.com/tensorflow/models), other libraries may
