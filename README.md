@@ -172,31 +172,55 @@ Currently, we provide StagedML in Docker containers of two kinds: 'User' and
 Depending on your needs, you could follow either a user or a developer
 installation track.
 
+Latest docker images should be available at our [Docker Hub
+page](https://hub.docker.com/repository/docker/stagedml/user).
+
 #### Install: User track
 
-User-friendly docker container may be pulled directly from
-[Docker Hub account](https://hub.docker.com/repository/docker/stagedml/user)
+'User' container offers latest StagedML and all it's dependencies installed
+system-wide.
 
-```sh
-$ docker pull stagedml/user:latest
-```
+Instead of calling `docker pull` directly we do recomend to use our
+[rundocker.sh](./rundocker.sh) script, which constructs docker command line,
+enabling the following important functionality:
 
-We recommend to use our [./runocker.sh](./rundocker.sh) script to run this
-container. It will do additional work of bind-mounting Hosts's project folder,
-forwarding TCP ports required by TensorBoard and Jupyter, forwarding X session,
-setting correct Unix user IDs, etc.
+- Bind-mounting Hosts's curretn folder as container's HOME folder
+- Forwarding TCP ports for TensorBoard and Jupyter
+- Forwarding Host's X session key
+- Passing correct Host's user and group IDs to the container
 
-FIXME: Currently, `./rundocker.sh` cant' pull the image from Docker Hub.
+As a result, you use docker shell as a development shell almost
+transparently. To start the container, follow this steps:
+
+1. Get the [rundocker.sh](./rundocker.sh) script by saving it manually or by
+   using your favorite command line downloader:
+   ```sh
+   $ wget https://github.com/stagedml/stagedml/raw/master/rundocker.sh
+   $ chmod +x ./rundocker.sh
+   ```
+2. Run the container by passing it's name to the script:
+   ```sh
+   $ ./rundocker.sh stagedml/user:latest
+   ```
+3. Container should open the shell where we could execute Python code or open
+   IPython console.
 
 #### Install: Developer track
+
+Development container does contain most of the Python dependencies (the notable
+exception is TensorFlow which should be installed manually). Pylightnix,
+StagedML and TensorFlow/Models are available via PYTHONPATH. Development
+container relies on StagedML repository and it's submodules checked out locally.
+
+The instalation procedure follows:
 
 1. Clone the Stagedml repo recursively
    ```sh
    $ git clone --recursive https://github.com/stagedml/stagedml
    ```
 
-2. Cd to project's root and run the docker script to build the development
-   docker container.
+2. Cd to project's root and run the docker script without arguments to build the
+   development docker container from the Dockerfile.
    ```sh
    $ cd stagedml
    $ ./rundocker.sh
@@ -229,7 +253,7 @@ FIXME: Currently, `./rundocker.sh` cant' pull the image from Docker Hub.
          ```sh
          (docker) $ sudo -E make install_tf
          ```
-         This command should be re-run every time we start the developer
+         This last command should be re-run every time we start the development
          container.
    2. Check the current version of TF shipped with the base docker image of
       `deepo`.  StagedML wants it to be >=`2.1`, maybe this requirement is
@@ -303,6 +327,8 @@ With the realization reference in hands, we could:
 Documentation
 -------------
 
+FIXME: Not so much of actual documentation at the moment.
+
 ### About Pylightnix
 
 The core library of StagedML is called _Pylightnix_. StagedML is basically a
@@ -321,8 +347,8 @@ do apply:
 
 ### Repository structure
 
-StagedML is a report-oriented library. An end-user report typically contains
-results of certain machine learning experiment, including task-specific
+StagedML is a report-oriented library. End-user report typically contains
+results of certain machine learning experiment, includes task-specific
 utilities, plots and tables. This kind of content is often stored in Jupyter
 notebooks, but we prefer Markdown-based rendering using
 [codebraid](https://github.com/gpoore/codebraid) toolset. Examples are in a
