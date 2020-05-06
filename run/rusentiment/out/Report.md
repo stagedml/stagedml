@@ -1,27 +1,19 @@
-from pylightnix import ( RRef, Build, rref2path, rref2dref, match_some,
-    realizeMany, match_latest, store_buildtime, store_buildelta, store_context,
-    BuildArgs, mkdrv, build_wrapper, match_only, build_setoutpaths, readjson )
+RuSentiment
+===========
 
-from stagedml.stages.all import *
-from stagedml.stages.bert_finetune_glue import ( Model as BertClsModel,
-    build as bert_finetune_build )
-from stagedml.types import ( Dict, Union, Optional, List, Any )
-from stagedml.core import ( protocol_rref_metric )
-from stagedml.imports import ( FullTokenizer, MakeNdarray, EventAccumulator,
-    STORE_EVERYTHING_SIZE_GUIDANCE, ScalarEvent, TensorEvent, Features, Feature,
-    Example, Dataset, OrderedDict, read_csv, DataFrame, makedirs, json_dump,
-    environ )
+TODO: intro
 
-from official.nlp.bert.classifier_data_lib import ( InputExample, InputFeatures,
-    convert_single_example )
-
-from altair import Chart
-from altair_saver import save as altair_save
-
+``` {.python .numberLines startFrom="1"}
 import altair as alt
+import pandas as pd
 import numpy as np
-import tensorflow as tf
+from rusentiment_experiment import *
+from stagedml.stages.all import *
+```
 
+Model runner code
+
+``` {.html .numberLines startFrom="1"}
 class Runner:
   def __init__(self, rref:RRef):
     self.rref=rref
@@ -61,7 +53,11 @@ class Runner:
     return outs
 
 # runner ends
+```
 
+Evaluation and post-processing code
+
+``` {.html .numberLines startFrom="1"}
 def bert_rusentiment_evaluation(m:Manager)->DRef:
 
   def _realize(b:Build):
@@ -88,22 +84,20 @@ def bert_rusentiment_evaluation(m:Manager)->DRef:
       }))
 
 # eval ends
+```
 
+Print the confusion matrix
 
-# def confusion_matrix(rref:RRef):
-#   data:dict={'label':[],'pred':[],'val':[]}
-#   for l,items in readjson(mklens(rref).confusion_matrix.syspath).items():
-#     for l2,val in items.items():
-#       data['label'].append(l)
-#       data['pred'].append(l2)
-#       data['val'].append(val)
-#   altair_save(alt.Chart(DataFrame(data)).mark_rect().encode(
-#     x='label:O',y='pred:O',color='val:Q'), 'cm.png')
+``` {.python .numberLines startFrom="6"}
+rref=realize(instantiate(bert_rusentiment_evaluation))
+data:dict={'label':[],'pred':[],'val':[]}
+for l,items in readjson(mklens(rref).confusion_matrix.syspath).items():
+  for l2,val in items.items():
+    data['label'].append(l)
+    data['pred'].append(l2)
+    data['val'].append(val)
+altair_print(alt.Chart(DataFrame(data)).mark_rect().encode(
+  x='label:O',y='pred:O',color='val:Q'), 'cm.png')
+```
 
-def altair_print(chart:Chart, png_filename:str, alt:str='', attrs:str='')->None:
-  genimgdir=environ['REPOUT']
-  repimgdir=environ.get('REPIMG',genimgdir)
-  makedirs(genimgdir, exist_ok=True)
-  altair_save(chart, join(genimgdir,png_filename))
-  print("![%s](%s){%s}"%(alt, join(repimgdir,png_filename), attrs))
-
+![](./cm.png)

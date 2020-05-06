@@ -1,0 +1,39 @@
+.DEFAULT_GOAL = all
+
+SRC = $(shell find -name '*\.py')
+
+ifdef STAGEDML_ROOT
+
+SRC_STAGEDML = $(shell find $(STAGEDML_ROOT)/src -name '*\.py')
+
+.stamp_check: $(SRC_STAGEDML) $(STAGEDML_ROOT)/Makefile Makefile
+	make -C $(STAGEDML_ROOT) check
+	touch $@
+else
+.stamp_check:
+	touch $@
+endif
+
+out/Report.md: Report.md.in Makefile $(SRC) .stamp_check
+	mkdir out; REPOUT=out REPIMG=. PYTHONPATH=. codebraid pandoc \
+		-f markdown -t markdown --no-cache --overwrite --standalone \
+		--self-contained -o $@ $<
+	@rm geckodriver.log || true
+
+out_html/Report.html: Report.md.in Makefile $(SRC) .stamp_check
+	mkdir out_html ; REPOUT=`dirname $@` PYTHONPATH=. codebraid pandoc \
+		-f markdown -t html --no-cache --overwrite --standalone --self-contained \
+		--metadata pagetitle="RuSentiment" -o $@ $<
+	@rm geckodriver.log || true
+
+.PHONY: check
+check: .stamp_check
+
+.PHONY: html
+html: out_html/Report.html
+
+.PHONY: md
+md: out/Report.md
+
+.PHONY: all
+all: md html

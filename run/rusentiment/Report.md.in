@@ -1,0 +1,46 @@
+RuSentiment
+===========
+
+TODO: intro
+
+
+```{.python .cb.nb}
+import altair as alt
+import pandas as pd
+import numpy as np
+from rusentiment_experiment import *
+from stagedml.stages.all import *
+```
+
+Model runner code
+
+
+```{.html .cb.code
+    include_file=rusentiment_experiment.py
+    include_regex="class Runner.*runner ends"}
+```
+
+Evaluation and post-processing code
+
+```{.html .cb.code
+    include_file=rusentiment_experiment.py
+    include_regex="def bert_rusentiment_evaluation.*eval ends"}
+```
+
+Print the confusion matrix
+
+``` {.python .cb.nb show=code+stdout:raw+stderr}
+rref=realize(instantiate(bert_rusentiment_evaluation))
+data:dict={'label':[],'pred':[],'val':[]}
+for l,items in readjson(mklens(rref).confusion_matrix.syspath).items():
+  for l2,val in items.items():
+    data['label'].append(l)
+    data['pred'].append(l2)
+    data['val'].append(f"{val:.2f}")
+
+base=alt.Chart(DataFrame(data))
+r=base.mark_rect().encode(
+  y='label:O',x='pred:O',color='val:Q')
+t=base.mark_text().encode(y='label:O',x='pred:O',text='val:Q')
+altair_print((r+t).properties(width=300,height=300), 'cm.png')
+```

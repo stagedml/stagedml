@@ -398,6 +398,7 @@ Overall repository structure:
 ### Models and experiments
 
 * [BERT fine-tuning on GLUE](/run/bert_finetune/out/Report.md)
+* [BERT fine-tuning on RuSentiment](/run/rusentiment/out/Report.md)
 * [BERT pre-training (Work in progress)](/run/bert_pretrain/out/Report.md)
 * [NL2BASH](/run/nl2bash/out/Report.md)
 
