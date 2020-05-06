@@ -95,9 +95,13 @@ for l,items in readjson(mklens(rref).confusion_matrix.syspath).items():
   for l2,val in items.items():
     data['label'].append(l)
     data['pred'].append(l2)
-    data['val'].append(val)
-altair_print(alt.Chart(DataFrame(data)).mark_rect().encode(
-  x='label:O',y='pred:O',color='val:Q'), 'cm.png')
+    data['val'].append(f"{val:.2f}")
+
+base=alt.Chart(DataFrame(data))
+r=base.mark_rect().encode(
+  y='label:O',x='pred:O',color='val:Q')
+t=base.mark_text().encode(y='label:O',x='pred:O',text='val:Q')
+altair_print((r+t).properties(width=300,height=300), 'cm.png')
 ```
 
 ![](./cm.png)
