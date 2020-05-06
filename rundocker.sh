@@ -6,13 +6,15 @@ GITHACK=n
 MAPPORTS=`expr $UID - 1000`
 DOCKER_FILENAME=$CWD/docker/stagedml_dev.docker
 DOCKER_IMGNAME=""
+DOCKER_COMMAND="bash --login"
 
 while test -n "$1" ; do
   case "$1" in
     -h|--help)
-      echo "Usage: $0 [-n|--no-map-ports] " \
-           "[-m INT|--map-ports-base INT] " \
-           "(FILE_NAME.docker|DOCKER_IMAGE_NAME)" >&2
+      echo "Usage: $0 [-n|--no-map-ports]"\
+                     "[-m INT|--map-ports-base INT]"\
+                     "(FILE_NAME.docker|DOCKER_IMAGE_NAME)"\
+                     "[-- COMMAND [ARG1 [ARG2..]]]" >&2
       exit 1
       ;;
     -n|--no-map-ports)
@@ -20,6 +22,14 @@ while test -n "$1" ; do
       ;;
     -m|--map-ports-base)
       MAPPORTS="$2"; shift
+      ;;
+    --) shift
+      DOCKER_COMMAND=""
+      while test -n "$1"; do
+        DOCKER_COMMAND="$DOCKER_COMMAND $1"
+        shift
+      done
+      break
       ;;
     *)
       if test -f "$1" ; then
@@ -107,6 +117,7 @@ ${DOCKER_CMD} --config "$DOCKER_CFG" \
     -m 32g \
     -e HOST_PERMS="$(id -u):$(id -g)" \
     -e "CI_BUILD_HOME=/workspace" \
+    -e "STAGEDML_ROOT=/workspace" \
     -e "CI_BUILD_USER=$(id -u -n)" \
     -e "CI_BUILD_UID=$(id -u)" \
     -e "CI_BUILD_GROUP=$(id -g -n)" \
@@ -119,5 +130,5 @@ ${DOCKER_CMD} --config "$DOCKER_CFG" \
     --cap-add=SYS_PTRACE --security-opt seccomp=unconfined \
     --privileged -v /dev/bus/usb:/dev/bus/usb \
     "${DOCKER_IMGNAME}" \
-    bash /install/with_the_same_user.sh bash --login
+    bash /install/with_the_same_user.sh $DOCKER_COMMAND
 

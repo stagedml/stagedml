@@ -3,7 +3,6 @@
 # that `STAGEDML_ROOT` contains the correct path to StagedML repository.
 
 {
-echo "export STAGEDML_ROOT=\$HOME"
 echo "if test -f /install/devenv.sh ; then"
 echo "  . /install/devenv.sh"
 echo "fi"
