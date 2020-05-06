@@ -170,6 +170,9 @@ installation track.
 Latest docker images should be available at our [Docker Hub
 page](https://hub.docker.com/repository/docker/stagedml/user).
 
+'Scripts' folder contains a [script](./scripts/update-docker-hub.sh) which
+encodes the procedure of 'user'-docker image building.
+
 ### Install: User track
 
 'User' docker container offers latest StagedML and it's dependencies, all
