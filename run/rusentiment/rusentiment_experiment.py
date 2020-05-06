@@ -1,7 +1,7 @@
-from pylightnix import ( RRef, rref2path, rref2dref, match_some, realizeMany,
-    match_latest, store_buildtime, store_buildelta, store_context, BuildArgs )
+from pylightnix import ( RRef, Build, rref2path, rref2dref, match_some,
+    realizeMany, match_latest, store_buildtime, store_buildelta, store_context,
+    BuildArgs, mkdrv, build_wrapper, match_only, build_setoutpaths, readjson )
 
-from stagedml.imports import makedirs
 from stagedml.stages.all import *
 from stagedml.stages.bert_finetune_glue import ( Model as BertClsModel,
     build as bert_finetune_build )
@@ -9,7 +9,7 @@ from stagedml.types import ( Dict, Union, Optional, List, Any )
 from stagedml.core import ( protocol_rref_metric )
 from stagedml.imports import ( FullTokenizer, MakeNdarray, EventAccumulator,
     STORE_EVERYTHING_SIZE_GUIDANCE, ScalarEvent, TensorEvent, Features, Feature,
-    Example, Dataset, OrderedDict )
+    Example, Dataset, OrderedDict, read_csv, DataFrame, makedirs, json_dump )
 
 from official.nlp.bert.classifier_data_lib import ( InputExample, InputFeatures,
     convert_single_example )
@@ -56,12 +56,48 @@ class Runner:
     return outs
 
 
+def rusentiment_process(m:Manager, model:DRef)->DRef:
+  def _realize(b:Build):
+    build_setoutpaths(b,1)
+    r=Runner(mklens(b).model.rref)
+    df=read_csv(mklens(b).model.tfrecs.refdataset.output_tests.syspath)
+    labels=sorted(df['label'].value_counts().keys())
+    df['pred']=[labels[np.argmax(probs)] for probs in r.eval(list(df['text']))]
+    confusion={l:{l2:0.0 for l2 in labels} for l in labels}
+    for i,row in df.iterrows():
+      confusion[row['label']][row['pred']]+=1.0
+    confusion={l:{l2:i/sum(items.values()) for l2,i in items.items()} \
+               for l,items in confusion.items()}
+    with open(mklens(b).confusion_matrix.syspath,'w') as f:
+      json_dump(confusion,f,indent=4)
+    df.to_csv(mklens(b).prediction.syspath)
+
+  return mkdrv(m, matcher=match_only(), realizer=build_wrapper(_realize),
+    config=mkconfig({
+      'model':model,
+      'confusion_matrix':[promise, 'confusion_matrix.json'],
+      'prediction':[promise, 'prediction.csv'],
+      'version':2,
+      }))
 
 
+def all_rusentiment_process(m):
+  refbert=all_multibert_finetune_rusentiment(m)
+  return rusentiment_process(m,refbert)
 
 
+import altair as alt
+from altair import Chart
+from altair_saver import save as altair_save
 
-
-
+def confusion_matrix(rref:RRef):
+  data={'label':[],'pred':[],'val':[]}
+  for l,items in readjson(mklens(rref).confusion_matrix.syspath).items():
+    for l2,val in items.items():
+      data['label'].append(l)
+      data['pred'].append(l2)
+      data['val'].append(val)
+  altair_save(alt.Chart(DataFrame(data)).mark_rect().encode(
+    x='label:O',y='pred:O',color='val:Q'), 'cm.png')
 
 
