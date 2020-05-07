@@ -1,5 +1,4 @@
-RuSentiment
-===========
+# RuSentiment
 
 In this report we fine-tune multilingual BERT model on a RuSentiment
 dataset for Russian language sentiment analysis. We highlight the usage
@@ -8,20 +7,22 @@ constucting models and running experiments.
 
 Resources and related work:
 
--   [RuSentiment project by Text-Machine
+  - [RuSentiment project by Text-Machine
     Lab](http://text-machine.cs.uml.edu/projects/rusentiment/)
-    -   [Sentiment Annotation Guidelines at
+      - [Sentiment Annotation Guidelines at
         GitHub](https://github.com/text-machine-lab/rusentiment)
-    -   [PwC
+      - [PwC
         page](https://paperswithcode.com/paper/rusentiment-an-enriched-sentiment-analysis)
--   [Dostoevsky project by Bureaucratic
+  - [Dostoevsky project by Bureaucratic
     Labs](https://github.com/bureaucratic-labs/dostoevsky)
-    -   [Dostoevsky project
+      - [Dostoevsky project
         report](https://freesoft.dev/program/132766342)
--   [Multilingual BERT by Google
+  - [Multilingual BERT by Google
     Research](https://github.com/google-research/bert/blob/master/multilingual.md)
 
-``` {.python .numberLines startFrom="1"}
+<!-- end list -->
+
+``` python numberLines
 import altair as alt
 import pandas as pd
 import numpy as np
@@ -29,8 +30,7 @@ from rusentiment_experiment import *
 from stagedml.stages.all import *
 ```
 
-BERT Fine-tuning
-----------------
+## BERT Fine-tuning
 
 We fine-tuned the following BERT models on a RuSentiment dataset:
 
@@ -39,9 +39,10 @@ We fine-tuned the following BERT models on a RuSentiment dataset:
 
 Multilingual BERT model is defined based on
 `all_multibert_finetune_rusentiment` stage of StagedML. We change some
-default parameters.
+default
+parameters.
 
-``` {.python .numberLines startFrom="1"}
+``` python numberLines
 def all_multibert_finetune_rusentiment1(m:Manager, lr:Optional[float]=None):
   lr_ = lr if lr is not None else learning_rates[0]
   def _nc(cfg):
@@ -56,7 +57,7 @@ def all_multibert_finetune_rusentiment1(m:Manager, lr:Optional[float]=None):
 We define randomly-initialized BERT by disabling the initialization of
 the default version of the above model:
 
-``` {.python .numberLines startFrom="1"}
+``` python numberLines
 def all_multibert_finetune_rusentiment0(m:Manager):
   def _nc(cfg):
     cfg['name']='rusent-random'
@@ -67,24 +68,24 @@ def all_multibert_finetune_rusentiment0(m:Manager):
 
 We are going to train models with a number of learning rates:
 
-``` {.python .numberLines startFrom="6"}
+``` python numberLines
 print(learning_rates)
 ```
 
-``` {.stdout}
+``` stdout
 [2e-05, 5e-05, 0.0001]
 ```
 
-``` {.python .numberLines startFrom="7"}
+``` python numberLines
 rref0=realize(instantiate(all_multibert_finetune_rusentiment0))
 rrefs=[realize(instantiate(all_multibert_finetune_rusentiment1,lr=lr)) \
                            for lr in learning_rates]
 ```
 
-For every model trained, we read it's validation logs and plot the
+For every model trained, we read it’s validation logs and plot the
 accuracy.
 
-``` {.python .numberLines startFrom="10"}
+``` python numberLines
 cols={'steps':[],'accuracy':[],'name':[],'lr':[]}
 for rref in [rref0]+rrefs:
   es=tensorboard_tensors(rref,'valid','accuracy')
@@ -99,7 +100,7 @@ altair_print(alt.Chart(DataFrame(cols)).mark_line().encode(
 
 ![](./accuracy.png)
 
-``` {.python .numberLines startFrom="20"}
+``` python numberLines
 t=BeautifulTable(max_width=1000)
 t.set_style(BeautifulTable.STYLE_MARKDOWN)
 t.width_exceed_policy=BeautifulTable.WEP_ELLIPSIS
@@ -111,21 +112,20 @@ for rref in rrefs:
 print(t)
 ```
 
-  Learning rate   Accuracy
-  --------------- ----------
-  2e-05           0.711957
-  5e-05           0.710938
-  0.0001          0.679348
+| Learning rate | Accuracy |
+| ------------- | -------- |
+| 2e-05         | 0.711957 |
+| 5e-05         | 0.710938 |
+| 0.0001        | 0.679348 |
 
-Confusion matrix
-----------------
+## Confusion matrix
 
 We build confusion matrix by (a) defininig a simple model runner and (b)
 realizing a stage which uses this runner to calculate the matrix data.
 Model runner loads the model referenced by `rref` and process a list of
 sentences defined by the user.
 
-``` {.html .numberLines startFrom="1"}
+``` html numberLines
 class Runner:
   def __init__(self, rref:RRef):
     self.rref=rref
@@ -169,7 +169,7 @@ class Runner:
 
 Stage for calculating the confusion matrix data is defined as follows:
 
-``` {.html .numberLines startFrom="1"}
+``` html numberLines
 def bert_rusentiment_evaluation(m:Manager, stage:Stage)->DRef:
 
   def _realize(b:Build):
@@ -198,9 +198,10 @@ def bert_rusentiment_evaluation(m:Manager, stage:Stage)->DRef:
 # eval ends
 ```
 
-We realize the above data and print the confusion matrix:
+We realize the above data and print the confusion
+matrix:
 
-``` {.python .numberLines startFrom="29"}
+``` python numberLines
 stage=partial(all_multibert_finetune_rusentiment1, lr=min(learning_rates))
 rref=realize(instantiate(bert_rusentiment_evaluation, stage))
 data:dict={'label':[],'pred':[],'val':[]}
