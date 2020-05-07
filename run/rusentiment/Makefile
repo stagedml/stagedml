@@ -14,17 +14,24 @@ else
 	touch $@
 endif
 
-out/Report.md: Report.md.in Makefile $(SRC) .stamp_check
+.stamp_trained: $(SRC) .stamp_check
+	python3 $<
+	touch $@
+
+out/Report.md: Report.md.in Makefile $(SRC) .stamp_check .stamp_trained
 	mkdir out; REPOUT=out REPIMG=. PYTHONPATH=. codebraid pandoc \
 		-f markdown -t markdown --no-cache --overwrite --standalone \
 		--self-contained -o $@ $<
 	@rm geckodriver.log || true
 
-out_html/Report.html: Report.md.in Makefile $(SRC) .stamp_check
+out_html/Report.html: Report.md.in Makefile $(SRC) .stamp_check .stamp_trained
 	mkdir out_html ; REPOUT=`dirname $@` PYTHONPATH=. codebraid pandoc \
 		-f markdown -t html --no-cache --overwrite --standalone --self-contained \
 		--metadata pagetitle="RuSentiment" -o $@ $<
 	@rm geckodriver.log || true
+
+.PHONY: train
+train: .stamp_trained
 
 .PHONY: check
 check: .stamp_check

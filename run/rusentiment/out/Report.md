@@ -1,7 +1,25 @@
 RuSentiment
 ===========
 
-TODO: intro
+In this report we fine-tune multilingual BERT model on a RuSentiment
+dataset for Russian language sentiment analysis. We highlight the usage
+of [StagedML](https://github.com/stagedml/stagedml) primitives for
+constucting models and running experiments.
+
+Resources and related work:
+
+-   [RuSentiment project by Text-Machine
+    Lab](http://text-machine.cs.uml.edu/projects/rusentiment/)
+    -   [Sentiment Annotation Guidelines at
+        GitHub](https://github.com/text-machine-lab/rusentiment)
+    -   [PwC
+        page](https://paperswithcode.com/paper/rusentiment-an-enriched-sentiment-analysis)
+-   [Dostoevsky project by Bureaucratic
+    Labs](https://github.com/bureaucratic-labs/dostoevsky)
+    -   [Dostoevsky project
+        report](https://freesoft.dev/program/132766342)
+-   [Multilingual BERT by Google
+    Research](https://github.com/google-research/bert/blob/master/multilingual.md)
 
 ``` {.python .numberLines startFrom="1"}
 import altair as alt
@@ -11,7 +29,101 @@ from rusentiment_experiment import *
 from stagedml.stages.all import *
 ```
 
-Model runner code
+BERT Fine-tuning
+----------------
+
+We fine-tuned the following BERT models on a RuSentiment dataset:
+
+1.  Multilingual BERT by Google Research, with different learning rates.
+2.  Ranomly initialized BERT without pre-training.
+
+Multilingual BERT model is defined based on
+`all_multibert_finetune_rusentiment` stage of StagedML. We change some
+default parameters.
+
+``` {.python .numberLines startFrom="1"}
+def all_multibert_finetune_rusentiment1(m:Manager, lr:Optional[float]=None):
+  lr_ = lr if lr is not None else learning_rates[0]
+  def _nc(cfg):
+    cfg['name']='rusent-pretrained'
+    cfg['train_batch_size']=8
+    cfg['train_epoches']=5
+    cfg['lr']=lr_
+    return mkconfig(cfg)
+  return redefine(all_multibert_finetune_rusentiment, new_config=_nc)(m) # end1
+```
+
+We define randomly-initialized BERT by disabling the initialization of
+the default version of the above model:
+
+``` {.python .numberLines startFrom="1"}
+def all_multibert_finetune_rusentiment0(m:Manager):
+  def _nc(cfg):
+    cfg['name']='rusent-random'
+    cfg['bert_ckpt_in']=None
+    return mkconfig(cfg)
+  return redefine(all_multibert_finetune_rusentiment1, new_config=_nc)(m) #end0
+```
+
+We are going to train models with a number of learning rates:
+
+``` {.python .numberLines startFrom="6"}
+print(learning_rates)
+```
+
+``` {.stdout}
+[2e-05, 5e-05, 0.0001]
+```
+
+``` {.python .numberLines startFrom="7"}
+rref0=realize(instantiate(all_multibert_finetune_rusentiment0))
+rrefs=[realize(instantiate(all_multibert_finetune_rusentiment1,lr=lr)) \
+                           for lr in learning_rates]
+```
+
+For every model trained, we read it's validation logs and plot the
+accuracy.
+
+``` {.python .numberLines startFrom="10"}
+cols={'steps':[],'accuracy':[],'name':[],'lr':[]}
+for rref in [rref0]+rrefs:
+  es=tensorboard_tensors(rref,'valid','accuracy')
+  assert len(es)>0
+  cols['steps'].extend([e.step for e in es])
+  cols['accuracy'].extend([te2float(e) for e in es])
+  cols['name'].extend([mklens(rref).name.val for _ in es])
+  cols['lr'].extend([mklens(rref).lr.val for _ in es])
+altair_print(alt.Chart(DataFrame(cols)).mark_line().encode(
+  x='steps', y='accuracy', color='lr:N', strokeDash='name'), f'accuracy.png')
+```
+
+![](./accuracy.png)
+
+``` {.python .numberLines startFrom="20"}
+t=BeautifulTable(max_width=1000)
+t.set_style(BeautifulTable.STYLE_MARKDOWN)
+t.width_exceed_policy=BeautifulTable.WEP_ELLIPSIS
+t.column_headers=['Learning rate','Accuracy']
+t.numeric_precision=6
+for rref in rrefs:
+  t.append_row([str(mklens(rref).lr.val),
+                te2float(tensorboard_tensors(rref,'eval','eval_accuracy')[-1])])
+print(t)
+```
+
+  Learning rate   Accuracy
+  --------------- ----------
+  2e-05           0.711957
+  5e-05           0.710938
+  0.0001          0.679348
+
+Confusion matrix
+----------------
+
+We build confusion matrix by (a) defininig a simple model runner and (b)
+realizing a stage which uses this runner to calculate the matrix data.
+Model runner loads the model referenced by `rref` and process a list of
+sentences defined by the user.
 
 ``` {.html .numberLines startFrom="1"}
 class Runner:
@@ -55,10 +167,10 @@ class Runner:
 # runner ends
 ```
 
-Evaluation and post-processing code
+Stage for calculating the confusion matrix data is defined as follows:
 
 ``` {.html .numberLines startFrom="1"}
-def bert_rusentiment_evaluation(m:Manager)->DRef:
+def bert_rusentiment_evaluation(m:Manager, stage:Stage)->DRef:
 
   def _realize(b:Build):
     build_setoutpaths(b,1)
@@ -77,7 +189,7 @@ def bert_rusentiment_evaluation(m:Manager)->DRef:
 
   return mkdrv(m, matcher=match_only(), realizer=build_wrapper(_realize),
     config=mkconfig({
-      'model':all_multibert_finetune_rusentiment(m),
+      'model':stage(m),
       'confusion_matrix':[promise, 'confusion_matrix.json'],
       'prediction':[promise, 'prediction.csv'],
       'version':2,
@@ -86,10 +198,11 @@ def bert_rusentiment_evaluation(m:Manager)->DRef:
 # eval ends
 ```
 
-Print the confusion matrix
+We realize the above data and print the confusion matrix:
 
-``` {.python .numberLines startFrom="6"}
-rref=realize(instantiate(bert_rusentiment_evaluation))
+``` {.python .numberLines startFrom="29"}
+stage=partial(all_multibert_finetune_rusentiment1, lr=min(learning_rates))
+rref=realize(instantiate(bert_rusentiment_evaluation, stage))
 data:dict={'label':[],'pred':[],'val':[]}
 for l,items in readjson(mklens(rref).confusion_matrix.syspath).items():
   for l2,val in items.items():
@@ -99,8 +212,18 @@ for l,items in readjson(mklens(rref).confusion_matrix.syspath).items():
 
 base=alt.Chart(DataFrame(data))
 r=base.mark_rect().encode(
-  y='label:O',x='pred:O',color='val:Q')
-t=base.mark_text().encode(y='label:O',x='pred:O',text='val:Q')
+  y='label:O',x='pred:O', # color='val:Q'
+  color=alt.Color('val:Q',
+        scale=alt.Scale(scheme='purpleblue'),
+        legend=alt.Legend(direction='horizontal')
+  ))
+t=base.mark_text().encode(y='label:O',x='pred:O',text='val:Q',
+    color=alt.condition(
+        alt.datum.val < 0.5,
+        alt.value('black'),
+        alt.value('white')
+    )
+)
 altair_print((r+t).properties(width=300,height=300), 'cm.png')
 ```
 

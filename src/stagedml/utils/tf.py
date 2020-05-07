@@ -12,12 +12,13 @@ from pylightnix import ( Closure, Path, Build, Hash, DRef, assert_valid_rref,
     rref2path, readjson, json_dumps, store_rrefs, dirhash, Context,
     build_wrapper_, BuildArgs, repl_realize, repl_continue, repl_build, isrref )
 
-from stagedml.imports.tf import ( TensorBoard, list_variables, History, Dataset )
+from stagedml.imports.tf import ( TensorBoard, list_variables, History, Dataset,
+    MakeNdarray )
 from stagedml.imports.sys import ( Popen, join, remove, listdir, re_search, md5,
     os_run, Popen )
 
 from stagedml.types import ( Union, List, Any, Optional, Tuple, Callable,
-    TypeVar )
+    TypeVar, Dict )
 
 FloatTensorLike = Union[tf.Tensor, float, np.float16, np.float32, np.float64]
 AcceptableDTypes = Union[tf.DType, np.dtype, type, int, str, None]
@@ -267,4 +268,33 @@ def dataset_iter_size(d_fn:Callable[[],Dataset])->int:
   for _ in d:
     cnt+=1
   return cnt
+
+from tensorboard.backend.event_processing.event_accumulator import (
+    EventAccumulator, STORE_EVERYTHING_SIZE_GUIDANCE, DEFAULT_SIZE_GUIDANCE,
+    ScalarEvent, TensorEvent )
+
+def tensorboard_tags(rref:RRef,subfolder:str='train')->Dict[str,Union[list,bool]]:
+  path=join(rref2path(rref),subfolder)
+  event_acc = EventAccumulator(path, DEFAULT_SIZE_GUIDANCE)
+  event_acc.Reload()
+  return event_acc.Tags()
+
+def tensorboard_scalars(
+    rref:RRef, subfolder:str, tag:str,
+    scalar_guidance:int=10000)->List[ScalarEvent]:
+  path=join(rref2path(rref),subfolder)
+  event_acc=EventAccumulator(path, {'scalars': scalar_guidance})
+  event_acc.Reload()
+  return event_acc.Scalars(tag)
+
+def tensorboard_tensors(rref:RRef, subfolder:str, tag:str,
+                        tensor_guidance:int=10000)->List[TensorEvent]:
+  path=join(rref2path(rref),subfolder)
+  event_acc=EventAccumulator(path, {'tensors':tensor_guidance })
+  event_acc.Reload()
+  return event_acc.Tensors(tag)
+
+def te2float(te:TensorEvent)->float:
+  """ Should be a bug in TF """
+  return float(MakeNdarray(te.tensor_proto).tolist()) # SIC!
 

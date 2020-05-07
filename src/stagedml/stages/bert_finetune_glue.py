@@ -337,7 +337,8 @@ def bert_finetune_glue(m:Manager, refbert:BertFinetuneTFR,
       print(f"Training instance {i}")
       runtb(build_outpaths(b)[i]) # FIXME
       build(b);
-      cpload(b,i)
+      if mklens(b).bert_ckpt_in.optval is not None:
+        cpload(b,i)
       tm=mklens(b,build_output_idx=i).train_method.optval
       if tm is None or tm=='custom':
         train_custom(b,i);
@@ -366,7 +367,6 @@ def bert_finetune_glue(m:Manager, refbert:BertFinetuneTFR,
     checkpoint_full = [claim, 'checkpoint_full.ckpt']
     bert_ckpt = [claim, 'checkpoint_bert.ckpt']
     protocol = [promise, 'protocol.json']
-    # dataset_size = None # Use default value
 
     lr = 2e-5
     train_batch_size = 32

@@ -7,10 +7,10 @@ from stagedml.stages.bert_finetune_glue import ( Model as BertClsModel,
     build as bert_finetune_build )
 from stagedml.types import ( Dict, Union, Optional, List, Any )
 from stagedml.core import ( protocol_rref_metric )
-from stagedml.imports import ( FullTokenizer, MakeNdarray, EventAccumulator,
-    STORE_EVERYTHING_SIZE_GUIDANCE, ScalarEvent, TensorEvent, Features, Feature,
-    Example, Dataset, OrderedDict, read_csv, DataFrame, makedirs, json_dump,
-    environ )
+from stagedml.imports import ( FullTokenizer, MakeNdarray, ScalarEvent,
+    TensorEvent, Features, Feature, Example, Dataset, OrderedDict, read_csv,
+    DataFrame, makedirs, json_dump, environ )
+from stagedml.utils import ( tensorboard_tags, tensorboard_tensors, te2float )
 
 from official.nlp.bert.classifier_data_lib import ( InputExample, InputFeatures,
     convert_single_example )
@@ -18,9 +18,16 @@ from official.nlp.bert.classifier_data_lib import ( InputExample, InputFeatures,
 from altair import Chart
 from altair_saver import save as altair_save
 
-import altair as alt
 import numpy as np
 import tensorflow as tf
+
+def altair_print(chart:Chart, png_filename:str, alt:str='', attrs:str='')->None:
+  genimgdir=environ['REPOUT']
+  repimgdir=environ.get('REPIMG',genimgdir)
+  makedirs(genimgdir, exist_ok=True)
+  altair_save(chart, join(genimgdir,png_filename))
+  print("![%s](%s){%s}"%(alt, join(repimgdir,png_filename), attrs))
+
 
 class Runner:
   def __init__(self, rref:RRef):
@@ -62,7 +69,30 @@ class Runner:
 
 # runner ends
 
-def bert_rusentiment_evaluation(m:Manager)->DRef:
+learning_rates=[2e-5, 5e-5, 1e-4]
+
+def all_multibert_finetune_rusentiment1(m:Manager, lr:Optional[float]=None):
+  lr_ = lr if lr is not None else learning_rates[0]
+  def _nc(cfg):
+    cfg['name']='rusent-pretrained'
+    cfg['train_batch_size']=8
+    cfg['train_epoches']=5
+    cfg['lr']=lr_
+    return mkconfig(cfg)
+  return redefine(all_multibert_finetune_rusentiment, new_config=_nc)(m) # end1
+
+
+def all_multibert_finetune_rusentiment0(m:Manager):
+  def _nc(cfg):
+    cfg['name']='rusent-random'
+    cfg['bert_ckpt_in']=None
+    return mkconfig(cfg)
+  return redefine(all_multibert_finetune_rusentiment1, new_config=_nc)(m) #end0
+
+
+
+
+def bert_rusentiment_evaluation(m:Manager, stage:Stage)->DRef:
 
   def _realize(b:Build):
     build_setoutpaths(b,1)
@@ -81,7 +111,7 @@ def bert_rusentiment_evaluation(m:Manager)->DRef:
 
   return mkdrv(m, matcher=match_only(), realizer=build_wrapper(_realize),
     config=mkconfig({
-      'model':all_multibert_finetune_rusentiment(m),
+      'model':stage(m),
       'confusion_matrix':[promise, 'confusion_matrix.json'],
       'prediction':[promise, 'prediction.csv'],
       'version':2,
@@ -89,21 +119,11 @@ def bert_rusentiment_evaluation(m:Manager)->DRef:
 
 # eval ends
 
+if __name__== '__main__':
+  for lr in learning_rates:
+    print(realize(instantiate(all_multibert_finetune_rusentiment1, lr=lr)))
+  print(realize(instantiate(all_multibert_finetune_rusentiment0)))
+  stage=partial(all_multibert_finetune_rusentiment1, lr=min(learning_rates))
+  print(realize(instantiate(bert_rusentiment_evaluation, stage)))
 
-# def confusion_matrix(rref:RRef):
-#   data:dict={'label':[],'pred':[],'val':[]}
-#   for l,items in readjson(mklens(rref).confusion_matrix.syspath).items():
-#     for l2,val in items.items():
-#       data['label'].append(l)
-#       data['pred'].append(l2)
-#       data['val'].append(val)
-#   altair_save(alt.Chart(DataFrame(data)).mark_rect().encode(
-#     x='label:O',y='pred:O',color='val:Q'), 'cm.png')
-
-def altair_print(chart:Chart, png_filename:str, alt:str='', attrs:str='')->None:
-  genimgdir=environ['REPOUT']
-  repimgdir=environ.get('REPIMG',genimgdir)
-  makedirs(genimgdir, exist_ok=True)
-  altair_save(chart, join(genimgdir,png_filename))
-  print("![%s](%s){%s}"%(alt, join(repimgdir,png_filename), attrs))
 
