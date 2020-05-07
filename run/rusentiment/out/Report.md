@@ -125,7 +125,7 @@ realizing a stage which uses this runner to calculate the matrix data.
 Model runner loads the model referenced by `rref` and process a list of
 sentences defined by the user.
 
-``` html numberLines
+``` python numberLines
 class Runner:
   def __init__(self, rref:RRef):
     self.rref=rref
@@ -169,7 +169,7 @@ class Runner:
 
 Stage for calculating the confusion matrix data is defined as follows:
 
-``` html numberLines
+``` python numberLines
 def bert_rusentiment_evaluation(m:Manager, stage:Stage)->DRef:
 
   def _realize(b:Build):
