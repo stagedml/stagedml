@@ -1,34 +1,34 @@
 .DEFAULT_GOAL = all
-SRC = $(shell find $(STAGEDML_ROOT)/src -name '*\.py')
-SRC_EXP = $(shell find $(STAGEDML_ROOT)/run/bert_finetune -name '*\.py')
-TESTS = $(shell find $(STAGEDML_ROOT)/tests -name '*\.py')
+SRC = $(shell find -name '*\.py')
 
-.stamp_check: $(SRC) $(TESTS)
-ifndef STAGEDML_ROOT
-	$(error STAGEDML_ROOT env var should contain the path to the root of StagedML repo)
-endif
+ifdef STAGEDML_ROOT
+SRC_STAGEDML = $(shell find $(STAGEDML_ROOT)/src -name '*\.py')
+.stamp_check: $(SRC_STAGEDML) $(STAGEDML_ROOT)/Makefile Makefile
 	make -C $(STAGEDML_ROOT) check
-	@if ! which codebraid >/dev/null 2>&1 ; then \
-		echo "Please install `codebraid`" ; \
-		exit 1 ; \
-	fi
 	touch $@
+else
+.stamp_check:
+	touch $@
+endif
 
-.stamp_trained: .stamp_check $(SRC_EXP)
+.stamp_trained: .stamp_check $(SRC)
 	python3 ./bert_finetune_experiment.py
 	touch $@
 
-out/Report.md: Report.md.in Makefile $(SRC_EXP) .stamp_trained
+out/Report.md: Report.md.in Makefile $(SRC) .stamp_trained
 	mkdir out; REPOUT=out REPIMG=. PYTHONPATH=. codebraid pandoc \
 		-f markdown -t markdown --no-cache --overwrite --standalone \
 		--self-contained -t gfm  -o $@ $<
 	-rm geckodriver.log
 
-out_html/Report.html: Report.md.in Makefile $(SRC_EXP) .stamp_trained
+out_html/Report.html: Report.md.in Makefile $(SRC) .stamp_trained
 	mkdir out_html ; REPOUT=`dirname $@` PYTHONPATH=. codebraid pandoc \
 		-f markdown -t html --no-cache --overwrite --standalone --self-contained \
 		--metadata pagetitle="BERT finetuning" -o $@ $<
 	-rm geckodriver.log
+
+.PHONY: train
+train: .stamp_trained
 
 .PHONY: html
 html: out_html/Report.html

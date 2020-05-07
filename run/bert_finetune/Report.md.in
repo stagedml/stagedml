@@ -106,13 +106,13 @@ dfs=[]
 for bs,rrefs in results.items():
   for iid,rref in enumerate(rrefs):
     cols={}
-    es=tensorboard_tensor_events(rref,'valid','accuracy')
+    es=tensorboard_tensors(rref,'valid','accuracy')
     assert len(es)>0
     cols['steps']=[e.step*bs for e in es]
     cols['valid_accuracy']=[te2float(e) for e in es]
     cols['batch_size']=[bs for _ in es]
     cols['iid']=[iid for _ in es]
-    es=tensorboard_tensor_events(rref,'valid','loss')
+    es=tensorboard_tensors(rref,'valid','loss')
     assert len(cols['steps'])==len(es)
     cols['valid_loss']=[te2float(e) for e in es]
     dfs.append(DataFrame(cols))
@@ -121,7 +121,7 @@ ds=pd.concat(dfs)
 
 Comments:
 
-* `tensorboard_tensor_events` is a helper method which access stages tensorboard
+* `tensorboard_tensors` is a helper method which access stages tensorboard
   journals stored in realization folder.
 * `iid` is the instance identifier of the model.
 * `batch_size` is the batch size used during fine-tuning
@@ -165,13 +165,13 @@ for lr_,rrefs in results.items():
   lr=float(lr_)
   for iid,rref in enumerate(rrefs):
     cols={}
-    es=tensorboard_tensor_events(rref,'valid','accuracy')
+    es=tensorboard_tensors(rref,'valid','accuracy')
     assert len(es)>0
     cols['steps']=[e.step for e in es]
     cols['valid_accuracy']=[te2float(e) for e in es]
     cols['learning_rate']=[lr for _ in es]
     cols['iid']=[iid for _ in es]
-    es=tensorboard_tensor_events(rref,'valid','loss')
+    es=tensorboard_tensors(rref,'valid','loss')
     assert len(cols['steps'])==len(es)
     cols['valid_loss']=[te2float(e) for e in es]
     dfs.append(DataFrame(cols))

@@ -1,57 +1,17 @@
-from stagedml.imports import makedirs
-from stagedml.stages.all import *
-
 from pylightnix import ( RRef, rref2path, match_some, realizeMany, match_latest,
     store_buildtime, store_buildelta )
-from stagedml.types import Dict, Union, Optional
+
+from stagedml.imports import ( makedirs, MakeNdarray, join, environ, makedirs,
+    defaultdict, getcwd, DataFrame, read_csv )
+from stagedml.stages.all import *
+from stagedml.types import ( Dict, Union, Optional, List )
 from stagedml.core import ( protocol_rref_metric )
+from stagedml.utils import ( tensorboard_tensors, tensorboard_scalars,
+    tensorboard_tags, te2float )
+
 import numpy as np
-from tensorboard.backend.event_processing.event_accumulator import (
-    EventAccumulator, STORE_EVERYTHING_SIZE_GUIDANCE )
-from tensorflow.python.framework.tensor_util import MakeNdarray
-from tensorboard.backend.event_processing.event_accumulator import (
-    ScalarEvent, TensorEvent )
-from tensorflow.python.framework.tensor_util import MakeNdarray
-from typing import List
 
-
-def tensorboard_tags(rref:RRef,subfolder:str='train')->Dict[str,Union[list,bool]]:
-  path=join(rref2path(rref),subfolder)
-  event_acc = EventAccumulator(path, {
-      'compressedHistograms': 10,
-      'images': 0,
-      'tensors':10,
-      'scalars': 100,
-      'histograms': 1})
-  event_acc.Reload()
-  return event_acc.Tags()
-
-def tensorboard_scalar_events(
-    rref:RRef, subfolder:str, tag:str)->ScalarEvent:
-  path=join(rref2path(rref),subfolder)
-  event_acc=EventAccumulator(path, {
-      'compressedHistograms': 10, 'images': 0,
-      'scalars': 100, 'histograms': 1 })
-  event_acc.Reload()
-  return event_acc.Scalars(tag)
-
-def tensorboard_tensor_events(rref:RRef, subfolder:str, tag:str)->ScalarEvent:
-  path=join(rref2path(rref),subfolder)
-  event_acc=EventAccumulator(path, {'scalars': 1000, 'tensors':1000 })
-  event_acc.Reload()
-  return event_acc.Tensors(tag)
-
-def te2float(te:TensorEvent):
-  """ Should be a bug in TF """
-  return float(MakeNdarray(te.tensor_proto).tolist()) # SIC!
-
-
-
-import altair as alt
 from altair import Chart
-import pandas as pd
-from pandas import DataFrame
-from stagedml.imports import ( join, environ, makedirs, defaultdict, getcwd )
 from altair_saver import save as altair_save
 
 
