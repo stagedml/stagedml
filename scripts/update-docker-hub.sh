@@ -3,7 +3,7 @@
 
 set -e -x
 
-./rundocker.sh -- make wheel
-./rundocker.sh docker/stagedml_user.docker -- ls /
+./rundocker.sh -n -- make wheel
+./rundocker.sh -n docker/stagedml_user.docker -- ls /
 docker login
 docker push stagedml/user:latest
