@@ -38,7 +38,7 @@ from stagedml.types import ( Dict, Set, Tuple, List, Optional, Union, DRef,
     TransWmt, WmtSubtok, ConvnnMnist, Wikidump, Wikitext, WikiTFR, BertPretrain,
     BertFinetuneTFR )
 from stagedml.core import ( lrealize, tryrealize, diskspace_h, linkrref,
-    realize_recursive, depgraph )
+    realize_recursive, depgraph, initialize )
 from stagedml.imports import ( walk, join, abspath, islink, partial,
     get_terminal_size, BeautifulTable )
 

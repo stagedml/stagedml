@@ -27,6 +27,8 @@ Contents
    - [User track](#install-user-track)
    - [Developer track](#install-developer-track)
 3. [Quick Start](#quick-start)
+   - [Build sample report](#build-sample-report)
+   - [Work with models](#work-with-models)
 4. [Documentation](#documentation)
    - [About Pylightnix](#about-pylightnix)
    - [Repository structure](#repository-structure)
@@ -199,8 +201,7 @@ transparently. In order to run the container, follow these steps:
    ```sh
    $ ./rundocker.sh stagedml/user:latest
    ```
-3. Container should open the shell where we can execute Python code or open
-   IPython console.
+3. Proceed with [Quick Start](#quick-start)
 
 ### Install: Developer track
 
@@ -267,6 +268,28 @@ be checked-out locally. The detailed instalation procedure follows:
 Quick Start
 -----------
 
+### Build sample report
+
+StagedML encourages presentation-driven development. End-user report typically
+contains results of machine learning experiment, including task-specific
+utilities, plots and tables. This kind of content is often stored in Jupyter
+notebooks, but we prefer Markdown-based rendering using
+[codebraid](https://github.com/gpoore/codebraid) toolset.
+
+To build a report, consider following this steps:
+
+1. Run latest "user" docker image as described in the "user" part of the
+   [install section](#install-user-track).
+2. In the docker shell, enter the report directory
+   ```sh
+   cd run/bert_finetune
+   ```
+3. Run `make train` to download and train models. This could take some time.
+4. Run `make html` to generate HTML page of the report
+5. View `./out_html/Report.html` with your favorite browser
+
+### Work with models
+
 Top-level definitions are listed in a single
 [all.py](./src/stagedml/stages/all.py) file.  There, every `all_` function
 defines a _stage_, which is usually a model or a dataset. Every stage could be
@@ -278,7 +301,7 @@ An example IPython session may look like the following:
 
 ```python
 >>> from stagedml.stages.all import *                    # Import the collection of toplevel stages
->>> store_initialize()                                   # Make sure that Pylightnix storage is initialized
+>>> initialize()                                         # Make sure that Pylightnix storage is initialized
 >>> realize(instantiate(all_bert_finetune_glue, 'MRPC')) # Train our model of choice
 
                                                          # During the realize, StagedML will:
@@ -343,23 +366,30 @@ do apply:
 
 ### Repository structure
 
-StagedML is a report-oriented library. End-user report typically contains
-results of certain machine learning experiment, includes task-specific
-utilities, plots and tables. This kind of content is often stored in Jupyter
-notebooks, but we prefer Markdown-based rendering using
-[codebraid](https://github.com/gpoore/codebraid) toolset. Examples are in a
-[run](/run) subfolders.
+Main sources are located in the [src](./src) folder.
 
-The [stagedml.stages.all](./src/stagedml/stages/all.py) module contains
-top-level _stages_ definitions.  Most of the intermediate stages are defined in
-[stagedml.stages](./src/stagedml/stages) packages.
+The most importand module is
+[stagedml.stages.all](./src/stagedml/stages/all.py). It contains top-level
+_stages_ definitions.  Most of the intermediate stages are defined in
+[stagedml.stages](./src/stagedml/stages) sub-modules.
 
-Machine learning models are mostly borrowed from the
-[TensorFlow Official Models](https://github.com/tensorflow/models), we keep
-their main parts under the [stagedml.models](./src/stagedml/models)
-module.
+Folder [./run](./run) containes end-user applications (reports). They don't
+depend on StagedML source artifacts and may be distributed separately from other
+sources. In particular, they have their own Makefiles.
 
-Low-level utilities are defined in [utils](./src/stagedml/utils).
+Machine learning models are mostly borrowed from the [TensorFlow Official
+Models](https://github.com/tensorflow/models), but some parts of them were
+modified by us. We keep modified parts under the
+[stagedml.models](./src/stagedml/models) module.
+
+Low-level utilities are defined in [stagedml.utils](./src/stagedml/utils).
+
+We keep external dependencies in a separate module called
+[stagedml.imports](./src/stagedml/imports).
+
+Important third-party dependencies are included in the form of Git submodules.
+We link them under [./3rdparty](./3rdparty/) folder. Less important dependencies
+were installed with `pip` and became a part of Docker image.
 
 Overall repository structure:
 
