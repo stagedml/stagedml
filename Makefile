@@ -113,7 +113,7 @@ install_pylightnix: check_root # Has to be run by root
 
 $(WHEEL_STAGEDML): $(SRC) $(TESTS)
 	-rm ./docker/wheels/stagedml*
-	( cd $(STAGEDML_ROOT) && \
+	( cd $(STAGEDML_SOURCE) && \
 		( rm -rf build dist || true ) && \
 		python3 setup.py sdist bdist_wheel && \
 		cp dist/$(WHEEL_STAGEDML_NAME) $(WHEEL_STAGEDML) \
