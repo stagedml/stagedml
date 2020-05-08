@@ -1,10 +1,10 @@
 .DEFAULT_GOAL = all
 SRC = $(shell find -name '*\.py')
 
-ifdef STAGEDML_ROOT
-SRC_STAGEDML = $(shell find $(STAGEDML_ROOT)/src -name '*\.py')
-.stamp_check: $(SRC_STAGEDML) $(STAGEDML_ROOT)/Makefile Makefile
-	make -C $(STAGEDML_ROOT) check
+ifdef STAGEDML_SOURCE
+SRC_STAGEDML = $(shell find $(STAGEDML_SOURCE)/src -name '*\.py')
+.stamp_check: $(SRC_STAGEDML) $(STAGEDML_SOURCE)/Makefile Makefile
+	make -C $(STAGEDML_SOURCE) check
 	touch $@
 else
 .stamp_check:

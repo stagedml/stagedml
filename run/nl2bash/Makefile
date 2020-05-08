@@ -1,12 +1,12 @@
 .DEFAULT_GOAL = all
-SRC = $(shell find $(STAGEDML_ROOT)/src -name '*\.py') $(STAGEDML_ROOT)/run/nl2bash/analyze.py
-TESTS = $(shell find $(STAGEDML_ROOT)/tests -name '*\.py')
+SRC = $(shell find $(STAGEDML_SOURCE)/src -name '*\.py') $(STAGEDML_SOURCE)/run/nl2bash/analyze.py
+TESTS = $(shell find $(STAGEDML_SOURCE)/tests -name '*\.py')
 
 .stamp_check: $(SRC) $(TESTS)
-ifndef STAGEDML_ROOT
-	$(error STAGEDML_ROOT env var should contain the path to the root of StagedML repo)
+ifndef STAGEDML_SOURCE
+	$(error STAGEDML_SOURCE env var should contain the path to the root of StagedML repo)
 endif
-	make -C $(STAGEDML_ROOT) check
+	make -C $(STAGEDML_SOURCE) check
 	@if ! which pweave >/dev/null 2>&1 ; then \
 		echo "pweave not found. Please install it with" ; \
 		echo "> sudo -H pip3 install pweave" ; \

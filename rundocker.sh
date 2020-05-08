@@ -117,7 +117,6 @@ ${DOCKER_CMD} --config "$DOCKER_CFG" \
     -m 32g \
     -e HOST_PERMS="$(id -u):$(id -g)" \
     -e "CI_BUILD_HOME=/workspace" \
-    -e "STAGEDML_ROOT=/workspace" \
     -e "CI_BUILD_USER=$(id -u -n)" \
     -e "CI_BUILD_UID=$(id -u)" \
     -e "CI_BUILD_GROUP=$(id -g -n)" \

@@ -1,10 +1,12 @@
-if test -z "$STAGEDML_ROOT" ; then
-  export STAGEDML_ROOT=`pwd`
+if test -z "$CI_BUILD_HOME" ; then
+  echo "devenv.sh requires CI_BUILD_HOME to be set" >&2
+  CI_BUILD_HOME=`pwd`
 fi
 
+export STAGEDML_SOURCE="$CI_BUILD_HOME"
+export STAGEDML_ROOT="$CI_BUILD_HOME"
 export STAGEDML_EXPERIMENTS="$STAGEDML_ROOT/_experiments"
 export STAGEDML_RUSENTIMENT="$STAGEDML_ROOT/3rdparty/rusentiment.tar.xz"
-export CWD="$STAGEDML_ROOT"
 export TERM=xterm-256color # TODO: check and document
 export PATH="$STAGEDML_ROOT/.nix_docker_inject.env/bin:$STAGEDML_ROOT/3rdparty/wikiextractor:$PATH"
 export FZF_DEFAULT_COMMAND='fd --type f --hidden --follow --exclude 3rdparty --exclude .git'
