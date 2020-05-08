@@ -25,10 +25,13 @@ RUN /bin/sh /install/install_codebraid.sh
 COPY install_altair.sh /install/install_altair.sh
 RUN /bin/sh /install/install_altair.sh
 
-COPY wheels/* /install/wheels/
 COPY install_wheels.sh /install/install_wheels.sh
+COPY wheels/tensorflow* /install/wheels/
 RUN /bin/sh /install/install_wheels.sh tensorflow
+COPY wheels/tf_models* /install/wheels/
 RUN /bin/sh /install/install_wheels.sh tf_models
+COPY wheels/pylightnix* /install/wheels/
 RUN /bin/sh /install/install_wheels.sh pylightnix
+COPY wheels/stagedml* /install/wheels/
 RUN /bin/sh /install/install_wheels.sh stagedml
 

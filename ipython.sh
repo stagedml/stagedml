@@ -1,7 +1,7 @@
 #!/bin/sh
 
-if ! test -d "$CWD" ; then
-  echo "CWD is not set"
+if ! test -d "$STAGEDML_SOURCE" ; then
+  echo "STAGEDML_SOURCE is not set"
   exit 1
 fi
 
@@ -11,8 +11,8 @@ fi
 #   alias ipython0='ipython --profile-dir=$CWD/.ipython-profile'
 # fi
 
-mkdir $CWD/.ipython-profile 2>/dev/null || true
-cat >$CWD/.ipython-profile/ipython_config.py <<EOF
+mkdir $STAGEDML_SOURCE/.ipython-profile 2>/dev/null || true
+cat >$STAGEDML_SOURCE/.ipython-profile/ipython_config.py <<EOF
 c = get_config()
 c.InteractiveShellApp.exec_lines = []
 c.InteractiveShellApp.exec_lines.append('%load_ext autoreload')
@@ -44,4 +44,4 @@ def tweak():
 tweak()
 EOF
 
-ipython3 --profile-dir=$CWD/.ipython-profile -i "$@"
+ipython3 --profile-dir=$STAGEDML_SOURCE/.ipython-profile -i "$@"
