@@ -27,5 +27,8 @@ RUN /bin/sh /install/install_altair.sh
 
 COPY wheels/* /install/wheels/
 COPY install_wheels.sh /install/install_wheels.sh
-RUN /bin/sh /install/install_wheels.sh
+RUN /bin/sh /install/install_wheels.sh tensorflow
+RUN /bin/sh /install/install_wheels.sh tf_models
+RUN /bin/sh /install/install_wheels.sh pylightnix
+RUN /bin/sh /install/install_wheels.sh stagedml
 

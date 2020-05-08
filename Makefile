@@ -1,6 +1,5 @@
 .DEFAULT_GOAL = all
-VERSION_STAGEDML = $(shell cat ./setup.py | \
-                  sed -n 's/.*version="\(.*\)".*/\1/p')
+VERSION_STAGEDML = $(shell python3 setup.py --version)
 WHEEL_STAGEDML_NAME = stagedml-$(VERSION_STAGEDML)-py3-none-any.whl
 WHEEL_STAGEDML = ./docker/wheels/$(WHEEL_STAGEDML_NAME)
 
@@ -15,8 +14,7 @@ VERSION_TF = $(shell cat ./3rdparty/tensorflow/tensorflow/tensorflow.bzl | \
 WHEEL_TF_NAME = tensorflow-$(VERSION_TF)-cp36-cp36m-linux_x86_64.whl
 WHEEL_TF = ./docker/wheels/$(WHEEL_TF_NAME)
 
-VERSION_PLYLIGHTNIX = $(shell cat ./3rdparty/pylightnix/setup.py | \
-                              sed -n 's/.*version="\(.*\)".*/\1/p')
+VERSION_PLYLIGHTNIX = $(shell cd ./3rdparty/pylightnix; python3 setup.py --version)
 WHEEL_PYLIGHTNIX_NAME = /pylightnix-$(VERSION_PLYLIGHTNIX)-py3-none-any.whl
 WHEEL_PYLIGHTNIX = ./docker/wheels/$(WHEEL_PYLIGHTNIX_NAME)
 
