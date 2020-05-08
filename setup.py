@@ -6,7 +6,7 @@ with open("README.md", "r") as fh:
 setup(
   name="stagedml",
   package_dir={'':'src'},
-  version="0.0.1",
+  use_scm_version=True,
   author="grwlf",
   author_email="grrwlf@gmail.com",
   description="A linked collection of DeepLearning models and experimental framework",
@@ -22,6 +22,7 @@ setup(
   python_requires='>=3.6',
   test_suite='pytest',
   tests_require=['hypothesis', 'pytest-mypy'],
+  setup_requires=['setuptools_scm'],
 )
 
 
