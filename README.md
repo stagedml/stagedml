@@ -288,6 +288,8 @@ To build a report, consider following this steps:
 4. Run `make html` to generate HTML page of the report
 5. View `./out_html/Report.html` with your favorite browser
 
+See the list of available reports [here](#models-and-experiments).
+
 ### Work with models
 
 Top-level definitions are listed in a single

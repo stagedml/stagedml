@@ -26,11 +26,10 @@ def altair_print(chart:Chart, png_filename:str, alt:str='', attrs:str='')->None:
 def experiment_bs(n:int=4, exclude=[])->Dict[int,List[RRef]]:
   result_bs={}
   for bs in [2,8,16,32,64]:
-    def _new_config(cfg:dict):
-      cfg['train_batch_size']=bs
-      cfg['train_epoches']=5
-      cfg['flags']=[f for f in cfg['flags'] if f not in exclude]
-      return mkconfig(cfg)
+    def _new_config(c:dict):
+      mklens(c).train_batch_size.val=bs
+      mklens(c).train_epoches.val=5
+      mklens(c).flags.val=[f for f in c['flags'] if f not in exclude]
     result_bs[bs]=realizeMany(instantiate(
       redefine(all_minibert_finetune_glue, new_config=_new_config,
                                            new_matcher=match_some(n)),
@@ -40,12 +39,11 @@ def experiment_bs(n:int=4, exclude=[])->Dict[int,List[RRef]]:
 def experiment_lr(n:int=4, exclude=[])->Dict[str,List[RRef]]:
   result_lr={}
   for lr in [3e-4, 1e-4, 5e-5, 3e-5]:
-    def _new_config(cfg:dict):
-      cfg['train_batch_size']=8
-      cfg['lr']=lr
-      cfg['train_epoches']=5
-      cfg['flags']=[f for f in cfg['flags'] if f not in exclude]
-      return mkconfig(cfg)
+    def _new_config(c:dict):
+      mklens(c).train_batch_size.val=8
+      mklens(c).lr.val=lr
+      mklens(c).train_epoches.val=5
+      mklens(c).flags.val=[f for f in c['flags'] if f not in exclude]
     result_lr[str(lr)]=realizeMany(instantiate(
       redefine(all_minibert_finetune_glue, new_config=_new_config,
                                            new_matcher=match_some(n)),
@@ -56,10 +54,9 @@ def experiment_lr(n:int=4, exclude=[])->Dict[str,List[RRef]]:
 def experiment_trainmethod()->Dict[str,RRef]:
   result={}
   for tm in ['fit','custom']:
-    def _new_config(cfg:dict):
-      cfg['train_epoches']=5
-      cfg['train_method']=tm
-      return mkconfig(cfg)
+    def _new_config(c:dict):
+      mklens(c).train_epoches.val=5
+      mklens(c).train_method.val=tm
     result[tm]=realize(instantiate(
       redefine(all_minibert_finetune_glue,
         new_config=_new_config, new_matcher=match_latest())))
@@ -73,10 +70,9 @@ def experiment_allglue(n:int=1)->Dict[str,List[RRef]]:
     batch_size={'MNLI-M':64,
                 'MNLI-MM':64,
                 'SNLI':64}.get(task_name.upper(),8)
-    def _new_config(cfg:dict):
-      cfg['train_batch_size']=batch_size
-      cfg['train_epoches']=4
-      return mkconfig(cfg)
+    def _new_config(c:dict):
+      mklens(c).train_batch_size.val=batch_size
+      mklens(c).train_epoches.val=4
     result_allglue[task_name]=realizeMany(instantiate(
       redefine(all_minibert_finetune_glue,
         new_config=_new_config, new_matcher=match_some(n)),

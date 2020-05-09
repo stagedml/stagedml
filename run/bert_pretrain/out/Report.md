@@ -39,13 +39,11 @@ run_bert_pretrain(task_name:str='MRPC', epoches:int=200, epoches_step:int=20
   pretrained:Dict[int,RRef]={}
   finetuned:Dict[int,RRef]={}
   for e in range(epoches_step,epoches+epoches_step,epoches_step):
-    out=Path(join(STAGEDML_EXPERIMENTS,'bert_pretrain',f'epoch-{e}'))
-    makedirs(out, exist_ok=True)
     pretrained[e]=\
         realize(instantiate(_pretrain_stage(e, pretrained.get(e-epoches_step))))
-    linkrref(pretrained[e],out)
+    linkrref(pretrained[e],['bert_pretrain',f'epoch-{e}'])
     finetuned[e]=realize(instantiate(_finetune_stage(e)))
-    linkrref(finetuned[e],out)
+    linkrref(finetuned[e],['bert_pretrain',f'epoch-{e}'])
   return pretrained,finetuned
 ```
 

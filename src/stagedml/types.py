@@ -23,7 +23,8 @@ Squad11=NewType('Squad11',DRef)
 class GlueTFR(BertFinetuneTFR):
   pass
 
-Squad11TFR=NewType('Squad11TFR',BertFinetuneTFR)
+class Squad11TFR(BertFinetuneTFR):
+  pass
 
 BertGlue=NewType('BertGlue',DRef)
 

@@ -135,10 +135,9 @@ def all_minibert_finetune_glue(m:Manager, task_name:str='MRPC',
     bert_vocab=mklens(refbert).bert_vocab.refpath,
     lower_case=mklens(refbert).cased.val==False, refdataset=refglue)
   def _new(d):
-    d['name']+='-mini'
-    d['train_batch_size']=8
-    d['eval_batch_size']=8
-    return mkconfig(d)
+    mklens(d).name.val+='-mini'
+    mklens(d).train_batch_size.val=8
+    mklens(d).eval_batch_size.val=8
   return redefine(bert_finetune_glue,new_config=_new)\
     (m,refbert,glueref, num_instances=num_instances)
 
@@ -175,10 +174,9 @@ def all_multibert_finetune_glue(m:Manager, task_name:str='MRPC')->BertGlue:
 def dryrun_bert_finetune_glue(m:Manager, task_name:str='MRPC')->BertGlue:
   """ Train a simple convolutional model on MNIST """
   def _new_config(d):
-    d['name']+='-dryrun'
-    d['train_epoches']=1
-    d['dataset_size']=100
-    return mkconfig(d)
+    mklens(d).name.val+='-dryrun'
+    mklens(d).train_epoches.val=1
+    mklens(d).dataset_size.val=100
   return redefine(partial(all_bert_finetune_glue, task_name=task_name), new_config=_new_config)(m)
 
 
@@ -238,9 +236,8 @@ def all_convnn_mnist(m:Manager)->ConvnnMnist:
 def dryrun_convnn_mnist(m:Manager)->ConvnnMnist:
   """ Dry-run a simple convolutional model on MNIST """
   def _new_config(d):
-    d['name']+='-dryrun'
-    d['num_epoches']=1
-    return mkconfig(d)
+    mklens(d).name.val+='-dryrun'
+    mklens(d).num_epoches.val=1
   return redefine(all_convnn_mnist, new_config=_new_config)(m)
 
 def all_fetchenwiki(m:Manager)->Wikitext:
@@ -281,10 +278,9 @@ def dryrun_bert_pretrain(m:Manager, train_epoches=1, resume_rref=None
                         )->BertPretrain:
   """ Dry-run a simple convolutional model on MNIST """
   def _new_config(d):
-    d['name']+='-dryrun'
-    d['train_steps_per_loop']=1
-    d['train_steps_per_epoch']=10
-    return mkconfig(d)
+    mklens(d).name.val+='-dryrun'
+    mklens(d).train_steps_per_loop.val=1
+    mklens(d).train_steps_per_epoch.val=10
   return redefine(partial(all_minibert_pretrain,
                           train_epoches=train_epoches,
                           resume_rref=resume_rref), new_config=_new_config)(m)

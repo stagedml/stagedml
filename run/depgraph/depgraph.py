@@ -61,9 +61,8 @@ def mkgraph_demo()->None:
           bert_vocab=mklens(refbert).bert_vocab.refpath,
           lower_case=mklens(refbert).cased.val==False,
           refdataset=refglue)
-      def _nc(cfg):
-        cfg['name']='mini'+cfg['name']
-        return mkconfig(cfg)
+      def _nc(c):
+        mklens(c).name.val='mini'+c['name']
       tfbert=redefine(bert_finetune_glue,new_config=_nc)(m,refbert,gluetfr)
       return tfbert
     return _stage

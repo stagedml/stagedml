@@ -32,14 +32,12 @@ def mysubtok(m):
     d['vocab_file'] = [promise, 'vocab.%d' % $VSIZE]
     d['train_data_min_count']=None
     d['file_byte_limit'] = 1e6 if $VSIZE > 5000 else 1e5
-    return mkconfig(d)
   return redefine(all_nl2bashsubtok,_config)(m)
 
 def mytransformer(m):
   def _config(c):
     c['train_steps']=6*5000
     c['params']['beam_size']=3 # As in Tellina paper
-    return mkconfig(c)
   return redefine(transformer_wmt,_config)(m, mysubtok(m))
 
 rref=realize(instantiate(mytransformer))

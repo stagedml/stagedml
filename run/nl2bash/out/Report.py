@@ -19,9 +19,8 @@ def baseline_subtok(m):
 
 def baseline_transformer(m):
   def _config(c):
-    c['train_steps']=6*5000
-    c['params']['beam_size']=3 # As in Tellina paper
-    return mkconfig(c)
+    mklens(c).train_steps.val=6*5000
+    mklens(c).params.beam_size.val=3 # As in Tellina paper
   return redefine(transformer_wmt,
                   new_config=_config,
                   new_matcher=match_some())(m, baseline_subtok(m), num_instances=5)
@@ -64,9 +63,8 @@ def unshuffled_subtok(m):
 
 def unshuffled_transformer(m):
   def _config(c):
-    c['train_steps']=6*5000
-    c['params']['beam_size']=3 # As in Tellina paper
-    return mkconfig(c)
+    mklens(c).train_steps.val=6*5000
+    mklens(c).params.beam_size.val=3 # As in Tellina paper
   return redefine(transformer_wmt,_config)(m, unshuffled_subtok(m))
 
 plt.figure(2)
@@ -87,18 +85,16 @@ plt.grid(True)
 def run1(vsize:int):
 
   def mysubtok(m):
-    def _config(d):
-      d['target_vocab_size']=vsize  # Doesn't in fact depend on this parameter
-      d['vocab_file'] = [promise, 'vocab.%d' % vsize]
-      return mkconfig(d)
+    def _config(c):
+      mklens(c).target_vocab_size.val=vsize  # Doesn't in fact depend on this parameter
+      mklens(c).vocab_file.val = [promise, 'vocab.%d' % vsize]
     return redefine(all_nl2bashsubtok, _config)(m,
                     shuffle=True, with_bash_charset=True, with_bash_subtokens=True)
 
   def mytransformer(m):
     def _config(c):
-      c['train_steps']=5*5000
-      c['params']['beam_size']=3 # As in Tellina paper
-      return mkconfig(c)
+      mklens(c).train_steps.val=5*5000
+      mklens(c).params.beam_size.val=3 # As in Tellina paper
     return redefine(transformer_wmt,_config)(m, mysubtok(m))
 
   return mysubtok, mytransformer
@@ -126,20 +122,18 @@ plt.grid(True)
 
 def run(vsize:int):
   def mysubtok(m):
-    def _config(d):
-      d['target_vocab_size']=vsize
-      d['vocab_file'] = [promise, 'vocab.%d' % vsize]
-      d['train_data_min_count']=None
-      d['file_byte_limit'] = 1e6 if vsize > 5000 else 1e5
-      return mkconfig(d)
+    def _config(c):
+      mklens(c).target_vocab_size.val=vsize
+      mklens(c).vocab_file.val = [promise, 'vocab.%d' % vsize]
+      mklens(c).train_data_min_count.val=None
+      mklens(c).file_byte_limit.val = 1e6 if vsize > 5000 else 1e5
     return redefine(all_nl2bashsubtok,_config)(m,
       shuffle=True, with_bash_charset=False, with_bash_subtokens=False)
 
   def mytransformer(m):
     def _config(c):
-      c['train_steps']=6*5000
-      c['params']['beam_size']=3 # As in Tellina paper
-      return mkconfig(c)
+      mklens(c).train_steps.val=6*5000
+      mklens(c).params.beam_size.val=3 # As in Tellina paper
     return redefine(transformer_wmt,_config)(m, mysubtok(m))
 
   return mysubtok, mytransformer
@@ -166,20 +160,18 @@ plt.grid(True)
 
 def run2(vsize:int):
   def mysubtok(m):
-    def _config(d):
-      d['target_vocab_size']=vsize
-      d['vocab_file'] = [promise, 'vocab.%d' % vsize]
-      d['train_data_min_count']=None
-      d['file_byte_limit'] = 1e6 if vsize > 5000 else 1e5
-      return mkconfig(d)
+    def _config(c):
+      mklens(c).target_vocab_size.val=vsize
+      mklens(c).vocab_file.val = [promise, 'vocab.%d' % vsize]
+      mklens(c).train_data_min_count.val=None
+      mklens(c).file_byte_limit.val = 1e6 if vsize > 5000 else 1e5
     return redefine(all_nl2bashsubtok,_config)(m,
       shuffle=True, with_bash_charset=True, with_bash_subtokens=True)
 
   def mytransformer(m):
     def _config(c):
-      c['train_steps']=6*5000
-      c['params']['beam_size']=3 # As in Tellina paper
-      return mkconfig(c)
+      mklens(c).train_steps.val=6*5000
+      mklens(c).params.beam_size.val=3 # As in Tellina paper
     return redefine(transformer_wmt,_config)(m, mysubtok(m))
 
   return mysubtok, mytransformer

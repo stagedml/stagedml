@@ -35,9 +35,9 @@ assert isdir(STAGEDML_ROOT), (
 #  \___/ \__|_|_|___/
 
 
-def linkrref(rref:RRef, tgtpath:Optional[Path]=None)->None:
+def linkrref(rref:RRef, subdirs:List[str]=[])->None:
   """ Create a 'result-' symlink under the Pylightnix experiments folder """
-  tgtpath_=Path(STAGEDML_EXPERIMENTS) if tgtpath is None else tgtpath
+  tgtpath_=Path(join(STAGEDML_EXPERIMENTS,*subdirs))
   linkname='result-'+config_name(store_config(rref))
   mksymlink(rref, tgtpath=tgtpath_, name=linkname, withtime=False)
 
@@ -77,11 +77,11 @@ def initialize(custom_pylightnix_store:Optional[str]=None,
 
 
 
-def lrealize(clo:Closure, tgtpath:Optional[Path]=None, **kwargs)->RRef:
+def lrealize(clo:Closure, subdirs:List[str]=[], **kwargs)->RRef:
   """ Realize the model and Link it's realization to `STAGEDML_EXPERIMENTS` folder """
   assert_initialized()
   rref=realize(clo,**kwargs)
-  linkrref(rref, tgtpath)
+  linkrref(rref, subdirs)
   return rref
 
 

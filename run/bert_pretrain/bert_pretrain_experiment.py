@@ -17,6 +17,7 @@ def run(task_name:str='MRPC',
       refbert=_pretrain_stage(nepoch, None)(m)
       gluetfr=glue_tfrecords(m, task_name,
           bert_vocab=mklens(refbert).bert_vocab.refpath,
+          lower_case=mklens(refbert).cased.val==False,
           refdataset=refglue)
       tfbert=bert_finetune_glue(m,refbert,gluetfr)
       return tfbert
@@ -27,15 +28,13 @@ def run(task_name:str='MRPC',
   pretrained:Dict[int,RRef]={}
   finetuned:Dict[int,RRef]={}
   for e in range(epoches_step,epoches+epoches_step,epoches_step):
-    out=Path(join(STAGEDML_EXPERIMENTS,'bert_pretrain',f'epoch-{e}'))
-    makedirs(out, exist_ok=True)
     print('Pre-training up to epoch', e)
     pretrained[e]=realize(instantiate(
         _pretrain_stage(e, pretrained.get(e-epoches_step))))
-    linkrref(pretrained[e],out)
+    linkrref(pretrained[e],['bert_pretrain',f'epoch-{e}'])
     print('Fine-tunining up to epoch', e)
     finetuned[e]=realize(instantiate(_finetune_stage(e)))
-    linkrref(finetuned[e],out)
+    linkrref(finetuned[e],['bert_pretrain',f'epoch-{e}'])
   return pretrained, finetuned
 
 

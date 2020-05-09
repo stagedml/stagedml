@@ -109,9 +109,8 @@ def baseline_subtok(m):
 
 def baseline_transformer(m):
   def _config(c):
-    c['train_steps']=6*5000
-    c['params']['beam_size']=3 # As in Tellina paper
-    return mkconfig(c)
+    mklens(c).train_steps.val=6*5000
+    mklens(c).params.beam_size.val=3 # As in Tellina paper
   return redefine(transformer_wmt,
                   new_config=_config,
                   new_matcher=match_some())(m, baseline_subtok(m), num_instances=5)
@@ -204,7 +203,8 @@ model.
 
 
 ```python
-rref=realize(instantiate(redefine(baseline_transformer,new_matcher=match_best('bleu.txt'))))
+rref=realize(instantiate(redefine(baseline_transformer,
+                                  new_matcher=match_best('bleu.txt'))))
 baseline_bleu=read_tensorflow_log(join(rref2path(rref),'eval'), 'bleu_cased')
 ```
 
@@ -234,9 +234,8 @@ def unshuffled_subtok(m):
 
 def unshuffled_transformer(m):
   def _config(c):
-    c['train_steps']=6*5000
-    c['params']['beam_size']=3 # As in Tellina paper
-    return mkconfig(c)
+    mklens(c).train_steps.val=6*5000
+    mklens(c).params.beam_size.val=3 # As in Tellina paper
   return redefine(transformer_wmt,_config)(m, unshuffled_subtok(m))
 ```
 
@@ -382,19 +381,17 @@ vocabulary.
 ```python
 def singlechar_subtok(m):
   vsize=10000
-  def _config(d):
-    d['target_vocab_size']=vsize
-    d['vocab_file'] = [promise, 'vocab.%d' % vsize]
-    d['no_slave_multichar'] = True
-    d['train_data_min_count']=None
-    return mkconfig(d)
+  def _config(c):
+    mklens(c).target_vocab_size.val=vsize
+    mklens(c).vocab_file.val = [promise, 'vocab.%d' % vsize]
+    mklens(c).no_slave_multichar.val = True
+    mklens(c).train_data_min_count.val=None
   return redefine(all_nl2bashsubtok,_config)(m)
 
 def singlechar_transformer(m):
   def _config(c):
-    c['train_steps']=6*5000
-    c['params']['beam_size']=3 # As in Tellina paper
-    return mkconfig(c)
+    mklens(c).train_steps.val=6*5000
+    mklens(c).params.beam_size.val=3 # As in Tellina paper
   return redefine(transformer_wmt,
                   new_config=_config,
                   new_matcher=match_some())(m, singlechar_subtok(m), num_instances=5)

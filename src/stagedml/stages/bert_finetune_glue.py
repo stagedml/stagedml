@@ -328,8 +328,8 @@ def evaluate(b:Model, iid:int=0)->None:
     protocol_add_eval(l.protocol.syspath, 'evaluate',
                       modelhash(b.model), k.metrics_names, h)
 
-def bert_finetune_glue(m:Manager, refbert:BertFinetuneTFR,
-                       tfrecs:GlueTFR, num_instances:int=1)->BertGlue:
+def bert_finetune_glue(m:Manager, refbert:BertCP,
+                       tfrecs:BertFinetuneTFR, num_instances:int=1)->BertGlue:
 
   def _realize(b:Model)->None:
     build_setoutpaths(b,num_instances)

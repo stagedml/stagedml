@@ -45,12 +45,11 @@ parameters.
 ``` python numberLines
 def all_multibert_finetune_rusentiment1(m:Manager, lr:Optional[float]=None):
   lr_ = lr if lr is not None else learning_rates[0]
-  def _nc(cfg):
-    cfg['name']='rusent-pretrained'
-    cfg['train_batch_size']=8
-    cfg['train_epoches']=5
-    cfg['lr']=lr_
-    return mkconfig(cfg)
+  def _nc(c):
+    mklens(c).name.val='rusent-pretrained'
+    mklens(c).train_batch_size.val=8
+    mklens(c).train_epoches.val=5
+    mklens(c).lr.val=lr_
   return redefine(all_multibert_finetune_rusentiment, new_config=_nc)(m) # end1
 ```
 
@@ -59,10 +58,9 @@ the default version of the above model:
 
 ``` python numberLines
 def all_multibert_finetune_rusentiment0(m:Manager):
-  def _nc(cfg):
-    cfg['name']='rusent-random'
-    cfg['bert_ckpt_in']=None
-    return mkconfig(cfg)
+  def _nc(c):
+    mklens(c).name.val='rusent-random'
+    mklens(c).bert_ckpt_in.val=None
   return redefine(all_multibert_finetune_rusentiment1, new_config=_nc)(m) #end0
 ```
 
