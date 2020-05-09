@@ -73,9 +73,6 @@ runchrome() {(
     http://127.0.0.1:`expr 6000 + $UID - 1000` "$@"
 )}
 
-cudarestart() {
-  sudo rmmod nvidia_uvm ; sudo modprobe nvidia_uvm
-}
 runnetron() {
   netron --host 0.0.0.0 -p 6006 "$@"
 }
