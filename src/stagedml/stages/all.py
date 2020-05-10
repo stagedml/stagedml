@@ -177,7 +177,8 @@ def dryrun_bert_finetune_glue(m:Manager, task_name:str='MRPC')->BertGlue:
     mklens(d).name.val+='-dryrun'
     mklens(d).train_epoches.val=1
     mklens(d).dataset_size.val=100
-  return redefine(partial(all_bert_finetune_glue, task_name=task_name), new_config=_new_config)(m)
+  return redefine(stage=partial(all_bert_finetune_glue, task_name=task_name),
+                  new_config=_new_config)(m)
 
 
 def all_multibert_finetune_rusentiment(m:Manager):
@@ -257,21 +258,27 @@ def all_fetchruwiki(m:Manager)->Wikitext:
                         sha1='9f522ccf2931497e99a12d001a3bc7910f275519')
   return extractwiki(m,wikidump)
 
-def all_bert_pretrain_tfrecords(m:Manager)->WikiTFR:
+def all_enwiki_tfrecords(m:Manager)->WikiTFR:
   """
-  FIXME: use uniform BERT
+  FIXME: don't use old BERT
   """
   b=all_fetcholdbert(m)
   return bert_pretrain_tfrecords(m,
       vocab_file=mklens(b).bert_vocab.refpath,
       wiki=all_fetchenwiki(m))
 
+def all_ruwiki_tfrecords(m:Manager)->WikiTFR:
+  b=all_fetchbert(m)
+  return bert_pretrain_tfrecords(m,
+      vocab_file=mklens(b).bert_vocab.refpath,
+      wiki=all_fetchruwiki(m))
+
 def all_basebert_pretrain(m:Manager, **kwargs)->BertPretrain:
-  tfr=all_bert_pretrain_tfrecords(m)
+  tfr=all_enwiki_tfrecords(m)
   return basebert_pretrain_wiki(m, tfr, **kwargs)
 
 def all_minibert_pretrain(m:Manager, **kwargs)->BertPretrain:
-  tfr=all_bert_pretrain_tfrecords(m)
+  tfr=all_enwiki_tfrecords(m)
   return minibert_pretrain_wiki(m, tfr, **kwargs)
 
 def dryrun_bert_pretrain(m:Manager, train_epoches=1, resume_rref=None
@@ -342,5 +349,6 @@ def gc(force:bool=False):
       t.append_row([config_name(store_config(rref)),rref,diskspace_h(sz)])
       total_freed+=sz
     print(t)
-    print(f"Run `gc(force=True)` to remove the above references and free {diskspace_h(total_freed)}.")
+    print((f"Run `gc(force=True)` to remove the above references and free "
+           f"{diskspace_h(total_freed)}."))
 
