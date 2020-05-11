@@ -53,6 +53,31 @@ def all_multibert_finetune_rusentiment1(m:Manager, lr:Optional[float]=None):
   return redefine(all_multibert_finetune_rusentiment, new_config=_nc)(m) # end1
 ```
 
+Dependency graph of this stage illustrates entities we are going to
+calculate in this experiment:
+
+``` python numberLines
+with prepare_markdown_image('rusent_graph.png') as path:
+  depgraph([all_multibert_finetune_rusentiment1], path)
+```
+
+![](./rusent_graph.png)
+
+Here,
+
+  - `basebert-multi-cased` is a stage which downloads multilingual BERT
+    checkpoint published by Google Research.
+  - `fetchrusent` stage downloads the RuSentiment dataset.
+    Unfortunately, this dataset is no longer available in public, so we
+    are using our private copy.
+  - `tfrecord-rusent` converts the Dataset to the TensorFlow Records
+    format.
+  - `rusent-pretrained` stage creates the BERT model, loads the
+    pretrained checkpoint and performs the fine-tuning on the
+    RuSentiment TFRecords.
+  - Stages mentioned above are declared in the [StagedML top-level
+    collection](https://github.com/stagedml/stagedml/blob/master/src/stagedml/stages/all.py)
+
 We define randomly-initialized BERT by disabling the initialization of
 the default version of the above model:
 
@@ -64,17 +89,7 @@ def all_multibert_finetune_rusentiment0(m:Manager):
   return redefine(all_multibert_finetune_rusentiment1, new_config=_nc)(m) #end0
 ```
 
-Dependency graph of this stage illustrates entities which we are going
-to calculate
-
-``` python numberLines
-with prepare_markdown_image('rusent_graph.png') as path:
-  depgraph([all_multibert_finetune_rusentiment0], path)
-```
-
-![](./rusent_graph.png)
-
-We are going to train models with a number of different learning rates:
+We will train models with a number of different learning rates:
 
 ``` python numberLines
 print(learning_rates)
