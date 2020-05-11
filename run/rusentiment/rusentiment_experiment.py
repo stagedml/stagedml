@@ -9,7 +9,7 @@ from stagedml.types import ( Dict, Union, Optional, List, Any )
 from stagedml.core import ( protocol_rref_metric )
 from stagedml.imports import ( FullTokenizer, MakeNdarray, ScalarEvent,
     TensorEvent, Features, Feature, Example, Dataset, OrderedDict, read_csv,
-    DataFrame, makedirs, json_dump, environ )
+    DataFrame, makedirs, json_dump, environ, contextmanager )
 from stagedml.utils import ( tensorboard_tags, tensorboard_tensors, te2float )
 
 from official.nlp.bert.classifier_data_lib import ( InputExample, InputFeatures,
@@ -21,13 +21,18 @@ from altair_saver import save as altair_save
 import numpy as np
 import tensorflow as tf
 
-def altair_print(chart:Chart, png_filename:str, alt:str='', attrs:str='')->None:
+@contextmanager
+def prepare_markdown_image(image_filename:str, alt:str='', attrs:str=''):
   genimgdir=environ['REPOUT']
   repimgdir=environ.get('REPIMG',genimgdir)
   makedirs(genimgdir, exist_ok=True)
-  altair_save(chart, join(genimgdir,png_filename))
-  print("![%s](%s){%s}"%(alt, join(repimgdir,png_filename), attrs))
+  yield join(genimgdir,image_filename)
+  print("![%s](%s){%s}"%(alt, join(repimgdir,image_filename), attrs))
 
+
+def altair_print(chart:Chart, png_filename:str, alt:str='', attrs:str='')->None:
+  with prepare_markdown_image(png_filename, alt, attrs) as path:
+    altair_save(chart, path)
 
 class Runner:
   def __init__(self, rref:RRef):
@@ -109,6 +114,7 @@ def bert_rusentiment_evaluation(m:Manager, stage:Stage)->DRef:
 
   return mkdrv(m, matcher=match_only(), realizer=build_wrapper(_realize),
     config=mkconfig({
+      'name':'confusion_matrix',
       'model':stage(m),
       'confusion_matrix':[promise, 'confusion_matrix.json'],
       'prediction':[promise, 'prediction.csv'],

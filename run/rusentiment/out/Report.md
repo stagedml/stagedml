@@ -64,7 +64,17 @@ def all_multibert_finetune_rusentiment0(m:Manager):
   return redefine(all_multibert_finetune_rusentiment1, new_config=_nc)(m) #end0
 ```
 
-We are going to train models with a number of learning rates:
+Dependency graph of this stage illustrates entities which we are going
+to calculate
+
+``` python numberLines
+with prepare_markdown_image('rusent_graph.png') as path:
+  depgraph([all_multibert_finetune_rusentiment0], path)
+```
+
+![](./rusent_graph.png)
+
+We are going to train models with a number of different learning rates:
 
 ``` python numberLines
 print(learning_rates)
@@ -187,6 +197,7 @@ def bert_rusentiment_evaluation(m:Manager, stage:Stage)->DRef:
 
   return mkdrv(m, matcher=match_only(), realizer=build_wrapper(_realize),
     config=mkconfig({
+      'name':'confusion_matrix',
       'model':stage(m),
       'confusion_matrix':[promise, 'confusion_matrix.json'],
       'prediction':[promise, 'prediction.csv'],
@@ -196,12 +207,27 @@ def bert_rusentiment_evaluation(m:Manager, stage:Stage)->DRef:
 # eval ends
 ```
 
-We realize the above data and print the confusion
-matrix:
+We prepare combine primitives to get the final stage to realize in
+`stage_cm`.
 
 ``` python numberLines
-stage=partial(all_multibert_finetune_rusentiment1, lr=min(learning_rates))
-rref=realize(instantiate(bert_rusentiment_evaluation, stage))
+stage_finetune=partial(all_multibert_finetune_rusentiment1, lr=min(learning_rates))
+stage_cm=partial(bert_rusentiment_evaluation, stage=stage_finetune)
+```
+
+With the confusion matrix stage added, the dependency graph became:
+
+``` python numberLines
+with prepare_markdown_image('cm_graph.png') as path:
+  depgraph([stage_cm], path)
+```
+
+![](./cm_graph.png)
+
+Finally, we realize the confusion matrix stage and print the matrix
+
+``` python numberLines
+rref=realize(instantiate(stage_cm))
 data:dict={'label':[],'pred':[],'val':[]}
 for l,items in readjson(mklens(rref).confusion_matrix.syspath).items():
   for l2,val in items.items():

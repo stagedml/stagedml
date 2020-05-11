@@ -39,6 +39,7 @@ parameters.
     include_file=rusentiment_experiment.py
     include_regex="def all_multibert_finetune_rusentiment1.*end1"}
 ```
+
 We define randomly-initialized BERT by disabling the initialization of the
 default version of the above model:
 
@@ -47,7 +48,15 @@ default version of the above model:
     include_regex="def all_multibert_finetune_rusentiment0.*end0"}
 ```
 
-We are going to train models with a number of learning rates:
+Dependency graph of this stage illustrates entities which we are going to
+calculate
+
+```{.python .cb.nb show=code+stdout:raw+stderr}
+with prepare_markdown_image('rusent_graph.png') as path:
+  depgraph([all_multibert_finetune_rusentiment0], path)
+```
+
+We are going to train models with a number of different learning rates:
 
 ```{.python .cb.nb}
 print(learning_rates)
@@ -106,11 +115,24 @@ Stage for calculating the confusion matrix data is defined as follows:
     include_regex="def bert_rusentiment_evaluation.*eval ends"}
 ```
 
-We realize the above data and print the confusion matrix:
+We prepare combine primitives to get the final stage to realize in `stage_cm`.
+
+``` {.python .cb.nb}
+stage_finetune=partial(all_multibert_finetune_rusentiment1, lr=min(learning_rates))
+stage_cm=partial(bert_rusentiment_evaluation, stage=stage_finetune)
+```
+
+With the confusion matrix stage added, the dependency graph became:
 
 ``` {.python .cb.nb show=code+stdout:raw+stderr}
-stage=partial(all_multibert_finetune_rusentiment1, lr=min(learning_rates))
-rref=realize(instantiate(bert_rusentiment_evaluation, stage))
+with prepare_markdown_image('cm_graph.png') as path:
+  depgraph([stage_cm], path)
+```
+
+Finally, we realize the confusion matrix stage and print the matrix
+
+``` {.python .cb.nb show=code+stdout:raw+stderr}
+rref=realize(instantiate(stage_cm))
 data:dict={'label':[],'pred':[],'val':[]}
 for l,items in readjson(mklens(rref).confusion_matrix.syspath).items():
   for l2,val in items.items():
