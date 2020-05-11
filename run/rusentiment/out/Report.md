@@ -222,15 +222,17 @@ def bert_rusentiment_evaluation(m:Manager, stage:Stage)->DRef:
 # eval ends
 ```
 
-We prepare combine primitives to get the final stage to realize in
-`stage_cm`.
+We combine a confusion matrix stage with best stage defined in the
+previous section. The final stage function will be contained in
+`stage_cm`
+variable:
 
 ``` python numberLines
 stage_finetune=partial(all_multibert_finetune_rusentiment1, lr=min(learning_rates))
 stage_cm=partial(bert_rusentiment_evaluation, stage=stage_finetune)
 ```
 
-With the confusion matrix stage added, the dependency graph became:
+Dependency graph of the combined stage became:
 
 ``` python numberLines
 with prepare_markdown_image('cm_graph.png') as path:
