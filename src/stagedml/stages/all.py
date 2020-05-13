@@ -38,7 +38,7 @@ from stagedml.types import ( Dict, Set, Tuple, List, Optional, Union, DRef,
     TransWmt, WmtSubtok, ConvnnMnist, Wikidump, Wikitext, WikiTFR, BertPretrain,
     BertFinetuneTFR )
 from stagedml.core import ( lrealize, tryrealize, diskspace_h, linkrref,
-    realize_recursive, depgraph, initialize )
+    realize_recursive, depgraph, initialize, borrow )
 from stagedml.imports import ( walk, join, abspath, islink, partial,
     get_terminal_size, BeautifulTable )
 
@@ -241,37 +241,48 @@ def dryrun_convnn_mnist(m:Manager)->ConvnnMnist:
     mklens(d).num_epoches.val=1
   return redefine(all_convnn_mnist, new_config=_new_config)(m)
 
-def all_fetchenwiki(m:Manager)->Wikitext:
-  """ Fetch and extract english wikipedia dump """
-  wikidump=fetchwiki(m, dumpname='enwiki',
+
+def all_fetchenwiki(m:Manager)->Wikidump:
+  """ Fetch English wikipedia dump """
+  return fetchwiki(m, dumpname='enwiki',
                         dumpdate='20200301',
                         sha1='852dfec9eba3c4d5ec259e60dca233b6a777a05e')
-  return extractwiki(m,wikidump)
 
-def all_fetchruwiki(m:Manager)->Wikitext:
+def all_extractenwiki(m:Manager)->Wikitext:
+  """ Extract English Wikipedia dump """
+  return extractwiki(m,all_fetchenwiki(m))
+
+
+def all_fetchruwiki(m:Manager)->Wikidump:
   """ Fetch and extract russian wikipedia dump.
 
   Ref. https://dumps.wikimedia.org/enwiki/20200301/dumpstatus.json
   """
-  wikidump=fetchwiki(m, dumpname='ruwiki',
+  return fetchwiki(m, dumpname='ruwiki',
                         dumpdate='20200301',
                         sha1='9f522ccf2931497e99a12d001a3bc7910f275519')
-  return extractwiki(m,wikidump)
+
+def all_extractruwiki(m:Manager)->Wikitext:
+  """ Extracts Russian Wikipedia dump """
+  return extractwiki(m,all_fetchruwiki(m))
 
 def all_enwiki_tfrecords(m:Manager)->WikiTFR:
   """
   FIXME: don't use old BERT
   """
+  w=all_extractenwiki(m)
   b=all_fetcholdbert(m)
   return bert_pretrain_tfrecords(m,
-      vocab_file=mklens(b).bert_vocab.refpath,
-      wiki=all_fetchenwiki(m))
+      vocab_file=mklens(b).bert_vocab.refpath, wikiref=w)
 
 def all_ruwiki_tfrecords(m:Manager)->WikiTFR:
-  b=all_fetchbert(m)
+  """ Create TFRecords dataset for Russian Wikipedia dump. Use vocabulary from
+  Google's multilingual BERT model.
+  """
+  w=all_extractruwiki(m)
+  b=all_fetch_multibert(m)
   return bert_pretrain_tfrecords(m,
-      vocab_file=mklens(b).bert_vocab.refpath,
-      wiki=all_fetchruwiki(m))
+    vocab_file=mklens(b).bert_vocab.refpath, wikiref=w)
 
 def all_basebert_pretrain(m:Manager, **kwargs)->BertPretrain:
   tfr=all_enwiki_tfrecords(m)
@@ -281,7 +292,7 @@ def all_minibert_pretrain(m:Manager, **kwargs)->BertPretrain:
   tfr=all_enwiki_tfrecords(m)
   return minibert_pretrain_wiki(m, tfr, **kwargs)
 
-def dryrun_bert_pretrain(m:Manager, train_epoches=1, resume_rref=None
+def dryrun_minibert_pretrain(m:Manager, train_epoches=1, resume_rref=None
                         )->BertPretrain:
   """ Dry-run a simple convolutional model on MNIST """
   def _new_config(d):

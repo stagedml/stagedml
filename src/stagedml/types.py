@@ -6,7 +6,7 @@ Mypy the static typechecker to catch errors early.
 from typing import ( Optional, Dict, Any, List, Tuple, Union, Callable, Set,
     Iterable, NamedTuple, NewType, TypeVar )
 
-from pylightnix import DRef
+from pylightnix import ( DRef, Path )
 
 BertCP=NewType('BertCP',DRef)
 

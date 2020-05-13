@@ -1,6 +1,8 @@
+import sys
 import logging
-from stagedml.imports import ( find_executable, Popen, json_load, islink )
-from typing import List, Any, Optional, Dict, Iterable
+from stagedml.imports import ( find_executable, Popen, json_load, islink, PIPE,
+    STDOUT, fsync, OrderedDict )
+from stagedml.types import ( List, Any, Optional, Dict, Iterable, Path )
 
 def listloggers()->List[Any]:
   l=logging.root.manager.loggerDict # type:ignore
@@ -29,6 +31,38 @@ def system(cmd:List[str], cwd:Optional[str]=None, env:Optional[dict]=None,
   p=Popen(cmd, **args)
   retcode=p.wait()
   assert not (check_retcode and retcode!=0), f"Retcode is not zero, but {retcode}"
+  return
+
+def system_log(cmd:List[str], log_file:Optional[Path]=None,
+               cwd:Optional[str]=None, env:Optional[dict]=None,
+               assert_retcode:Optional[int]=0)->None:
+  """ FIXME: either redesign or remove """
+  args:Dict[str,Any]={}
+  if cwd is not None:
+    args.update({'cwd':cwd})
+  if env is not None:
+    args.update({'env':env})
+  p=Popen(cmd, stdout=PIPE, stderr=STDOUT, bufsize=1, **args)
+  lastlines=10*1024
+  logbuf=[bytes() for _ in range(lastlines)]
+  for i,line in enumerate(p.stdout):
+    try:
+      sys.stdout.write(line.decode('utf-8'))
+      sys.stdout.flush()
+    except UnicodeDecodeError:
+      print('<Undecodable>')
+    if log_file is not None:
+      logbuf[i%len(logbuf)]=line
+      with open(log_file,'wb') as f:
+        for i2 in range(min(i,len(logbuf))):
+          f.write(logbuf[(i-i2)%len(logbuf)])
+          # ^ FIXME: reverse log order
+          # ^ FIXME: copy and move rather than copy
+          # ^ FIXME: don't write full file every time
+  retcode=p.wait()
+  if assert_retcode is not None:
+    assert retcode==assert_retcode, \
+      f"Expected {assert_retcode} retcode, but had {retcode}"
   return
 
 def readlines(filepath:str, tostrip:str='\n')->Iterable[str]:

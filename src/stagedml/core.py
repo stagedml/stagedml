@@ -86,8 +86,8 @@ def lrealize(clo:Closure, subdirs:List[str]=[], **kwargs)->RRef:
 
 
 def borrow(rref:RRef, clo:Closure)->RRef:
-  """ Borrows the contents of `rref` to cook the realization of `clo`.
-  Intended for for hot-fixes failed realizations. Use with caution!
+  """ Borrows the contents of `rref` as-is to cook the realization of `clo`.
+  Intended to hot-fix/monkey-patch realizations. Use with caution!
 
   - FIXME: Maybe move `borrow` to Pylightnix.
   - FIXME: Maybe re-define `borrow` via `pylightnix.redefine`+copying

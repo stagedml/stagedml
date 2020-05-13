@@ -32,35 +32,38 @@ import tensorflow as tf
 TokSentence=List[str]
 TokDoc=List[TokSentence]
 
-def tokenize_file(input_file:str, tokenizer:FullTokenizer)->List[TokDoc]:
-  chars=[chr(ord('a')+x) for x in range(ord('z')-ord('a'))]
-  print(chars[getpid()%len(chars)], end='', flush=True)
-  all_documents:List[TokDoc] = [[]]
+
+def tokenize_document(json_doc:str, tokenizer:FullTokenizer)->TokDoc:
+  sentences=json_loads(json_doc)['text'].split('\n')
   sentences_skipped=0
   sentences_tokenized=0
-  with bz2_open(input_file, "rt", encoding='utf-8') as reader:
-    for line in reader:
-      d=json_loads(line)
-      sentences=d['text'].split('\n')
+  doc=[]
+  for i,s in enumerate(sentences):
+    s=s.strip()
+    tokens:Optional[TokSentence] = tokenizer.tokenize(s)
+    if tokens:
+      doc.append(tokens)
+      sentences_tokenized+=1
+    else:
+      if len(s)>0:
+        sentences_skipped+=1
+      else:
+        sentences_tokenized+=1
+  return doc
 
-      for i,s in enumerate(sentences):
-        s=s.strip()
-        tokens:Optional[TokSentence] = tokenizer.tokenize(s)
-        if tokens:
-          all_documents[-1].append(tokens)
-          sentences_tokenized+=1
-        else:
-          if len(s)>0:
-            sentences_skipped+=1
-          else:
-            sentences_tokenized+=1
-      all_documents.append([])
+def tokenize_file(input_file:str, tokenizer:FullTokenizer)->List[TokDoc]:
+  with bz2_open(input_file, "rt", encoding='utf-8') as reader:
+    with Pool(processes=15) as p:
+      all_documents:List[TokDoc]=\
+        p.map(partial(tokenize_document,tokenizer=tokenizer), reader)
+    # for json_line in reader:
+    #   all_documents.append(tokenize_document(json_line, tokenizer))
   all_documents = [x for x in all_documents if len(x)>0]
   return all_documents
 
 
-
 def realize_pretraining(b:Build)->None:
+  build_setoutpaths(b, nouts=1)
   tokenizer = FullTokenizer(vocab_file=mklens(b).vocab_file.syspath,
                             do_lower_case=mklens(b).do_lower_case.val)
 
@@ -70,58 +73,76 @@ def realize_pretraining(b:Build)->None:
       if filename.endswith('bz2'):
         input_files.append(abspath(join(root, filename)))
 
-  max_seq_length=mklens(b).max_seq_length.val
   dupe_factor=mklens(b).dupe_factor.val
+  memory_per_file_factor=8*dupe_factor
+  tinsts_per_ofile=mklens(b).training_instances_per_output_file.val
+  output_files_in_shuffle=mklens(b).output_files_in_shuffle.val
+  max_seq_length=mklens(b).max_seq_length.val
   short_seq_prob=mklens(b).short_seq_prob.val
   masked_lm_prob=mklens(b).masked_lm_prob.val
+  documents_per_shuffle=mklens(b).documents_per_shuffle.val
   max_predictions_per_seq=mklens(b).max_predictions_per_seq.val
   do_whole_word_mask=mklens(b).do_whole_word_mask.val
   rng=Random(mklens(b).random_seed.val)
-  ncpu=round((cpu_count() or 1)*0.75)
+  ncpu=max(1,((cpu_count() or 1)*3)//4)
   outdir=mklens(b).output.syspath
+  vocab_words = list(tokenizer.vocab.keys())
   makedirs(outdir)
 
-  for ibatch,ifiles in enumerate(batch(input_files,mklens(b).input_files_chunk.val)):
-    print(f"Reading next {len(ifiles)} files")
-    ofiles=[join(outdir,'output-%02d-%02d.tfrecord'%(ibatch,nout)) for nout in \
-            range(mklens(b).output_files_per_chunk.val)]
+  all_documents:List[TokDoc]=[]
+  all_instances:List[TrainingInstance]=[]
 
-    with Pool(processes=ncpu) as p:
-      all_documents=\
-          concat(p.map(
-            partial(tokenize_file,tokenizer=tokenizer),
-            ifiles, chunksize=max(1,len(ifiles)//(4*ncpu))))
-
-    print(f'Read {len(all_documents)} documents')
-    print('Shuffling documents')
-    rng.shuffle(all_documents)
-
-    print('Producing instances')
-    vocab_words = list(tokenizer.vocab.keys())
-    instances:List[TrainingInstance] = []
-    for _ in range(dupe_factor):
-      for document_index in range(len(all_documents)):
-        instances.extend(
-            create_instances_from_document(
-                all_documents, document_index, max_seq_length, short_seq_prob,
-                masked_lm_prob, max_predictions_per_seq, vocab_words, rng,
-                do_whole_word_mask))
-
-    print(f'Produced {len(instances)} instances')
-    print('Shuffling instances')
-    rng.shuffle(instances)
-
-    print('Writing tfrecords')
+  ofiles_num=0
+  def _dump_instances(insts):
+    nonlocal ofiles_num
+    nfiles=(len(insts)//tinsts_per_ofile) + \
+           (1 if (len(insts)%tinsts_per_ofile)>0 else 0)
+    ofiles=[join(outdir,'output-%04d.tfrecord'%(ofiles_num+n,)) \
+            for n in range(nfiles)]
+    print(f"Dumping {len(insts)} instances")
+    ofiles_num+=len(ofiles)
+    rng.shuffle(insts)
     write_instance_to_example_files(
-      instances, tokenizer,
+      insts, tokenizer,
       mklens(b).max_seq_length.val,
       mklens(b).max_predictions_per_seq.val,
       ofiles,
       gzip_compress=True)
-    print('')
+
+  def _dump_documents(docs):
+    nonlocal all_instances
+    print(f"Dumping {len(docs)} documents")
+    rng.shuffle(docs)
+    for _ in range(dupe_factor):
+      document_indices=list(range(len(docs)))
+      rng.shuffle(document_indices)
+      for document_index in document_indices:
+        all_instances.extend(
+          create_instances_from_document(
+            docs, document_index, max_seq_length, short_seq_prob,
+            masked_lm_prob, max_predictions_per_seq, vocab_words, rng,
+            do_whole_word_mask))
+        while len(all_instances)>=tinsts_per_ofile*output_files_in_shuffle:
+          _dump_instances(all_instances[:tinsts_per_ofile*output_files_in_shuffle])
+          all_instances=all_instances[tinsts_per_ofile*output_files_in_shuffle:]
+      print(f"Instances collected: {len(all_instances)}")
+
+  rng.shuffle(input_files)
+  for i,ifile in enumerate(input_files):
+    print(f"Tokenizing files {i+1}/{len(input_files)}")
+    tds=tokenize_file(ifile,tokenizer=tokenizer)
+    all_documents.extend(tds)
+
+    print(f"Documents collected: {len(all_documents)}")
+    while len(all_documents)>documents_per_shuffle:
+      _dump_documents(all_documents[:documents_per_shuffle])
+      all_documents=all_documents[documents_per_shuffle:]
+
+  _dump_documents(all_documents)
+  _dump_instances(all_instances)
 
 
-def bert_pretrain_tfrecords(m:Manager, vocab_file:RefPath, wiki:Wikitext)->WikiTFR:
+def bert_pretrain_tfrecords(m:Manager, vocab_file:RefPath, wikiref:Wikitext)->WikiTFR:
 
   def _config():
     name='bert_pretraining'
@@ -134,9 +155,11 @@ def bert_pretrain_tfrecords(m:Manager, vocab_file:RefPath, wiki:Wikitext)->WikiT
     do_lower_case=True
     do_whole_word_mask=False
     nonlocal vocab_file
-    input_folder=mklens(wiki).output.refpath
-    input_files_chunk=100
-    output_files_per_chunk=4
+    input_folder=mklens(wikiref).output.refpath
+    input_filesize_mb=mklens(wikiref).filesize_mb.val
+    training_instances_per_output_file=100000
+    output_files_in_shuffle=10
+    documents_per_shuffle=100000
     output=[promise,'output']
     return mkconfig(locals())
 
@@ -274,53 +297,55 @@ def build(m:Model)->None:
         Input(shape=(c.max_seq_length,), name='input_mask', dtype=tf.int32),
         Input(shape=(c.max_seq_length,), name='input_type_ids', dtype=tf.int32))
 
-    bert_layer = BertLayer(config=bert_config, float_type=tf.float32, name='BERT')
+    bert_layer=BertLayer(config=bert_config, float_type=tf.float32, name='BERT')
 
-    bert_outputs = bert_layer(bert_inputs)
+    bert_outputs=bert_layer(bert_inputs)
 
     bert_model=tf.keras.Model(inputs=bert_inputs,
                               outputs=[bert_outputs.hidden_output[-1],
                               bert_outputs.cls_output])
 
-    masked_lm_positions = Input( shape=(c.max_predictions_per_seq,),
-        name='masked_lm_positions', dtype=tf.int32)
+    masked_lm_positions = Input(shape=(c.max_predictions_per_seq,),
+      name='masked_lm_positions', dtype=tf.int32)
     masked_lm_ids = Input( shape=(c.max_predictions_per_seq,),
-        name='masked_lm_ids', dtype=tf.int32)
-    masked_lm_weights = Input( shape=(c.max_predictions_per_seq,),
-        name='masked_lm_weights', dtype=tf.int32)
-    next_sentence_labels = Input( shape=(1,),
-        name='next_sentence_labels', dtype=tf.int32)
+      name='masked_lm_ids', dtype=tf.int32)
+    masked_lm_weights = Input(shape=(c.max_predictions_per_seq,),
+      name='masked_lm_weights', dtype=tf.int32)
+    next_sentence_labels = Input(shape=(1,),
+      name='next_sentence_labels', dtype=tf.int32)
 
-    bert_pretrain = BertPretrainer(
-        network=bert_model,
-        embedding_table=bert_layer.embedding_lookup.embeddings,
-        num_classes=2,
-        num_token_predictions=c.max_predictions_per_seq,
-        initializer=TruncatedNormal(stddev=bert_config['initializer_range']),
-        output='predictions')
+    bert_pretrain=BertPretrainer(
+      network=bert_model,
+      embedding_table=bert_layer.embedding_lookup.embeddings,
+      num_classes=2,
+      num_token_predictions=c.max_predictions_per_seq,
+      initializer=TruncatedNormal(stddev=bert_config['initializer_range']),
+      output='predictions')
 
-    lm_output, sentence_output = bert_pretrain([
-        bert_inputs.input_word_ids, bert_inputs.input_mask,
-        bert_inputs.input_type_ids, masked_lm_positions ])
+    lm_output,sentence_output=bert_pretrain([
+      bert_inputs.input_word_ids, bert_inputs.input_mask,
+      bert_inputs.input_type_ids, masked_lm_positions ])
 
-    pretrain_loss_layer = BertPretrainLossAndMetricLayer(vocab_size=bert_config['vocab_size'])
-    output_loss = pretrain_loss_layer(lm_output, sentence_output,
-                                      masked_lm_ids, masked_lm_weights, next_sentence_labels)
-    model = tf.keras.Model(
-        inputs={
-            'input_word_ids': bert_inputs.input_word_ids,
-            'input_mask': bert_inputs.input_mask,
-            'input_type_ids': bert_inputs.input_type_ids,
-            'masked_lm_positions': masked_lm_positions,
-            'masked_lm_ids': masked_lm_ids,
-            'masked_lm_weights': masked_lm_weights,
-            'next_sentence_labels': next_sentence_labels,
-        },
-        outputs=output_loss)
+    pretrain_loss_layer=BertPretrainLossAndMetricLayer(
+      vocab_size=bert_config['vocab_size'])
+    output_loss=pretrain_loss_layer(lm_output, sentence_output,
+                                    masked_lm_ids, masked_lm_weights,
+                                    next_sentence_labels)
+    model=tf.keras.Model(
+      inputs={
+        'input_word_ids': bert_inputs.input_word_ids,
+        'input_mask': bert_inputs.input_mask,
+        'input_type_ids': bert_inputs.input_type_ids,
+        'masked_lm_positions': masked_lm_positions,
+        'masked_lm_ids': masked_lm_ids,
+        'masked_lm_weights': masked_lm_weights,
+        'next_sentence_labels': next_sentence_labels,
+      },
+      outputs=output_loss)
 
-    optimizer = create_optimizer(
-        init_lr=c.lr, num_train_steps=c.train_steps_per_epoch*c.train_epoches,
-        num_warmup_steps=c.train_warmup_steps)
+    optimizer=create_optimizer(
+      init_lr=c.lr, num_train_steps=c.train_steps_per_epoch*c.train_epoches,
+      num_warmup_steps=c.train_warmup_steps)
 
     model.add_loss(tf.reduce_mean(output_loss))
     model.compile(optimizer, experimental_run_tf_function=False)
@@ -333,8 +358,8 @@ def ftrain(m:Model, init:Optional[RRef]=None)->None:
   c = build_cattrs(m)
   o = build_outpath(m)
 
-  ds = bert_pretraining_dataset(
-          mklens(m).tfrecs.rref, c.train_batch_size, is_training=True)
+  ds=bert_pretraining_dataset(mklens(m).tfrecs.rref,
+                              c.train_batch_size, is_training=True)
 
   with m.strategy.scope():
     if init is not None:
@@ -342,21 +367,20 @@ def ftrain(m:Model, init:Optional[RRef]=None)->None:
       m.model.load_weights(mklens(init).checkpoint_full.syspath)
       dircp(mklens(init).logs.syspath, mklens(m).logs.syspath, make_rw=True)
 
-    tensorboard_callback = TensorBoardFixed(
-        steps_getter=lambda : m.epoch*c.train_steps_per_epoch,
-        log_dir=mklens(m).logs.syspath,
-        profile_batch=0,
-        write_graph=False,
-        update_freq='batch')
+    tensorboard_callback=TensorBoardFixed(
+      steps_getter=lambda : m.epoch*c.train_steps_per_epoch,
+      log_dir=mklens(m).logs.syspath,
+      profile_batch=0,
+      write_graph=False,
+      update_freq='batch')
 
-    while m.epoch < c.train_epoches:
+    while m.epoch<c.train_epoches:
       print(f"Training {m.epoch+1}/{c.train_epoches}")
-      h = m.model.fit(ds,
-        initial_epoch=m.epoch,
-        epochs=m.epoch+1,
-        steps_per_epoch=c.train_steps_per_epoch,
-        callbacks=[tensorboard_callback],
-        verbose=True)
+      h=m.model.fit(ds, initial_epoch=m.epoch,
+                        epochs=m.epoch+1,
+                        steps_per_epoch=c.train_steps_per_epoch,
+                        callbacks=[tensorboard_callback],
+                        verbose=True)
 
       m.epoch += 1
       print(f"Saving '{mklens(m).bert_ckpt.syspath}' after {m.epoch} epoch")
@@ -371,22 +395,23 @@ def ftrain(m:Model, init:Optional[RRef]=None)->None:
 
 
 def bert_pretrain_wiki_realize(m:Model, init:Optional[RRef]=None)->None:
-  build_setoutpaths(m,1); runtb(m)
+  build_setoutpaths(m,1);
+  runtb(m) # FIXME
   build(m); ftrain(m,init) # train(m,init); # evaluate(b); keras_save(b)
 
-def bert_pretrain_wiki_(
-    m:Manager,
-    tfrecs:WikiTFR,
-    cfg:Callable[[DRef,int],dict],
-    train_epoches:Optional[int]=None,
-    resume_rref:Optional[RRef]=None)->BertPretrain:
+def bert_pretrain_wiki_(m:Manager,
+                        tfrecs:WikiTFR,
+                        cfg:Callable[[DRef,int],dict],
+                        train_epoches:Optional[int]=None,
+                        resume_rref:Optional[RRef]=None)->BertPretrain:
 
   train_epoches = 10 if train_epoches is None else train_epoches
+  stage=partial(bert_pretrain_wiki_realize, init=resume_rref)
 
   return BertPretrain(BertCP(mkdrv(m,
     config=mkconfig(cfg(tfrecs,train_epoches)),
     matcher=match_latest(), # FIXME! protocol_match('evaluate', 'eval_accuracy'),
-    realizer=build_wrapper_(partial(bert_pretrain_wiki_realize, init=resume_rref), Model))))
+    realizer=build_wrapper_(stage, Model))))
 
 def basebert_pretrain_config(tfrecs, train_epoches)->dict:
   name = 'bert-pretrain-wiki'

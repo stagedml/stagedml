@@ -160,7 +160,10 @@ def cpload(b:Model, iid:int=0)->None:
 
 
 def train(b:Model, iid:int=0)->None:
-  """ Train the model by using `fit` method of Keras.model """
+  """ Train the model by using `fit` method of Keras.model
+
+  DEPRECATED: this method is deprecated in favor of `train_custom`
+  """
   assert b.model is not None
   c=build_cattrs(b)
   o=build_outpaths(b)[iid]
