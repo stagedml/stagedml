@@ -260,6 +260,12 @@ def dataset_cardinality_size(d:Dataset)->Optional[int]:
 
 
 def dataset_iter_size(d_fn:Callable[[],Dataset])->int:
+  """ Returns Dataset cardinality if it is known, otherwize iterate and count.
+
+  Notes:
+  - Do not forget to take `batch_size` into account
+  - The function will not finish if `Dataset.repeat()` was called
+  """
   d=d_fn()
   c=dataset_cardinality_size(d)
   if c is not None:

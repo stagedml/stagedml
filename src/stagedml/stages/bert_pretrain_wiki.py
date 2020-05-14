@@ -8,14 +8,16 @@ from stagedml.imports import ( walk, abspath, join, Random, partial, cpu_count,
     getpid, makedirs, Pool, bz2_open, json_loads, json_load, copy )
 from stagedml.imports.tf import ( Dataset, FixedLenFeature,
     parse_single_example, Input, TruncatedNormal, TensorBoard )
-from stagedml.utils import ( concat, batch, flines, dpurge, modelhash, runtb, TensorBoardFixed )
+from stagedml.utils import ( concat, batch, flines, dpurge, modelhash, runtb,
+    TensorBoardFixed )
 from stagedml.core import ( protocol_add, protocol_add_hist,
     protocol_add_eval, protocol_match )
 
 from official.nlp.bert.tokenization import FullTokenizer, convert_to_unicode
 from official.nlp.optimization import create_optimizer
 from official.nlp.bert.create_pretraining_data import (
-    create_instances_from_document, write_instance_to_example_files, TrainingInstance )
+    create_instances_from_document, write_instance_to_example_files,
+    TrainingInstance )
 from official.nlp.modeling.networks.bert_pretrainer import ( BertPretrainer )
 from official.nlp.bert.bert_models import ( BertPretrainLossAndMetricLayer )
 from official.modeling.model_training_utils import ( run_customized_training_loop )
@@ -174,7 +176,8 @@ def bert_pretraining_dataset(
     tfr:RRef,
     batch_size:int,
     is_training:bool=True,
-    input_pipeline_context=None)->Dataset:
+    input_pipeline_context=None,
+    repeat:bool=True)->Dataset:
   """Creates input dataset from (tf)records files for pretraining."""
 
   input_pattern=f"{mklens(tfr).output.syspath}/*.tfrecord"
@@ -195,7 +198,8 @@ def bert_pretraining_dataset(
     dataset = dataset.shard(input_pipeline_context.num_input_pipelines,
                             input_pipeline_context.input_pipeline_id)
 
-  dataset = dataset.repeat()
+  if repeat:
+    dataset = dataset.repeat()
 
   # We set shuffle buffer to exactly match total number of
   # training files to ensure that training data is well shuffled.
