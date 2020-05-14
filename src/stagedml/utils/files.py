@@ -45,7 +45,7 @@ def system_log(cmd:List[str], log_file:Optional[Path]=None,
   p=Popen(cmd, stdout=PIPE, stderr=STDOUT, bufsize=1, **args)
   lastlines=10*1024
   logbuf=[bytes() for _ in range(lastlines)]
-  for i,line in enumerate(p.stdout):
+  for i,line in enumerate(p.stdout): # type:ignore
     try:
       sys.stdout.write(line.decode('utf-8'))
       sys.stdout.flush()
