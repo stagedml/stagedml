@@ -2,9 +2,10 @@ from pylightnix import ( Manager, mknode, fetchurl, promise, mklens,
     get_executable, DRef, Build, mkdrv, match_only, build_wrapper,
     build_setoutpaths, promise, build_outpath, mkconfig )
 from stagedml.imports import ( environ, join, basename, dedent, contextmanager,
-    isfile, find_executable, cpu_count )
-from stagedml.utils import system
-from stagedml.types import Wikidump, Wikitext, Path, List, Optional
+    isfile, find_executable, cpu_count, bz2_open, walk, Pool, abspath,
+    json_loads )
+from stagedml.utils import ( system, writestr )
+from stagedml.types import ( Wikidump, Wikitext, Path, List, Optional, Tuple )
 
 def fetchwiki(m:Manager, dumpname:str, dumpdate:str, sha1:str)->Wikidump:
   name=f'{dumpname}-{dumpdate}-pages-articles.xml.bz2'
@@ -63,7 +64,44 @@ def extractwiki(m:Manager,
     'wikiextractor_args':wa,
     }
 
-  return Wikitext(mkdrv(m,mkconfig(config),
-                          match_only(),
-                          build_wrapper(extractwiki_realize)))
+  return Wikitext(mkdrv(m, mkconfig(config), match_only(),
+                           build_wrapper(extractwiki_realize)))
 
+def wikistat_process_file(input_file:str)->Tuple[int,int]:
+  nwords=0; ndocs=0
+  with bz2_open(input_file, "rt", encoding='utf-8') as reader:
+    for json_doc in reader:
+      sentences=json_loads(json_doc)['text'].split('\n')
+      nwords+=sum([len(s.split()) for s in sentences])
+      ndocs+=1
+  return ndocs,nwords
+
+def wikistat_realize(b):
+  build_setoutpaths(b,1)
+
+  input_files = []
+  for root, dirs, filenames in walk(mklens(b).input_folder.syspath, topdown=True):
+    for filename in sorted(filenames):
+      if filename.endswith('bz2'):
+        input_files.append(abspath(join(root, filename)))
+
+  with Pool() as p:
+    results=list(p.map(wikistat_process_file, input_files))
+
+  writestr(mklens(b).output.docnum.syspath, str(sum([r[0] for r in results])))
+  writestr(mklens(b).output.wordnum.syspath, str(sum([r[1] for r in results])))
+
+
+def wikistat(m:Manager,
+             wikiref:Wikitext)->DRef:
+  def _config():
+    name='wikistat'
+    nonlocal wikiref
+    input_folder=mklens(wikiref).output.refpath
+    output={'docnum':[promise,'docnum.txt'],
+            'wordnum':[promise,'wordnum.txt']}
+    version=4
+    return locals()
+
+  return mkdrv(m, mkconfig(_config()), match_only(),
+                  build_wrapper(wikistat_realize))
