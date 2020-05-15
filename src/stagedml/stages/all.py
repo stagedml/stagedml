@@ -28,7 +28,7 @@ from stagedml.stages.fetchwmt import wmtsubtok, wmtsubtokInv
 from stagedml.stages.transformer_wmt import transformer_wmt
 # from stagedml.stages.transformer2 import transformer2
 from stagedml.stages.convnn_mnist import fetchmnist, convnn_mnist
-from stagedml.stages.fetchenwiki import fetchwiki, extractwiki
+from stagedml.stages.fetchwiki import fetchwiki, extractwiki
 from stagedml.stages.bert_pretrain_wiki import ( bert_pretrain_tfrecords,
     basebert_pretrain_wiki, minibert_pretrain_wiki )
 from stagedml.stages.fetchrusent import ( fetchrusent, rusent_tfrecords )
