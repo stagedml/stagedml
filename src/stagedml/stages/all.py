@@ -28,7 +28,7 @@ from stagedml.stages.fetchwmt import wmtsubtok, wmtsubtokInv
 from stagedml.stages.transformer_wmt import transformer_wmt
 # from stagedml.stages.transformer2 import transformer2
 from stagedml.stages.convnn_mnist import fetchmnist, convnn_mnist
-from stagedml.stages.fetchwiki import fetchwiki, extractwiki
+from stagedml.stages.fetchwiki import fetchwiki, extractwiki, wikistat
 from stagedml.stages.bert_pretrain_wiki import ( bert_pretrain_tfrecords,
     basebert_pretrain_wiki, minibert_pretrain_wiki )
 from stagedml.stages.fetchrusent import ( fetchrusent, rusent_tfrecords )
@@ -41,6 +41,7 @@ from stagedml.core import ( lrealize, tryrealize, diskspace_h, linkrref,
     realize_recursive, depgraph, initialize, borrow )
 from stagedml.imports import ( walk, join, abspath, islink, partial,
     get_terminal_size, BeautifulTable )
+from stagedml.utils import ( runtb )
 
 #: Glue dataset
 all_fetchglue = fetchglue
@@ -65,7 +66,8 @@ def all_fetcholdbert(m:Manager)->BertCP:
     ))
 
 def all_fetchbert(m:Manager)->BertCP:
-  """ Fetch BERT-base pretrained checkpoint from the Google cloud """
+  """ Fetch BERT-base pretrained checkpoint from the Google cloud
+  FIXME: rename to `all_fetch_basebert` """
   return BertCP(fetchurl(m,
     name='basebert-uncased',
     url='https://storage.googleapis.com/bert_models/2020_02_20/uncased_L-12_H-768_A-12.zip',
@@ -90,6 +92,7 @@ def all_fetch_multibert(m:Manager)->BertCP:
 
 
 def all_fetchminibert(m:Manager)->BertCP:
+  """ FIXME: rename to `all_fetch_minibert` """
   return BertCP(fetchurl(m,
     name='minibert-uncased',
     url='https://storage.googleapis.com/bert_models/2020_02_20/uncased_L-4_H-256_A-4.zip',
@@ -267,11 +270,11 @@ def all_extractruwiki(m:Manager)->Wikitext:
   return extractwiki(m,all_fetchruwiki(m))
 
 def all_enwiki_tfrecords(m:Manager)->WikiTFR:
-  """
-  FIXME: don't use old BERT
+  """ Create TFRecords dataset for English Wikipedia dump. Use vocabulary from
+  Base BERT model by Google Research.
   """
   w=all_extractenwiki(m)
-  b=all_fetcholdbert(m)
+  b=all_fetchbert(m)
   return bert_pretrain_tfrecords(m,
       vocab_file=mklens(b).bert_vocab.refpath, wikiref=w)
 

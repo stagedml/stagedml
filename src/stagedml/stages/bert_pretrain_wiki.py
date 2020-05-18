@@ -9,7 +9,7 @@ from stagedml.imports import ( walk, abspath, join, Random, partial, cpu_count,
 from stagedml.imports.tf import ( Dataset, FixedLenFeature,
     parse_single_example, Input, TruncatedNormal, TensorBoard )
 from stagedml.utils import ( concat, batch, flines, dpurge, modelhash, runtb,
-    TensorBoardFixed )
+    TensorBoardFixed, writestr, readstr )
 from stagedml.core import ( protocol_add, protocol_add_hist,
     protocol_add_eval, protocol_match )
 
@@ -147,7 +147,7 @@ def realize_pretraining(b:Build)->None:
 def bert_pretrain_tfrecords(m:Manager, vocab_file:RefPath, wikiref:Wikitext)->WikiTFR:
 
   def _config():
-    name='bert_pretraining'
+    name='wiki-tfrecords'
     max_seq_length=128
     max_predictions_per_seq=20
     random_seed=17
@@ -279,10 +279,12 @@ class Model(Build):
   strategy:Any
   optimizer:Any
   epoch:int
+  wall_clock_init:float
 
   def __init__(self, ba):
     super().__init__(ba)
     self.epoch=0
+    self.wall_clock_init=0.0
 
 
 def build(m:Model)->None:
@@ -370,16 +372,19 @@ def ftrain(m:Model, init:Optional[RRef]=None)->None:
       m.epoch = mklens(init).train_epoches.val
       m.model.load_weights(mklens(init).checkpoint_full.syspath)
       dircp(mklens(init).logs.syspath, mklens(m).logs.syspath, make_rw=True)
-
-    tensorboard_callback=TensorBoardFixed(
-      steps_getter=lambda : m.epoch*c.train_steps_per_epoch,
-      log_dir=mklens(m).logs.syspath,
-      profile_batch=0,
-      write_graph=False,
-      update_freq='batch')
+      m.wall_clock_init=float(readstr(mklens(init).traintime.syspath))
 
     while m.epoch<c.train_epoches:
+
       print(f"Training {m.epoch+1}/{c.train_epoches}")
+      tensorboard_callback=TensorBoardFixed(
+        init_steps=m.epoch*c.train_steps_per_epoch,
+        wall_clock_init=m.wall_clock_init,
+        log_dir=mklens(m).logs.syspath,
+        profile_batch=0,
+        write_graph=False,
+        update_freq='epoch')
+
       h=m.model.fit(ds, initial_epoch=m.epoch,
                         epochs=m.epoch+1,
                         steps_per_epoch=c.train_steps_per_epoch,
@@ -394,6 +399,11 @@ def ftrain(m:Model, init:Optional[RRef]=None)->None:
       print(f"Saving '{mklens(m).checkpoint_full.syspath}' after {m.epoch} epoch")
       m.model.save_weights(mklens(m).checkpoint_full.syspath)
 
+      print(f"Saving wallclock")
+      writestr(mklens(m).traintime.syspath,
+        str(tensorboard_callback.wall_clock_last))
+      m.wall_clock_init=tensorboard_callback.wall_clock_last
+
   protocol_add_hist(mklens(m).protocol.syspath, 'train', modelhash(m.model), h)
 
 
@@ -405,25 +415,30 @@ def bert_pretrain_wiki_realize(m:Model, init:Optional[RRef]=None)->None:
 
 def bert_pretrain_wiki_(m:Manager,
                         tfrecs:WikiTFR,
-                        cfg:Callable[[DRef,int],dict],
+                        cfg:Callable[[DRef,int,int],dict],
                         train_epoches:Optional[int]=None,
+                        train_steps_per_epoch:Optional[int]=None,
                         resume_rref:Optional[RRef]=None)->BertPretrain:
 
-  train_epoches = 10 if train_epoches is None else train_epoches
+  train_steps_per_epoch = 10000 if train_steps_per_epoch is None \
+                                else train_steps_per_epoch
+  train_epoches = (10**6 // train_steps_per_epoch) if train_epoches is None \
+                                                   else train_epoches
   stage=partial(bert_pretrain_wiki_realize, init=resume_rref)
 
   return BertPretrain(BertCP(mkdrv(m,
-    config=mkconfig(cfg(tfrecs,train_epoches)),
+    config=mkconfig(cfg(tfrecs,train_steps_per_epoch, train_epoches)),
     matcher=match_latest(), # FIXME! protocol_match('evaluate', 'eval_accuracy'),
     realizer=build_wrapper_(stage, Model))))
 
-def basebert_pretrain_config(tfrecs, train_epoches)->dict:
+def basebert_pretrain_config(tfrecs, train_steps_per_epoch, train_epoches)->dict:
   name = 'bert-pretrain-wiki'
   max_seq_length=mklens(tfrecs).max_seq_length.val
   max_predictions_per_seq=mklens(tfrecs).max_predictions_per_seq.val
   lr = 2e-5
   train_batch_size = 16
   train_epoches=train_epoches
+  train_steps_per_epoch=train_steps_per_epoch
   bert_config_template={
       "attention_probs_dropout_prob": 0.1,
       "hidden_act": "gelu",
@@ -436,22 +451,22 @@ def basebert_pretrain_config(tfrecs, train_epoches)->dict:
       "num_hidden_layers": 12,
       "type_vocab_size": 2 }
   train_steps_per_loop = 200
-  train_steps_per_epoch = 1000
-  train_warmup_steps = 10000 # FIXME: Sic! why so much?
+  train_warmup_steps = 10000
   protocol = [promise, 'protocol.json']
   checkpoint_full = [claim, 'checkpoint_full.ckpt']
   bert_ckpt = [claim, 'checkpoint_bert.ckpt-1'] # FIXME: this name is a magic
   bert_config = [promise, 'bert_config.json']
   bert_vocab = mklens(tfrecs).vocab_file.refpath
   logs = [promise, 'logs']
+  traintime = [promise, 'traintime.txt']
   version = 8
   return locals()
 
 basebert_pretrain_wiki=partial(bert_pretrain_wiki_, cfg=basebert_pretrain_config)
 
 
-def minibert_pretrain_config(tfrecs, train_epoches):
-  cfg=basebert_pretrain_config(tfrecs, train_epoches)
+def minibert_pretrain_config(tfrecs, train_steps_per_epoch, train_epoches):
+  cfg=basebert_pretrain_config(tfrecs, train_steps_per_epoch, train_epoches)
   cfg['name']='minibert-pretrain-wiki'
   cfg['bert_config_template']={
       "attention_probs_dropout_prob": 0.1,

@@ -15,13 +15,15 @@ from pylightnix import ( Closure, Path, Build, Hash, DRef, assert_valid_rref,
 from stagedml.imports.tf import ( TensorBoard, list_variables, History, Dataset,
     MakeNdarray )
 from stagedml.imports.sys import ( Popen, join, remove, listdir, re_search, md5,
-    os_run, Popen )
+    os_run, Popen, default_timer )
 
 from stagedml.types import ( Union, List, Any, Optional, Tuple, Callable,
     TypeVar, Dict )
 
 FloatTensorLike = Union[tf.Tensor, float, np.float16, np.float32, np.float64]
 AcceptableDTypes = Union[tf.DType, np.dtype, type, int, str, None]
+
+from tensorflow.python.ops import summary_ops_v2
 
 #  _   _ _   _ _
 # | | | | |_(_) |___
@@ -109,14 +111,17 @@ def print_model_checkpoint_diff(m:tf.keras.Model, cprefix:str, tmpdir:Path)->Non
 
 class TensorBoardFixed(TensorBoard):
   """ TensorBoard callback with a patch wich fixes training steps counter """
-  def __init__(self, steps_getter, *args, **kwargs):
-    self.steps_getter=steps_getter
+  def __init__(self, init_steps, *args, wall_clock_init:float=0.0, **kwargs):
+    self.init_steps=init_steps
+    self.wall_clock_init:float=wall_clock_init
+    self.wall_clock_base:float=0.0
+    self.wall_clock_last:float=0.0
     super().__init__(*args,**kwargs)
 
   def _init_batch_steps(self):
     from tensorflow.python.framework import ops
     from tensorflow.python.ops import variables
-    init_steps=self.steps_getter()
+    init_steps=self.init_steps
     if ops.executing_eagerly_outside_functions():
       self._total_batches_seen = {
           self._train_run_name: variables.Variable(init_steps, dtype='int64'),
@@ -127,6 +132,31 @@ class TensorBoardFixed(TensorBoard):
           self._train_run_name: init_steps,
           self._validation_run_name: init_steps
       }
+
+  def on_train_begin(self, logs=None):
+    super().on_train_begin(logs=logs)
+    self.wall_clock_base=default_timer()
+
+  def on_train_batch_end(self, batch, logs=None):
+    super().on_train_batch_end(batch, logs)
+    if self.update_freq == 'epoch':
+      return
+    step=self._total_batches_seen[self._train_run_name]
+    writer=self._get_writer(self._train_run_name)
+    value=self.wall_clock_init+(default_timer()-self.wall_clock_base)
+    with writer.as_default():
+      summary_ops_v2.scalar('batch_wallclock', value, step=step)
+    self.wall_clock_last=value
+
+  def on_train_epoch_end(self, epoch, logs=None):
+    super().on_train_epoch_end(batch, logs)
+    writer=self._get_writer(self._train_run_name)
+    value=self.wall_clock_init+(default_timer()-self.wall_clock_base)
+    with writer.as_default():
+      summary_ops_v2.scalar('epoch_wallclock', value, step=epoch)
+    self.wall_clock_last=value
+
+
 
 class FBetaScore(tf.keras.metrics.Metric):
   def __init__(self,

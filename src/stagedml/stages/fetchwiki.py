@@ -49,6 +49,10 @@ def extractwiki(m:Manager,
                 wikiref:Wikidump,
                 with_templates:bool=False,
                 wikiextractor_args:Optional[List[str]]=None)->Wikitext:
+  """ Extract Wikipedia dump into a set of compressed JSON files.
+
+  FIXME: Add promise with final command line of WikiExtractor
+  """
   assert WIKIEXTRACTOR is not None, (
     "Can't find `WikiExtractor.py` executable! You can install it from "
     "https://github.com/stagedml/wikiextractor" )
@@ -86,10 +90,10 @@ def wikistat_realize(b):
         input_files.append(abspath(join(root, filename)))
 
   with Pool() as p:
-    results=list(p.map(wikistat_process_file, input_files))
+    ndocs,nwords=zip(*list(p.map(wikistat_process_file, input_files)))
 
-  writestr(mklens(b).output.docnum.syspath, str(sum([r[0] for r in results])))
-  writestr(mklens(b).output.wordnum.syspath, str(sum([r[1] for r in results])))
+  writestr(mklens(b).output.docnum.syspath, str(sum(ndocs)))
+  writestr(mklens(b).output.wordnum.syspath, str(sum(nwords)))
 
 
 def wikistat(m:Manager,
@@ -100,7 +104,7 @@ def wikistat(m:Manager,
     input_folder=mklens(wikiref).output.refpath
     output={'docnum':[promise,'docnum.txt'],
             'wordnum':[promise,'wordnum.txt']}
-    version=4
+    version=5
     return locals()
 
   return mkdrv(m, mkconfig(_config()), match_only(),

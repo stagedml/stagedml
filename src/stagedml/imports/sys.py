@@ -25,3 +25,4 @@ from hashlib import md5
 from pygraphviz import AGraph
 from pandas import DataFrame, read_csv
 from collections import OrderedDict
+from timeit import default_timer
