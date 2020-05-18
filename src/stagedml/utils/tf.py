@@ -138,23 +138,20 @@ class TensorBoardFixed(TensorBoard):
     self.wall_clock_base=default_timer()
 
   def on_train_batch_end(self, batch, logs=None):
+    writer=self._get_writer(self._train_run_name)
+    value=self.wall_clock_init+(default_timer()-self.wall_clock_base)
+    self.wall_clock_last=value
+    assert logs is not None
+    logs.update({'wallclock':value})
     super().on_train_batch_end(batch, logs)
-    if self.update_freq == 'epoch':
-      return
-    step=self._total_batches_seen[self._train_run_name]
-    writer=self._get_writer(self._train_run_name)
-    value=self.wall_clock_init+(default_timer()-self.wall_clock_base)
-    with writer.as_default():
-      summary_ops_v2.scalar('batch_wallclock', value, step=step)
-    self.wall_clock_last=value
 
-  def on_train_epoch_end(self, epoch, logs=None):
-    super().on_train_epoch_end(batch, logs)
+  def on_epoch_end(self, epoch, logs):
     writer=self._get_writer(self._train_run_name)
     value=self.wall_clock_init+(default_timer()-self.wall_clock_base)
-    with writer.as_default():
-      summary_ops_v2.scalar('epoch_wallclock', value, step=epoch)
     self.wall_clock_last=value
+    assert logs is not None
+    logs.update({'wallclock':value})
+    super().on_epoch_end(epoch, logs)
 
 
 

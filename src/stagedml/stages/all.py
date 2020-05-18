@@ -295,16 +295,20 @@ def all_minibert_pretrain(m:Manager, **kwargs)->BertPretrain:
   tfr=all_enwiki_tfrecords(m)
   return minibert_pretrain_wiki(m, tfr, **kwargs)
 
-def dryrun_minibert_pretrain(m:Manager, train_epoches=1, resume_rref=None
+def dryrun_minibert_pretrain(m:Manager, train_epoches=3, resume_rref=None
                         )->BertPretrain:
   """ Dry-run a simple convolutional model on MNIST """
-  def _new_config(d):
+  def _nc1(c):
+    mklens(c).dupe_factor.val=2
+  tfrecs=redefine(all_enwiki_tfrecords, new_config=_nc1)(m)
+  def _nc2(d):
     mklens(d).name.val+='-dryrun'
     mklens(d).train_steps_per_loop.val=1
-    mklens(d).train_steps_per_epoch.val=10
-  return redefine(partial(all_minibert_pretrain,
+    mklens(d).train_steps_per_epoch.val=30
+  return redefine(partial(minibert_pretrain_wiki,
+                          tfrecs=tfrecs,
                           train_epoches=train_epoches,
-                          resume_rref=resume_rref), new_config=_new_config)(m)
+                          resume_rref=resume_rref), new_config=_nc2)(m)
 
 
 def gcfind()->Tuple[Set[DRef],Set[RRef]]:

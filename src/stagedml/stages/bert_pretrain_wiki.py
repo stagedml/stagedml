@@ -416,8 +416,8 @@ def bert_pretrain_wiki_realize(m:Model, init:Optional[RRef]=None)->None:
 def bert_pretrain_wiki_(m:Manager,
                         tfrecs:WikiTFR,
                         cfg:Callable[[DRef,int,int],dict],
-                        train_epoches:Optional[int]=None,
                         train_steps_per_epoch:Optional[int]=None,
+                        train_epoches:Optional[int]=None,
                         resume_rref:Optional[RRef]=None)->BertPretrain:
 
   train_steps_per_epoch = 10000 if train_steps_per_epoch is None \
