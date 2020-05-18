@@ -174,15 +174,6 @@ def all_multibert_finetune_glue(m:Manager, task_name:str='MRPC')->BertGlue:
 #   glueref=all_glue_tfrecords(m,task_name)
 #   return bert_finetune_glue(m,refbert,glueref)
 
-def dryrun_bert_finetune_glue(m:Manager, task_name:str='MRPC')->BertGlue:
-  """ Train a simple convolutional model on MNIST """
-  def _new_config(d):
-    mklens(d).name.val+='-dryrun'
-    mklens(d).train_epoches.val=1
-    mklens(d).dataset_size.val=100
-  return redefine(stage=partial(all_bert_finetune_glue, task_name=task_name),
-                  new_config=_new_config)(m)
-
 
 def all_multibert_finetune_rusentiment(m:Manager):
   refbert=all_fetch_multibert(m)
@@ -237,13 +228,6 @@ def all_convnn_mnist(m:Manager)->ConvnnMnist:
   """ Train a simple convolutional model on MNIST """
   return convnn_mnist(m, fetchmnist(m))
 
-def dryrun_convnn_mnist(m:Manager)->ConvnnMnist:
-  """ Dry-run a simple convolutional model on MNIST """
-  def _new_config(d):
-    mklens(d).name.val+='-dryrun'
-    mklens(d).num_epoches.val=1
-  return redefine(all_convnn_mnist, new_config=_new_config)(m)
-
 
 def all_fetchenwiki(m:Manager)->Wikidump:
   """ Fetch English wikipedia dump """
@@ -294,21 +278,6 @@ def all_basebert_pretrain(m:Manager, **kwargs)->BertPretrain:
 def all_minibert_pretrain(m:Manager, **kwargs)->BertPretrain:
   tfr=all_enwiki_tfrecords(m)
   return minibert_pretrain_wiki(m, tfr, **kwargs)
-
-def dryrun_minibert_pretrain(m:Manager, train_epoches=3, resume_rref=None
-                        )->BertPretrain:
-  """ Dry-run a simple convolutional model on MNIST """
-  def _nc1(c):
-    mklens(c).dupe_factor.val=2
-  tfrecs=redefine(all_enwiki_tfrecords, new_config=_nc1)(m)
-  def _nc2(d):
-    mklens(d).name.val+='-dryrun'
-    mklens(d).train_steps_per_loop.val=1
-    mklens(d).train_steps_per_epoch.val=30
-  return redefine(partial(minibert_pretrain_wiki,
-                          tfrecs=tfrecs,
-                          train_epoches=train_epoches,
-                          resume_rref=resume_rref), new_config=_nc2)(m)
 
 
 def gcfind()->Tuple[Set[DRef],Set[RRef]]:
