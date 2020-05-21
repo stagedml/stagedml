@@ -103,6 +103,19 @@ def all_fetchminibert(m:Manager)->BertCP:
     cased=False
     ))
 
+
+def all_fetch_rubert(m:Manager):
+  return BertCP(fetchurl(m,
+    name='rubert-cased',
+    url='http://files.deeppavlov.ai/deeppavlov_data/bert/rubert_cased_L-12_H-768_A-12_v2.tar.gz',
+    sha256='c73145bfdbb91282fd12fe3943d2ddbbf86d1a0c6c810189cf8ec4ce13d6c0c1',
+    bert_config=[promise,'rubert_cased_L-12_H-768_A-12_v2','bert_config.json'],
+    bert_vocab=[promise,'rubert_cased_L-12_H-768_A-12_v2','vocab.txt'],
+    bert_ckpt=[claim,'rubert_cased_L-12_H-768_A-12_v2','bert_model.ckpt'],
+    cased=True
+    ))
+
+
 def all_glue_tfrecords(m:Manager, task_name:str, lower_case:bool)->GlueTFR:
   """ Fetch and preprocess GLUE dataset. `task_name` should be one of
   `glue_tasks()` """
