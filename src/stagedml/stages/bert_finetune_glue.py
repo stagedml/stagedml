@@ -342,7 +342,7 @@ def bert_finetune_glue(m:Manager, refbert:BertCP,
       build(b);
       if mklens(b).bert_ckpt_in.optval is not None:
         cpload(b,i)
-      tm=mklens(b,build_output_idx=i).train_method.optval
+      tm=build_config(b).val.get('train_method')
       if tm is None or tm=='custom':
         train_custom(b,i);
       elif tm=='fit':

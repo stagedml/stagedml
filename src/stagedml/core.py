@@ -35,10 +35,13 @@ assert isdir(STAGEDML_ROOT), (
 #  \___/ \__|_|_|___/
 
 
-def linkrref(rref:RRef, subdirs:List[str]=[])->None:
+def linkrref(rref:RRef, subdirs:List[str]=[], verbose:bool=False)->None:
   """ Create a 'result-' symlink under the Pylightnix experiments folder """
   tgtpath_=Path(join(STAGEDML_EXPERIMENTS,*subdirs))
   linkname='result-'+config_name(store_config(rref))
+  if verbose:
+    print(f"{tgtpath_}/{linkname} -> {rref}")
+  makedirs(tgtpath_, exist_ok=True)
   mksymlink(rref, tgtpath=tgtpath_, name=linkname, withtime=False)
 
 def diskspace_h(sz:int)->str:

@@ -460,6 +460,7 @@ def basebert_pretrain_config(tfrecs, train_steps_per_epoch, train_epoches)->dict
   logs = [promise, 'logs']
   traintime = [promise, 'traintime.txt']
   version = 8
+  cased = not mklens(tfrecs).do_lower_case.val
   return locals()
 
 basebert_pretrain_wiki=partial(bert_pretrain_wiki_, cfg=basebert_pretrain_config)

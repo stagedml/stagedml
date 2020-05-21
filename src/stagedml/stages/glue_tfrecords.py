@@ -6,7 +6,7 @@ from pylightnix import ( RefPath, Manager, Build, Config, Hash, DRef,
     build_cattrs, build_outpath, build_path, mkdrv, match_only, mklens,
     promise, mkconfig, build_wrapper )
 
-from stagedml.utils import ( json_read, memlimit )
+from stagedml.utils import ( json_read )
 from stagedml.types import Glue,GlueTFR,BertCP
 from stagedml.imports import ( join, mkdir, FullTokenizer,
     file_based_convert_examples_to_features, json_dumps, shuffle )

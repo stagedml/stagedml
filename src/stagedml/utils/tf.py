@@ -31,12 +31,17 @@ from tensorflow.python.ops import summary_ops_v2
 # | |_| | |_| | \__ \
 #  \___/ \__|_|_|___/
 
-def memlimit(mem_gb:float)->None:
+def disable_gpu_prealloc()->None:
+  gpus = tf.config.experimental.list_physical_devices('GPU')
+  for gpu in gpus:
+    tf.config.experimental.set_memory_growth(gpu, True)
+
+def limit_gpu_memory(mem_mb:float)->None:
   gpus = tf.config.experimental.list_physical_devices('GPU')
   if tf.config.experimental.get_virtual_device_configuration(gpus[0]) is None:
     tf.config.experimental.set_virtual_device_configuration(
        gpus[0],
-       [tf.config.experimental.VirtualDeviceConfiguration(memory_limit=mem_gb*1024)])
+       [tf.config.experimental.VirtualDeviceConfiguration(memory_limit=mem_mb)])
 
 def ndhashl(arrays:List[np.array])->str:
   e=md5()
