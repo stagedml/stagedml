@@ -204,8 +204,8 @@ Appendix C: Reproducing the experiment
 
 To run the described experiment, one typically need to follow [StagedML
 user-track installation
-steps](https://github.com/stagedml/stagedml/README.md#install-user-track). As a
-result, you see the shell of the Docker container which contains required
+steps](https://github.com/stagedml/stagedml/blob/master/README.md#install-user-track).
+As a result, you see the shell of the Docker container which contains required
 dependencies. In this shell, change directory to the `~/run/bert_pretrain`
 folder and type
 
