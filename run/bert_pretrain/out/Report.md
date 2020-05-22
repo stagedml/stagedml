@@ -140,7 +140,7 @@ models:
         steps, divided into 50 epoches.
       - We measure wall-clock time during pre-training (not including
         fine-tuning) and the fine-tuning accuracy. Results are shown
-        below:
+        below.
       - Training was done on a single NVidia 1080Ti GPU card.
 
 <!-- end list -->
@@ -162,9 +162,10 @@ for stage in [model_6(), model_3()]:
 
 ``` python numberLines
 chart=alt.Chart(DataFrame(data)).mark_line(point=True).encode(
-  x='wallclock',
-  y=alt.Y('accuracy',scale=alt.Scale(zero=False)),
-  color=alt.Color('layers:O'))
+  x=alt.X('wallclock', title='Wall-clock, seconds'),
+  y=alt.Y('accuracy',scale=alt.Scale(zero=False),
+    title=f'{DEF_FINETUNE_TASK} accuracy'),
+  color=alt.Color('layers:O', title='Num. of layers'))
 print(markdown_altair(chart, 'wallclock_accuracy.png'))
 ```
 
