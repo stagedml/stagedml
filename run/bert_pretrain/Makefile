@@ -1,17 +1,18 @@
 .DEFAULT_GOAL = all
-SRC = $(shell find $(STAGEDML_ROOT)/src -name '*\.py') \
-			$(STAGEDML_ROOT)/run/bert_pretrain/bert_pretrain_experiment.py
-TESTS = $(shell find $(STAGEDML_ROOT)/tests -name '*\.py')
+SRC = $(shell find -name '*\.py')
 
-.stamp_check: $(SRC) $(TESTS)
-ifndef STAGEDML_ROOT
-	$(error STAGEDML_ROOT env var should contain the path to the root of StagedML repo)
+ifdef STAGEDML_SOURCE
+SRC_STAGEDML = $(shell find $(STAGEDML_SOURCE)/src -name '*\.py')
+.stamp_check: $(SRC_STAGEDML) $(STAGEDML_SOURCE)/Makefile Makefile
+	make -C $(STAGEDML_SOURCE) check
+	touch $@
+else
+.stamp_check:
+	touch $@
 endif
-	make -C $(STAGEDML_ROOT) check
-	@if ! which codebraid >/dev/null 2>&1 ; then \
-		echo "Please install `codebraid`" ; \
-		exit 1 ; \
-	fi
+
+.stamp_trained: .stamp_check $(SRC)
+	python3 ./bert_pretrain_experiment.py
 	touch $@
 
 out/Report.md: Report.md.in Makefile $(SRC) $(TESTS) .stamp_check
@@ -25,6 +26,9 @@ out_html/Report.html: Report.md.in Makefile $(SRC) $(TESTS) .stamp_check
 		-f markdown -t html --no-cache --overwrite --standalone --self-contained \
 		--metadata pagetitle="BERT Pretraining" -o $@ $<
 	-rm geckodriver.log
+
+.PHONY: train
+train: .stamp_trained
 
 .PHONY: html
 html: out_html/Report.html

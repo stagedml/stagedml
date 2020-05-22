@@ -1,98 +1,298 @@
-Test summary on BERT pre-training
----------------------------------
+BERT pre-training
+=================
 
-TODO: intro
+This project aims at autmating and reproducing of the following
+technologies:
+
+1.  Generic BERT Pre-training procedure.
+2.  Experiment described by Zhuohan Li et al. [Train Large, Then
+    Compress: Rethinking Model Size for Efficient Training and Inference
+    of Transformers](https://arxiv.org/abs/2002.11794).
+
+This document is a literate Python program rendered with the CodeBraid
+processor.
 
 ``` {.python .numberLines startFrom="1"}
-import altair as alt
-import pandas as pd
-import numpy as np
-from bert_pretrain_experiment import *
 from stagedml.stages.all import *
+from bert_pretrain_experiment import *
+import altair as alt
 ```
 
-The source code of the main training function is as follows:
+-   The current implementation is based on the
+    [StagedML](https://github.com/stagedml/stagedml) framework. We
+    extensively use it's Python-based domain-specific language and
+    terminology.
+-   [Bert-pretrain project](/run/bert_pretrain) is located in the
+    StagedML repository.
+-   [bert\_pretrain\_experiment.py](../bert_pretrain_experiment.py)
+    defines utility stages and procedures required by this experiment.
 
-``` {.html .numberLines startFrom="1"}
-run_bert_pretrain(task_name:str='MRPC', epoches:int=200, epoches_step:int=20
-                     )->Tuple[Dict[int,RRef],Dict[int,RRef]]:
-  """ Run the pre-training of BERT-mini models for a number of `epoches`. Make
-  fine-tuning after every `epoches_step` epoch on the `task_name` GLUE task,
-  collect the results. Return the dictionaries of all models. """
+Contents
+--------
 
-  def _pretrain_stage(nepoch:int, resume_rref:Optional[RRef])->Stage:
-    def _stage(m)->BertCP:
-      return all_minibert_pretrain(m, train_epoches=nepoch, resume_rref=resume_rref)
+1.  [References](#references)
+2.  [Dataset](#dataset)
+3.  [Pre-training](#pre-training)
+4.  [Conclusions](#conclusions)
+5.  [Appendix A: Number of pre-training
+    epoches](#appendix-a-number-of-pre-training-epoches)
+6.  [Appendix B: Pre-training
+    algorithm](#appendix-b-pre-training-algorithm)
+7.  [Appendix C: Reproducing the
+    experiment](#appendix-c-reproducing-the-experiment)
+
+References
+----------
+
+1.  BERT materials
+    -   Paper <https://arxiv.org/pdf/1810.04805.pdf>
+    -   GitHub <https://github.com/google-research/bert>
+    -   DataScienceToday publication
+        <https://datasciencetoday.net/index.php/en-us/nlp/211-paper-dissected-bert-pre-training-of-deep-bidirectional-transformers-for-language-understanding-explained>
+    -   GoogleResearch Issue \#570
+        <https://github.com/google-research/bert/issues/570>
+    -   GoogleResearch Issue \#1025
+        <https://github.com/google-research/bert/issues/1025>
+2.  Zhuohan Li et al. Train Large, Then Compress: Rethinking Model Size
+    for Efficient Training and Inference of Transformers
+    -   Paper <https://arxiv.org/abs/2002.11794>
+    -   Berkeley publication
+        <https://bair.berkeley.edu/blog/2020/03/05/compress/>
+3.  RoBERTa: A Robustly Optimized BERT Pretraining Approach
+    -   Paper <https://arxiv.org/abs/1907.11692>
+4.  Hardware utilization metrics in TensorFlow
+    -   StackOverflow question \#40190510
+        <https://stackoverflow.com/questions/40190510/tensorflow-how-to-log-gpu-memory-vram-utilization>
+    -   TensorFlow documentation
+        <https://www.tensorflow.org/guide/gpu#limiting_gpu_memory_growth>
+
+Datasets
+--------
+
+We use either English or Russian Wikipedia corpus for pre-training.
+Pre-processing includes fetching the dump and converting it into
+TensorFlow records format by the TF OfficialModel's algorithm. The main
+parameters of the datasets are shown in the table below:
+
+``` {.python .numberLines startFrom="4"}
+t=BeautifulTable(max_width=1000)
+t.set_style(BeautifulTable.STYLE_MARKDOWN)
+t.width_exceed_policy=BeautifulTable.WEP_ELLIPSIS
+t.column_headers=['Dataset', 'Link',
+                  'Number of Documnets, M', 'Number of words, Bn',
+                  'Dupe factor', 'Approx. Number of examples, M']
+t.numeric_precision=2
+for nm,ds in [('English Wikipedia',dataset_en), ('Russian Wikipedia', dataset_ru)]:
+  url=mklens(instantiate(ds).dref).wikiref.wikiref.url.val
+  t.append_row([
+    nm,
+    markdown_url(url, descr=url.split('/')[-1]),
+    num_documents_(ds)/10**6, num_words_(ds)/10**9,
+    mklens(instantiate(ds).dref).dupe_factor.val,
+    num_tfrecords_approx_(ds)/10**6
+    ])
+print(t)
+```
+
+  -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+  Dataset     Link                                                                                                                           Number of    Number   Dupe     Approx.
+                                                                                                                                             Documnets, M of       factor   Number of
+                                                                                                                                                          words,            examples, M
+                                                                                                                                                          Bn                
+  ----------- ------------------------------------------------------------------------------------------------------------------------------ ------------ -------- -------- -----------
+  English     [enwiki-20200301-pages-articles.xml.bz2](https://dumps.wikimedia.org/enwiki/20200301/enwiki-20200301-pages-articles.xml.bz2)   5.89         2.17     2        51.7
+  Wikipedia                                                                                                                                                                 
+
+  Russian     [ruwiki-20200301-pages-articles.xml.bz2](https://dumps.wikimedia.org/ruwiki/20200301/ruwiki-20200301-pages-articles.xml.bz2)   1.6          0.45     10       78.2
+  Wikipedia                                                                                                                                                                 
+  -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+
+-   WordPiece vocabulry is taken from Multilingual BERT by
+    GoogleResearch.
+-   `Dupe_factor` is a rate of duplication used in TFRecord generation
+    algorithm
+-   For reference, Zhuohan Li et al. reported about 3.4 Bn words for
+    English Wikipedia. The difference with our counting could be due to
+    different extraction algorithms.
+
+Pre-training
+------------
+
+We pretrain 6-layer BERT model on English wikipedia corpus described
+above. We count 1 epoch equal to 10K gradient steps. Total pre-training
+duration is 1M steps which is 100 epoches.
+
+-   6-layer BERT model was measured to require the 4375 Mb of GPU memory
+    and 1721 Mb of Host memory on `batch_size` of 64. We also tried to
+    increase the batch\_size and monitor how does memory requirement
+    change. Model with `batch_size=75` fits in the same memory, but
+    setting `batch_size=85` caused GPU memory requirement to double.
+-   3-layer BERT fits in the 4375 Mb of GPU memory with
+    `batch_size=128`, but doesn't fit if `batch_size` is 140. So we set
+    `batch_size` to 128.
+
+We pre-train the following models:
+
+  ----------------------------------------------------------------------------------------
+  Model alias                 Number of    Hidden layer Batch    Steps per   Ref.epoches
+                              Layers       size         size     epoch       
+  --------------------------- ------------ ------------ -------- ----------- -------------
+  minibert-pretrain-wiki-3L   3            256          128      10000       800.0
+
+  minibert-pretrain-wiki-6L   6            256          64       10000       1600.0
+  ----------------------------------------------------------------------------------------
+
+-   [Appendix A](#appendix-a-number-of-pre-training-epoches) shows the
+    procedure of calculating `Ref.Epoched` column. It shows the number
+    of steps, which would provide the same number of parameter updates
+    as in BERT paper.
+-   [Appendix B](#appendix-b-pre-training-algorithm) lists the code of
+    the main pre-training routine.
+    -   Here, we pre-train each of the above models on a single
+        Wikipedia corpus for limited number of epoches.
+    -   After each 10 epoches we perform fine-tuneing on the GLUE task
+        MNLI-m.
+    -   Due to time/hardware limitations, we pre-train only first 500000
+        steps, divided into 50 epoches.
+    -   We measure wall-clock time during pre-training (not including
+        fine-tuning) and the fine-tuning accuracy. Results are shown
+        below:
+    -   Training was done on a single NVidia 1080Ti GPU card.
+
+``` {.python .numberLines startFrom="39"}
+data={'epoches':[], 'accuracy':[], 'layers':[], 'wallclock':[]}
+for stage in [model_6(), model_3()]:
+  pretrained,finetuned=experiment_pretrain(stage, dataset_en)
+  for npepoch,rref in finetuned.items():
+    nL=mklens(rref).refbert.bert_config_template.num_hidden_layers.val
+    wc=float(readstr(mklens(pretrained[npepoch]).traintime.syspath))
+    for folder,metric in [('eval','eval_accuracy')]:
+      es=tensorboard_tensors(rref,folder,metric)
+      data['epoches'].extend([npepoch for e in es])
+      data['accuracy'].extend([te2float(e) for e in es])
+      data['layers'].extend([int(nL) for _ in es])
+      data['wallclock'].extend([wc for _ in es])
+```
+
+``` {.python .numberLines startFrom="51"}
+chart=alt.Chart(DataFrame(data)).mark_line(point=True).encode(
+  x='wallclock',
+  y=alt.Y('accuracy',scale=alt.Scale(zero=False)),
+  color=alt.Color('layers:O'))
+print(markdown_altair(chart, 'wallclock_accuracy.png'))
+```
+
+![](./wallclock_accuracy.png)
+
+Conclusions
+-----------
+
+-   We were able to reproduce the results of Zhuohan Li et al. In our
+    experiments, larger model shows better fine-tuning accuracy than
+    smaller model most of the time.
+-   Models were pre-trained only a limited amount of time due to the
+    time/hardware limitations.
+-   The BERT pre-training procedure and the Zhuohan Li et al. experiment
+    are encoded using Python-based domain specific language of
+    StagedML/Pylighnix.
+
+Appendix A: Number of pre-training epoches
+------------------------------------------
+
+``` {.python .numberLines startFrom="1"}
+def calculate_pretrain_epoches(stage_ds:DatasetStage,
+                               train_batch_size:int,
+                               train_steps_per_epoch:int=DEF_STEPS_PER_EPOCH)->int:
+  """
+  Ref. https://arxiv.org/pdf/1810.04805.pdf, section A.2. "Pre-training
+  procedure"
+  """
+  upstream_train_steps=10**6
+  upstream_batch_size=256
+  upstream_seq_length=512
+  upstream_total_tokens=upstream_train_steps * upstream_batch_size * upstream_seq_length
+
+  # Calculate number of training epoches for our model to match the upstream
+  our_batch_size=train_batch_size
+  our_seq_length=mklens(instantiate(stage_ds).dref).max_seq_length.val
+  our_train_steps=upstream_total_tokens / (our_batch_size * our_seq_length)
+  out_epoches=our_train_steps // train_steps_per_epoch
+  return out_epoches
+```
+
+Appendix B: Pre-training algorithm
+----------------------------------
+
+``` {.python .numberLines startFrom="1"}
+def experiment_pretrain(model:ModelStage,
+                        ds:DatasetStage,
+                        nepoches:int=DEF_NEPOCHES,
+                        train_steps_per_epoch:int=DEF_STEPS_PER_EPOCH,
+                        epoches_step:int=DEF_EPOCHES_BETWEEN_FINETUNES,
+                        finetune_task_name:str=DEF_FINETUNE_TASK,
+                        )->tuple:
+  """ Pretrain BERT for 1K steps on Wikipedia corups. Pause every `epoches_step`
+  epoches to make a fintuning on `finetune_task_name` GLUE task and record
+  metrics. Return a tuple of dicts, mapping number of pre-trained epoches to
+  fine-tuning realization references """
+  assert finetune_task_name in glue_tasks()
+
+  def _pretrain_stage(nepoch:int, resume_rref:Optional[RRef]):
+    def _stage(m):
+      return model(m,
+        tfrecs=ds(m),
+        train_steps_per_epoch=train_steps_per_epoch,
+        train_epoches=nepoch,
+        resume_rref=resume_rref)
     return _stage
 
   def _finetune_stage(nepoch:int)->Stage:
     def _stage(m)->BertGlue:
       refglue=all_fetchglue(m)
       refbert=_pretrain_stage(nepoch, None)(m)
-      gluetfr=glue_tfrecords(m, task_name,
-          bert_vocab=mklens(refbert).bert_vocab.refpath,
-          refdataset=refglue)
+      gluetfr=glue_tfrecords(m,
+        finetune_task_name,
+        bert_vocab=mklens(refbert).bert_vocab.refpath,
+        lower_case=(mklens(refbert).cased.val==False),
+        refdataset=refglue)
       tfbert=bert_finetune_glue(m,refbert,gluetfr)
       return tfbert
     return _stage
 
   pretrained:Dict[int,RRef]={}
   finetuned:Dict[int,RRef]={}
-  for e in range(epoches_step,epoches+epoches_step,epoches_step):
-    pretrained[e]=\
-        realize(instantiate(_pretrain_stage(e, pretrained.get(e-epoches_step))))
-    linkrref(pretrained[e],['bert_pretrain',f'epoch-{e}'])
+  for e in range(epoches_step,nepoches+epoches_step,epoches_step):
+    print(f"Pre-training up to {e}/{nepoches}")
+    pretrained[e]=realize(instantiate(
+      _pretrain_stage(e, pretrained.get(e-epoches_step))))
+    linkrref(pretrained[e],['bert_pretrain',f'epoch-{e}'], verbose=True)
+    print(f"Fine-tunining after {e}-epoch pre-training")
     finetuned[e]=realize(instantiate(_finetune_stage(e)))
-    linkrref(finetuned[e],['bert_pretrain',f'epoch-{e}'])
+    linkrref(finetuned[e],['bert_pretrain',f'epoch-{e}'], verbose=True)
   return pretrained,finetuned
 ```
 
-We now run the experiment. We assume that Pylightnix already has the
-results in it's storage because otherwize the report generation would
-take too long to complete.
+Appendix C: Reproducing the experiment
+--------------------------------------
 
-``` {.python .numberLines startFrom="6"}
-pretrained,finetuned=run_bert_pretrain()
+To run the described experiment, one typically need to follow [StagedML
+user-track installation
+steps](https://github.com/stagedml/stagedml/README.md#install-user-track).
+As a result, you see the shell of the Docker container which contains
+required dependencies. In this shell, change directory to the
+`~/run/bert_pretrain` folder and type
+
+``` {.sh}
+$ make train
 ```
 
-TODO: results
+Training may take up to 3 days on weak hardware and `~100Gb` of disk
+space to store the datasets. When training is complete, type:
 
-``` {.python .numberLines startFrom="7"}
-
-results=defaultdict(list)
-for epoch,rref in finetuned.items():
-  for subf,metric in zip(['validation','train'],
-                         ['epoch_accuracy','batch_accuracy']):
-    es=tensorboard_scalar_events(
-        rref,subf,metric)
-    results[metric].append(
-      pd.DataFrame({'step':[e.step for e in es],
-                    'value':[e.value for e in es],
-                    'pretrained':[epoch for _ in es]}))
+``` {.sh}
+$ make md
 ```
 
-TODO: Describe train batch accuracy
-
-``` {.python .numberLines startFrom="18"}
-metric='batch_accuracy'
-dflist=results[metric]
-df=pd.concat(dflist)
-chart=alt.Chart(df).mark_line().encode(
-  x='step', y='value', color='pretrained')
-altair_print(chart, f'figure_{metric}.png')
-```
-
-![](./figure_batch_accuracy.png)
-
-TODO: Describe evaluation epoch accuracy
-
-``` {.python .numberLines startFrom="24"}
-metric='epoch_accuracy'
-dflist=results[metric]
-df=pd.concat(dflist)
-chart=alt.Chart(df).mark_line().encode(
-  x='step', y='value', color='pretrained')
-altair_print(chart, f'figure_{metric}.png')
-```
-
-![](./figure_epoch_accuracy.png)
+to produce markdown report or `make html` to produce HTML version of the
+report. Results will be available in `out` and `out_html` folders
+correspondingly.
