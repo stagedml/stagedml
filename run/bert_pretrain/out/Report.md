@@ -175,9 +175,9 @@ print(markdown_altair(chart, 'wallclock_accuracy.png'))
     models.
   - The exact moments of fine-tuning are shown as bold dots. Fine-tuning
     happens every 100000 steps.
-  - One step of smaller model takes more time than one step of bigger
-    model. It should be a result of setting a bigger `batch_size` for
-    smaller model.
+  - One step of the smaller model takes more time than one step of the
+    bigger model. It should be a result of `batch_size` of smaller model
+    is twice as big as `batch_size` of bigger model.
   - We see that 6-layer model reached the given accuracy faster than
     3-layer model almost every time.
 
