@@ -153,7 +153,7 @@ def all_minibert_finetune_glue(m:Manager, task_name:str='MRPC',
   def _new(d):
     mklens(d).name.val+='-mini'
     mklens(d).train_batch_size.val=8
-    mklens(d).eval_batch_size.val=8
+    mklens(d).test_batch_size.val=8
   return redefine(bert_finetune_glue,new_config=_new)\
     (m,refbert,glueref, num_instances=num_instances)
 
