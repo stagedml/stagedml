@@ -228,7 +228,9 @@ Appendix B: Pre-training algorithm
   navigating though the dependencies. Internally, it is reduced to accessing
   immutable `config.json` dictionary of every stage.
 * Stage realizations are stored in the Pylightnix storage in the filesystem.
-  Existing realizations are re-used at subsequent runs of the function.
+  Existing realizations are re-used at subsequent runs of the function.  Code
+  inside `_stage's` should be treated as declaration of dependencies rather than
+  imperative instructions.
 
 Appendix C: Reproducing the experiment
 --------------------------------------

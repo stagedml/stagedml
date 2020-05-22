@@ -302,7 +302,8 @@ def experiment_pretrain(model:ModelStage,
     stage.
   - Stage realizations are stored in the Pylightnix storage in the
     filesystem. Existing realizations are re-used at subsequent runs of
-    the function.
+    the function. Code inside `_stage's` should be treated as
+    declaration of dependencies rather than imperative instructions.
 
 ## Appendix C: Reproducing the experiment
 
