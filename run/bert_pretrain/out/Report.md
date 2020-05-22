@@ -131,9 +131,9 @@ models:
     updates. [Appendix A](#appendix-a-number-of-pre-training-epoches)
     shows the procedure of it’s calculation.
   - [Appendix B](#appendix-b-pre-training-algorithm) lists the code of
-    the main pre-training routine.
-      - Here, we pre-train each of the above models on a single
-        Wikipedia corpus for limited number of epoches.
+    the main training routine.
+      - We pre-train each of the above models on a single Wikipedia
+        corpus for limited number of epoches.
       - After each 10 epoches we perform fine-tuneing on the GLUE task
         MNLI-m.
       - Due to time/hardware limitations, we pre-train only first 500000
@@ -162,7 +162,7 @@ for stage in [model_6(), model_3()]:
 
 ``` python numberLines
 chart=alt.Chart(DataFrame(data)).mark_line(point=True).encode(
-  x=alt.X('wallclock', title='Wall-clock, seconds'),
+  x=alt.X('wallclock', title='Wall-clock time of pre-training, seconds'),
   y=alt.Y('accuracy',scale=alt.Scale(zero=False),
     title=f'{DEF_FINETUNE_TASK} accuracy'),
   color=alt.Color('layers:O', title='Num. of layers'))
@@ -171,14 +171,24 @@ print(markdown_altair(chart, 'wallclock_accuracy.png'))
 
 ![](./wallclock_accuracy.png)
 
+  - On the above plot we show fine-tuning accuracies of each of two
+    models.
+  - The exact moments of fine-tuning are shown as bold dots. Fine-tuning
+    happens every 100000 steps.
+  - One step of smaller model takes more time than one step of bigger
+    model. It should be a result of setting a bigger `batch_size` for
+    smaller model.
+  - We see that 6-layer model reached the given accuracy faster than
+    3-layer model almost every time.
+
 ## Conclusions
 
-  - We were able to reproduce the results of Zhuohan Li et al. In our
+1.  We were able to reproduce the results of Zhuohan Li et al. In our
     experiments, larger model shows better fine-tuning accuracy than
     smaller model most of the time.
-  - Models were pre-trained only a limited amount of time due to the
+2.  Models were pre-trained only a limited amount of time due to the
     time/hardware limitations.
-  - The BERT pre-training procedure and the Zhuohan Li et al. experiment
+3.  The BERT pre-training procedure and the Zhuohan Li et al. experiment
     are encoded using Python-based domain specific language of
     StagedML/Pylighnix.
 
@@ -208,6 +218,22 @@ def calculate_pretrain_epoches(stage_ds:DatasetStage,
 ```
 
 ## Appendix B: Pre-training algorithm
+
+``` python numberLines
+def model_3()->ModelStage:
+  def _nc(c):
+    mklens(c).name.val+='-3L'
+    mklens(c).bert_config_template.num_hidden_layers.val=3
+    mklens(c).train_batch_size.val=128
+  return redefine(minibert_pretrain_wiki, new_config=_nc)
+
+def model_6()->ModelStage:
+  def _nc(c):
+    mklens(c).name.val+='-6L'
+    mklens(c).bert_config_template.num_hidden_layers.val=6
+    mklens(c).train_batch_size.val=64
+  return redefine(minibert_pretrain_wiki, new_config=_nc)
+```
 
 ``` python numberLines
 def experiment_pretrain(model:ModelStage,
@@ -264,15 +290,19 @@ def experiment_pretrain(model:ModelStage,
     pre-training and fine-tuning. They depend on a number of
     intermediate stages defined in the [StagedML
     collection](https://github.com/stagedml/stagedml/blob/master/src/stagedml/stages/all.py).
-    Names of this standard stages typically begin with `all_` prefix.
+  - Names of standard stages typically begin with `all_` prefix.
+  - The most important stage of pre-training BERT is
+    `minibert_pretrain_wiki` defined in [bert\_pretrain\_wiki.py of
+    StagedML](https://github.com/stagedml/stagedml/blob/master/src/stagedml/stages/bert_pretrain_wiki.py)
   - Stages depend on each other by storing ‘derivation references’ or
     `refpaths`.
   - `mklens` are the main top-level method of accessing stage’s
     parameters and navigating though the dependencies. Internally, it is
     reduced to accessing immutable `config.json` dictionary of every
     stage.
-  - Stage realizations are stored in the Pylightnix storage. Existing
-    realizations are re-used at subsequent runs of the function.
+  - Stage realizations are stored in the Pylightnix storage in the
+    filesystem. Existing realizations are re-used at subsequent runs of
+    the function.
 
 ## Appendix C: Reproducing the experiment
 
