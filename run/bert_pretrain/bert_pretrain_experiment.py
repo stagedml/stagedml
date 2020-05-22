@@ -142,7 +142,9 @@ def model_6()->ModelStage:
 def calculate_pretrain_epoches(stage_ds:DatasetStage,
                                train_batch_size:int,
                                train_steps_per_epoch:int=DEF_STEPS_PER_EPOCH)->int:
-  """
+  """ Calculate the number of epoches required to match the reference model in
+  the number of parameter updates.
+
   Ref. https://arxiv.org/pdf/1810.04805.pdf, section A.2. "Pre-training
   procedure"
   """
@@ -165,14 +167,15 @@ def experiment_pretrain(model:ModelStage,
                         train_steps_per_epoch:int=DEF_STEPS_PER_EPOCH,
                         epoches_step:int=DEF_EPOCHES_BETWEEN_FINETUNES,
                         finetune_task_name:str=DEF_FINETUNE_TASK,
-                        )->tuple:
-  """ Pretrain BERT for 1K steps on Wikipedia corups. Pause every `epoches_step`
-  epoches to make a fintuning on `finetune_task_name` GLUE task and record
-  metrics. Return a tuple of dicts, mapping number of pre-trained epoches to
-  fine-tuning realization references """
+                        )->Tuple[dict,dict]:
+  """ Pretrain BERT for `train_steps_per_epoch*nepoches` steps on `ds` corups.
+  Pause every `epoches_step` epoches to make a fine-tuning on the GLUE task of
+  `finetune_task_name`. Return a tuple of dicts, mapping number of pre-trained
+  epoches to fine-tuning realization references.
+  """
   assert finetune_task_name in glue_tasks()
 
-  def _pretrain_stage(nepoch:int, resume_rref:Optional[RRef]):
+  def _pretrain_stage(nepoch:int, resume_rref:Optional[RRef])->Stage:
     def _stage(m):
       return model(m,
         tfrecs=ds(m),
@@ -214,8 +217,5 @@ if __name__== '__main__':
   print(experiment_dataset_ru())
   print(experiment_pretrain(model_6(), dataset_en))
   print(experiment_pretrain(model_3(), dataset_en))
-  # print(num_tfrecords_en())
-  # print(num_tfrecords_ru())
-  # print(experiment_pretrain())
 
 

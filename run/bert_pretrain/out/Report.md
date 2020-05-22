@@ -126,10 +126,10 @@ models:
 | minibert-pretrain-wiki-3L | 3                | 256               | 128        | 10000           | 800.0       |
 | minibert-pretrain-wiki-6L | 6                | 256               | 64         | 10000           | 1600.0      |
 
-  - [Appendix A](#appendix-a-number-of-pre-training-epoches) shows the
-    procedure of calculating `Ref.Epoched` column. It shows the number
-    of steps, which would provide the same number of parameter updates
-    as in BERT paper.
+  - `Ref.Epoched` column contains the number of epoches required to
+    match the reference model from BERT paper in the number of parameter
+    updates. [Appendix A](#appendix-a-number-of-pre-training-epoches)
+    shows the procedure of it’s calculation.
   - [Appendix B](#appendix-b-pre-training-algorithm) lists the code of
     the main pre-training routine.
       - Here, we pre-train each of the above models on a single
@@ -187,7 +187,9 @@ print(markdown_altair(chart, 'wallclock_accuracy.png'))
 def calculate_pretrain_epoches(stage_ds:DatasetStage,
                                train_batch_size:int,
                                train_steps_per_epoch:int=DEF_STEPS_PER_EPOCH)->int:
-  """
+  """ Calculate the number of epoches required to match the reference model in
+  the number of parameter updates.
+
   Ref. https://arxiv.org/pdf/1810.04805.pdf, section A.2. "Pre-training
   procedure"
   """
@@ -213,14 +215,15 @@ def experiment_pretrain(model:ModelStage,
                         train_steps_per_epoch:int=DEF_STEPS_PER_EPOCH,
                         epoches_step:int=DEF_EPOCHES_BETWEEN_FINETUNES,
                         finetune_task_name:str=DEF_FINETUNE_TASK,
-                        )->tuple:
-  """ Pretrain BERT for 1K steps on Wikipedia corups. Pause every `epoches_step`
-  epoches to make a fintuning on `finetune_task_name` GLUE task and record
-  metrics. Return a tuple of dicts, mapping number of pre-trained epoches to
-  fine-tuning realization references """
+                        )->Tuple[dict,dict]:
+  """ Pretrain BERT for `train_steps_per_epoch*nepoches` steps on `ds` corups.
+  Pause every `epoches_step` epoches to make a fine-tuning on the GLUE task of
+  `finetune_task_name`. Return a tuple of dicts, mapping number of pre-trained
+  epoches to fine-tuning realization references.
+  """
   assert finetune_task_name in glue_tasks()
 
-  def _pretrain_stage(nepoch:int, resume_rref:Optional[RRef]):
+  def _pretrain_stage(nepoch:int, resume_rref:Optional[RRef])->Stage:
     def _stage(m):
       return model(m,
         tfrecs=ds(m),
@@ -254,6 +257,21 @@ def experiment_pretrain(model:ModelStage,
     linkrref(finetuned[e],['bert_pretrain',f'epoch-{e}'], verbose=True)
   return pretrained,finetuned
 ```
+
+  - We use StagedML/Pylightnix API to encode the experiment.
+  - `_pretrain_stage` and `_finetune_stage` define final stages of
+    pre-training and fine-tuning. They depend on a number of
+    intermediate stages defined in the [StagedML
+    collection](https://github.com/stagedml/stagedml/blob/master/src/stagedml/stages/all.py).
+    Names of this standard stages typically begin with `all_` prefix.
+  - Stages depend on each other by storing ‘derivation references’ or
+    `refpaths`.
+  - `mklens` are the main top-level method of accessing stage’s
+    parameters and navigating though the dependencies. Internally, it is
+    reduced to accessing immutable `config.json` dictionary of every
+    stage.
+  - Stage realizations are stored in the Pylightnix storage. Existing
+    realizations are re-used at subsequent runs of the function.
 
 ## Appendix C: Reproducing the experiment
 
