@@ -1,21 +1,14 @@
 # BERT pre-training
 
-This project aims at autmating and reproducing of the following
-technologies:
+This project aims at reproducing results of the following papers:
 
-1.  Generic BERT Pre-training procedure.
-2.  Experiment described by Zhuohan Li et al. [Train Large, Then
-    Compress: Rethinking Model Size for Efficient Training and Inference
-    of Transformers](https://arxiv.org/abs/2002.11794).
+1.  [BERT Pre-training](https://arxiv.org/pdf/1810.04805.pdf) by Google
+    Research.
+2.  [Train Large, Then Compress: Rethinking Model Size for Efficient
+    Training and Inference of
+    Transformers](https://arxiv.org/abs/2002.11794) by Zhuohan Li et al.
 
-This document is a literate Python program rendered with the CodeBraid
-processor.
-
-``` python numberLines
-from stagedml.stages.all import *
-from bert_pretrain_experiment import *
-import altair as alt
-```
+<!-- end list -->
 
   - The current implementation is based on the
     [StagedML](https://github.com/stagedml/stagedml) framework. We
@@ -25,6 +18,16 @@ import altair as alt
     StagedML repository.
   - [bert\_pretrain\_experiment.py](../bert_pretrain_experiment.py)
     defines utility stages and procedures required by this experiment.
+  - This document is a literate Python program rendered with the
+    CodeBraid processor.
+
+<!-- end list -->
+
+``` python numberLines
+from stagedml.stages.all import *
+from bert_pretrain_experiment import *
+import altair as alt
+```
 
 ## Contents
 

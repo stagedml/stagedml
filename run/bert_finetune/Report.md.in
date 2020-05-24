@@ -60,7 +60,7 @@ print(f"![]({p})")
 * We build a dictionary containing `RRef` realization reference for every task.
 * We also display a graph of stages to be realized in order to realize the
   top-level stage of `all_minibert_finetune_glue(task_name='QQP')`:
-* The url of pre-trained model image:
+* The URL of pre-trained model image:
   `markdown_url(mklens(instantiate(stage).dref).refbert.url.val)`{.python .cb.expr}
 
 ### Results
@@ -160,7 +160,7 @@ chart=alt.Chart(pd.DataFrame(cols)).mark_line(point=True).encode(
 altair_print(chart, f'figure_valid_accuracy.png')
 ```
 
-* `tensorboard_tensors` is a helper method which access stages tensorboard
+* `tensorboard_tensors` is a helper method which access stages TensorBoard
   journals stored in realization folder.
 * `attempt` is the identifier of the training attempt. For any given
   `batch_size`, attempts differ only with the initial values of classification
@@ -170,8 +170,8 @@ altair_print(chart, f'figure_valid_accuracy.png')
   value of `max_seq_length` parameter, each sentence contains maximum 128
   tokens.
 * TODO: find out why do models with smaller batch sizes train better?
-  - Is it the effect of batch-normalization?
-  - Is it the effect of un-disabled dropout?
+  - Is it the effect of batch-normalization (if any)?
+  - Is it the effect of dropout not disabled?
 
 
 Learning rate in BERT->MRPC fine-tuning
