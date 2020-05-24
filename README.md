@@ -32,7 +32,7 @@ Contents
 4. [Documentation](#documentation)
    - [About Pylightnix](#about-pylightnix)
    - [Repository structure](#repository-structure)
-   - [Models and experiments](#models-and-experiments)
+5. [Models and experiments](#models-and-experiments)
 
 
 Features
@@ -397,7 +397,7 @@ Overall repository structure:
 
 ```
 .
-├── 3rdparty/                      # Thirdparty projects, Git submodules
+├── 3rdparty/                      # Thirdparty dependencies in source form
 │   ├── pylightnix/                # Pylightnix core library
 │   ├── nl2bash_essence/
 │   ├── tensorflow/
@@ -413,8 +413,8 @@ Overall repository structure:
 ├── src/                           # Python sources
 │   └── stagedml/
 │       ├── datasets/              # Dataset utilities
-│       ├── imports/               # Import aggregation modules
-│       ├── models/                # ML models
+│       ├── imports/               # Imports from thirdparty Python packages
+│       ├── models/                # Parts of ML models
 │       ├── stages/                # Collcection of Stages
 │       └── utils/                 # Utilities
 ├── LICENSE
@@ -427,7 +427,8 @@ Overall repository structure:
 └── setup.py
 ```
 
-### Models and experiments
+Models and experiments
+----------------------
 
 * [BERT fine-tuning on GLUE](/run/bert_finetune/out/Report.md)
 * [BERT fine-tuning on RuSentiment](/run/rusentiment/out/Report.md)
