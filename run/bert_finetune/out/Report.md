@@ -1,18 +1,41 @@
 # BERT fine-tuning experiments
 
+In this report we show various aspects of BERT fine-tuning on GLUE
+dataset using [StagedML](https://github.com/stagedml/stagedml)
+domain-specific language. This document is a literate Python program
+rendered with the CodeBraid processor.
+
 ``` python numberLines
+from bert_finetune_experiment import *
 import altair as alt
 import pandas as pd
-import numpy as np
-from bert_finetune_experiment import *
-from stagedml.stages.all import *
-from stagedml.core import depgraph
 ```
+
+See also:
+
+  - [Bert-finetune project](/run/bert_finetune) in the StagedML source
+    tree.
+  - [bert\_pretrain\_experiment.py](../bert_finetune_experiment.py)
+    utilities.
+
+## Contents
+
+1.  [Fine-tuning on GLUE tasks](#fine-tuning-on-glue-tasks)
+2.  [Batch size in BERT-\>MRPC
+    fine-tuning](#batch-size-in-bert-mrpc-fine-tuning)
+3.  [Learning rate in BERT-\>MRPC
+    fine-tuning](#learning-rate-in-bert-mrpc-fine-tuning)
 
 ## Fine-tuning on GLUE tasks
 
+In this section we fine-tune BERT-mini model on most of GLUE tasks in a
+loop. For some tasks, we amend the batch size. We also amend values of
+`batch_size` and epoches for some tasks.
+
+### Definitions
+
 ``` python numberLines
-experiment_allglue(n:int=1)->Dict[str,List[RRef]]:
+def experiment_allglue(n:int=1)->Dict[str,List[RRef]]:
   result_allglue={}
   for task_name in [t for t in glue_tasks() if t.upper() not in ['COLA']]:
     print(f"Fine-tuning {task_name}")
@@ -29,10 +52,10 @@ experiment_allglue(n:int=1)->Dict[str,List[RRef]]:
   return result_allglue
 ```
 
-Here, we:
+![](./graph.png)
 
-  - Loop over all tasks excluding COLA (TODO: remember why do we exclude
-    COLA?)
+  - We loop over all GLUE tasks excluding COLA (TODO: remember why do we
+    exclude COLA?)
   - For every task, we realize minibert model
       - `realizeMany(instantiate(...))` is the generic procedure of
         realizing Pylightnix stages
@@ -41,23 +64,23 @@ Here, we:
         settings (set `batch_size`, 4 epoch)
       - Note, that we don’t evaluate all possible parameters like the
         upstream did due to time/hardware constraints.
-      - `all_minibert_finetune_glue` is one of StagedML stages, defined
-        in `stagedml.stages.all`. By realizing it we also realize all
-        it’s dependencies, which includes fetching the required images
-        and datasets from the Internet.
+      - `all_minibert_finetune_glue` is defined in
+        `stagedml.stages.all`. By realizing it we also realize all it’s
+        dependencies, which includes fetching the required checkpoints
+        and datasets.
   - We build a dictionary containing `RRef` realization reference for
     every task.
+  - We also display a graph of stages to be realized in order to realize
+    the top-level stage of
+    `all_minibert_finetune_glue(task_name='QQP')`:
+  - The url of pre-trained model image:
+    <https://storage.googleapis.com/bert_models/2020_02_20/uncased_L-4_H-256_A-4.zip>
 
-Below we display the graph of stages to be realized in order to realize
-the top-level stage of `all_minibert_finetune_glue(task_name='QQP')`:
-
-![](./graph.png)
+### Results
 
 ``` python numberLines
 results=experiment_allglue()
 ```
-
-We display results in a table
 
 ``` python numberLines
 t=BeautifulTable(max_width=1000)
@@ -77,18 +100,26 @@ print(t)
 
 | Name           | SST-2  | MRPC   | QQP    | MNLI-m | MNLI-mm | SNLI   | QNLI   | RTE    | WNLI   |
 | -------------- | ------ | ------ | ------ | ------ | ------- | ------ | ------ | ------ | ------ |
-| Accuracy, %    | 86.111 | 75.781 | 87.601 | 72.631 | 74.389  | 84.65  | 84.026 | 62.5   | 32.812 |
-| F1\_score\*100 | 52.135 | 74.796 | 39.476 | 40.741 | 40.66   | 39.618 | 50.424 | 36.224 | 47.336 |
-| Tr.time, min   | 13.3   | 0.9    | 71.4   | 34.0   | 34.0    | 47.6   | 20.4   | 0.7    | 0.3    |
+| Accuracy, %    | 86.458 | 76.0   | 87.53  | 72.747 | 74.084  | 84.837 | 84.256 | 60.294 | 39.062 |
+| F1\_score\*100 | 54.075 | 75.743 | 43.735 | 42.151 | 42.419  | 40.626 | 53.286 | 40.067 | 34.043 |
+| Tr.time, min   | 14.0   | 0.9    | 74.2   | 34.4   | 34.2    | 47.6   | 21.4   | 0.7    | 0.3    |
 
-Ref. [Upstream results](https://github.com/google-research/bert#bert)
+Where:
+
+  - `Tr.time` shows training time in seconds, training was done on a
+    single NVidia 1080Ti GPU.
+  - See also [reference results by Google
+    Research](https://github.com/google-research/bert#bert).
 
 ## Batch size in BERT-\>MRPC fine-tuning
 
-The top-level procedure of the experiment:
+In this section we study how does `batch_size` affect final accuracy of
+the model.
+
+### Definitions
 
 ``` python numberLines
-experiment_bs(n:int=4, exclude=[])->Dict[int,List[RRef]]:
+def experiment_bs(n:int=4, exclude=[])->Dict[int,List[RRef]]:
   result_bs={}
   for bs in [2,8,16,32,64]:
     def _new_config(c:dict):
@@ -102,10 +133,8 @@ experiment_bs(n:int=4, exclude=[])->Dict[int,List[RRef]]:
   return result_bs
 ```
 
-In the above code we:
-
-  - Loop over certain batch\_sizes. For every batch\_size we evaluate
-    min-bert model
+  - We loop over certain batch\_sizes and evaluate BERT-mini fine-tuning
+    procedure. List of important APIs includes:
       - `realizeMany(instance(..))` runs generice two-pass stage
         realization mechanism of Pylightnix.
       - `redefine(..)` tweaks stage configuration before the
@@ -115,71 +144,72 @@ In the above code we:
         in `stagedml.stages.all`. By realizing it we also realize all
         it’s dependencies, which includes fetching the required images
         and datasets from the Internet.
-  - In a version of this experiment we could increase a number stages
-    instances which shares same configuration by setting
-    `num_instances`.
-  - We collect resulting realization references in a dictionary.
+  - `num_instances` parameter of `all_minibert_finetune_glue` stage sets
+    the desired number of model instances sharing the same
+    configuration.
+  - We collect results in a dictionary which maps `batch_sizes` to
+    corresponding realization references.
 
-<!-- end list -->
+### Results
 
 ``` python numberLines
 results=experiment_bs()
 ```
 
-Results are shown below.
-
 ``` python numberLines
-dfs=[]
+cols={'eval_accuracy':[], 'batch_size':[], 'attempt':[]}
 for bs,rrefs in results.items():
-  for iid,rref in enumerate(rrefs):
-    cols={}
-    es=tensorboard_tensors(rref,'valid','accuracy')
-    assert len(es)>0
-    cols['steps']=[e.step*bs for e in es]
-    cols['valid_accuracy']=[te2float(e) for e in es]
-    cols['batch_size']=[bs for _ in es]
-    cols['iid']=[iid for _ in es]
-    es=tensorboard_tensors(rref,'valid','loss')
-    assert len(cols['steps'])==len(es)
-    cols['valid_loss']=[te2float(e) for e in es]
-    dfs.append(DataFrame(cols))
-ds=pd.concat(dfs)
+  for attempt,rref in enumerate(rrefs):
+    es=tensorboard_tensors(rref, 'eval', 'eval_accuracy')
+    cols['eval_accuracy'].extend([100.0*te2float(e) for e in es])
+    cols['batch_size'].extend([bs for _ in es])
+    cols['attempt'].extend([attempt for _ in es])
+chart=alt.Chart(pd.DataFrame(cols)).mark_point().encode(
+  x=alt.X('batch_size', title='Batch size'),
+  y=alt.Y('eval_accuracy', title='Evaluation accuracy, %',
+                           scale=alt.Scale(zero=False)),
+  color='attempt:O')
+altair_print(chart, f'figure_eval_accuracy.png')
 ```
 
-Comments:
-
-  - `tensorboard_tensors` is a helper method which access stages
-    tensorboard journals stored in realization folder.
-  - `iid` is the instance identifier of the model.
-  - `batch_size` is the batch size used during fine-tuning
-  - `steps` is the number of sentences passed through the model.
-    According to the value of `max_seq_length` parameter, each sentence
-    contains maximum 128 tokens.
-
-<!-- end list -->
+![](./figure_eval_accuracy.png)
 
 ``` python numberLines
-metric='valid_accuracy'
-chart=alt.Chart(ds).mark_line().encode(
-  x='steps', y=metric, color='batch_size',
-  strokeDash='iid')
-altair_print(chart, f'figure_{metric}.png')
+cols={'nexamples':[], 'valid_accuracy':[], 'batch_size':[], 'attempt':[]}
+for bs,rrefs in results.items():
+  for attempt,rref in enumerate(rrefs):
+    es=tensorboard_tensors(rref,'valid','accuracy')
+    cols['nexamples'].extend([e.step*bs for e in es])
+    cols['valid_accuracy'].extend([100.0*te2float(e) for e in es])
+    cols['batch_size'].extend([bs for _ in es])
+    cols['attempt'].extend([attempt for _ in es])
+chart=alt.Chart(pd.DataFrame(cols)).mark_line(point=True).encode(
+  x=alt.X('nexamples', title='Training examples seen by the model'),
+  y=alt.Y('valid_accuracy', title='Validation accuracy, %',
+                            scale=alt.Scale(zero=False)),
+  color='batch_size:O',
+  strokeDash='attempt:O')
+altair_print(chart, f'figure_valid_accuracy.png')
 ```
 
 ![](./figure_valid_accuracy.png)
 
-``` stderr
-WARN StrokeDash channel should be used with only discrete data.
-WARN Using discrete channel "strokeDash" to encode "quantitative" field can be misleading as it does not encode magnitude.
-```
-
+  - `tensorboard_tensors` is a helper method which access stages
+    tensorboard journals stored in realization folder.
+  - `attempt` is the identifier of the training attempt. For any given
+    `batch_size`, attempts differ only with the initial values of
+    classification head of the model.
+  - `batch_size` is the batch size used during fine-tuning
+  - `steps` is the number of sentences passed through the model.
+    According to the value of `max_seq_length` parameter, each sentence
+    contains maximum 128 tokens.
   - TODO: find out why do models with smaller batch sizes train better?
       - Is it the effect of batch-normalization?
       - Is it the effect of un-disabled dropout?
 
 ## Learning rate in BERT-\>MRPC fine-tuning
 
-The top-level procedure of the experiment:
+### Definitions
 
 ``` python numberLines
 experiment_lr(n:int=4, exclude=[])->Dict[str,List[RRef]]:
@@ -189,7 +219,7 @@ experiment_lr(n:int=4, exclude=[])->Dict[str,List[RRef]]:
       mklens(c).train_batch_size.val=8
       mklens(c).lr.val=lr
       mklens(c).train_epoches.val=5
-      mklens(c)flags.val=[f for f in c['flags'] if f not in exclude]
+      mklens(c).flags.val=[f for f in c['flags'] if f not in exclude]
     result_lr[str(lr)]=realizeMany(instantiate(
       redefine(all_minibert_finetune_glue, new_config=_new_config,
                                            new_matcher=match_some(n)),
@@ -197,58 +227,30 @@ experiment_lr(n:int=4, exclude=[])->Dict[str,List[RRef]]:
   return result_lr
 ```
 
-Execute the code
+### Results
 
 ``` python numberLines
 results=experiment_lr()
 ```
 
-Processing the results
-
 ``` python numberLines
-dfs=[]
+cols={'learning_rate':[], 'eval_accuracy':[], 'attempt':[]}
 for lr_,rrefs in results.items():
   lr=float(lr_)
   for iid,rref in enumerate(rrefs):
-    cols={}
-    es=tensorboard_tensors(rref,'valid','accuracy')
-    assert len(es)>0
-    cols['steps']=[e.step for e in es]
-    cols['valid_accuracy']=[te2float(e) for e in es]
-    cols['learning_rate']=[lr for _ in es]
-    cols['iid']=[iid for _ in es]
-    es=tensorboard_tensors(rref,'valid','loss')
-    assert len(cols['steps'])==len(es)
-    cols['valid_loss']=[te2float(e) for e in es]
-    dfs.append(DataFrame(cols))
-ds=pd.concat(dfs)
+    es=tensorboard_tensors(rref,'eval','eval_accuracy')
+    cols['eval_accuracy'].extend([te2float(e) for e in es])
+    cols['learning_rate'].extend([lr for _ in es])
+    cols['attempt'].extend([iid for _ in es])
 ```
-
-Print the results:
 
 ``` python numberLines
-metric='valid_accuracy'
-chart=alt.Chart(ds).mark_line().encode(
-  x='steps', y=metric, color='learning_rate',
-  strokeDash='iid')
-altair_print(chart, f'figure_{metric}_lr.png')
+chart=alt.Chart(pd.DataFrame(cols)).mark_point().encode(
+  x='learning_rate',
+  y=alt.Y('eval_accuracy', title='Evaluation accuracy, %',
+                            scale=alt.Scale(zero=False)),
+  color='attempt:O')
+altair_print(chart, f'figure_eval_accuracy_lr.png')
 ```
 
-![](./figure_valid_accuracy_lr.png)
-
-``` stderr
-WARN StrokeDash channel should be used with only discrete data.
-WARN Using discrete channel "strokeDash" to encode "quantitative" field can be misleading as it does not encode magnitude.
-```
-
-## Junk
-
-    {.python .cb.nb show=code+stdout:raw+stderr}
-    metric='train-lr'
-    dflist=results[metric]
-    df=pd.concat(dflist)
-    df=df[(df['batch_size']==32) | (df['batch_size']==2)]
-    chart=alt.Chart(df).mark_line().encode(
-      x='step', y='value', color='batch_size',
-      strokeDash='optver')
-    altair_print(chart, f'figure_{metric}.png')
+![](./figure_eval_accuracy_lr.png)

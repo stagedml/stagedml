@@ -5,7 +5,7 @@ from stagedml.imports import ( makedirs, MakeNdarray, join, environ, makedirs,
     defaultdict, getcwd, DataFrame, read_csv )
 from stagedml.stages.all import *
 from stagedml.types import ( Dict, Union, Optional, List )
-from stagedml.core import ( protocol_rref_metric )
+from stagedml.core import ( protocol_rref_metric, depgraph )
 from stagedml.utils import ( tensorboard_tensors, tensorboard_scalars,
     tensorboard_tags, te2float )
 
@@ -14,6 +14,8 @@ import numpy as np
 from altair import Chart
 from altair_saver import save as altair_save
 
+def markdown_url(url:str, descr=None)->str:
+  return '['+(descr or url)+']('+url+')'
 
 def altair_print(chart:Chart, png_filename:str, alt:str='', attrs:str='')->None:
   genimgdir=environ['REPOUT']
