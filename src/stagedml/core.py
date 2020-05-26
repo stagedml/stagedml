@@ -35,14 +35,21 @@ assert isdir(STAGEDML_ROOT), (
 #  \___/ \__|_|_|___/
 
 
+def linkrrefs(rrefs:List[RRef], subdirs:List[str]=[], verbose:bool=False)->None:
+  """ Create a 'result-...-N' symlink under the Pylightnix experiments folder """
+  tgtpath_=Path(join(STAGEDML_EXPERIMENTS,*subdirs))
+  for i,rref in enumerate(rrefs):
+    suffix=f'-{i}' if len(rrefs)>1 else ''
+    linkname=f'result-{config_name(store_config(rref))}{suffix}'
+    if verbose:
+      print(f"{tgtpath_}/{linkname} -> {rref}")
+    if i==0:
+      makedirs(tgtpath_, exist_ok=True)
+    mksymlink(rref, tgtpath=tgtpath_, name=linkname, withtime=False)
+
 def linkrref(rref:RRef, subdirs:List[str]=[], verbose:bool=False)->None:
   """ Create a 'result-' symlink under the Pylightnix experiments folder """
-  tgtpath_=Path(join(STAGEDML_EXPERIMENTS,*subdirs))
-  linkname='result-'+config_name(store_config(rref))
-  if verbose:
-    print(f"{tgtpath_}/{linkname} -> {rref}")
-  makedirs(tgtpath_, exist_ok=True)
-  mksymlink(rref, tgtpath=tgtpath_, name=linkname, withtime=False)
+  linkrrefs([rref], subdirs, verbose)
 
 def diskspace_h(sz:int)->str:
   return f"{sz//2**10} K" if sz<2**20 else \
