@@ -11,17 +11,29 @@ import altair as alt
 import pandas as pd
 ```
 
-See also:
-
-* [Bert-finetune project](/run/bert_finetune) in the StagedML source tree.
-* [bert_pretrain_experiment.py](../bert_finetune_experiment.py) utilities.
+* [Top](/run/bert_finetune)
+* [Python utilities for this report](../bert_finetune_experiment.py).
+* [Source of this report](../Report.md.in).
 
 Contents
 --------
 
-1. [Fine-tuning on GLUE tasks](#fine-tuning-on-glue-tasks)
-2. [Batch size in BERT->MRPC fine-tuning](#batch-size-in-bert-mrpc-fine-tuning)
-3. [Learning rate in BERT->MRPC fine-tuning](#learning-rate-in-bert-mrpc-fine-tuning)
+1. [References](#references)
+2. [Fine-tuning on GLUE tasks](#fine-tuning-on-glue-tasks)
+3. [Batch size VS Learning rate in MNLI-m task](#batch-size-vs-learning-rate-in-mnli-m-task)
+4. [Batch size in BERT->MRPC fine-tuning](#batch-size-in-bert-mrpc-fine-tuning)
+
+
+References
+----------
+
+* [Reddit discussion about batch size and learning rate](https://www.reddit.com/r/MachineLearning/comments/84waz4/d_relation_between_learning_rate_batch_size_and/)
+* Smith et al. [A Bayesian Perspective on Generalization and Stochastic Gradient
+  Descent](https://arxiv.org/abs/1710.06451)
+* MacKay, [A practical Bayesian framework for backpropagation
+  networks](https://authors.library.caltech.edu/13793/)
+* Tishby et al. [Consistent inference of probabilities in layered networks: predictions and
+  generalizations](https://ieeexplore.ieee.org/document/118274)
 
 Fine-tuning on GLUE tasks
 -------------------------
@@ -92,6 +104,73 @@ Where:
 * See also [reference results by Google
   Research](https://github.com/google-research/bert#bert).
 
+Batch size VS Learning rate in MNLI-m task
+------------------------------------------
+
+In this experiment we measure model accuracy for different batch sizes in
+learning rates. Learning rate here is the initial learning rate of Polynomial
+decay governor, which became active after linear Warmup. The warmup length is
+taken to be 10% of the number of training examples exposed to the model.
+
+### Definitions
+
+```{.python .cb.code
+    include_file=bert_finetune_experiment.py
+    include_regex="def experiment_lr.*return result_lr"}
+```
+
+- We train several instances of BERT-mini model on the `DEF_TASK_NAME`{.python
+  .cb.expr} task.
+- Batch sizes: `DEF_BATCH_SIZES`{.python .cb.expr}
+- Peak learning rates: `DEF_LEARNING_RATES`{.python .cb.expr}
+- For every `batch size` + `learning rate` combination, we do 4 training
+  attempts with different random initialization.
+
+### Results
+
+```{.python .cb.nb show=code}
+results=experiment_lr()
+```
+
+```{.python .cb.nb show=code+stdout:raw+stderr}
+cols={'batch_size':[], 'learning_rate':[], 'eval_accuracy':[], 'attempt':[]}
+for (bs,lr),rrefs in results.items():
+  for iid,rref in enumerate(rrefs):
+    es=tensorboard_tensors(rref,'eval','eval_accuracy')
+    cols['eval_accuracy'].extend([te2float(e) for e in es])
+    cols['learning_rate'].extend([lr for _ in es])
+    cols['batch_size'].extend([bs for _ in es])
+    cols['attempt'].extend([iid for _ in es])
+
+df=pd.DataFrame(cols)
+chart1=alt.Chart(df).mark_point().encode(
+  x='learning_rate',
+  y=alt.Y('eval_accuracy', title='Evaluation accuracy, %',
+                            scale=alt.Scale(zero=False)),
+  shape='batch_size:O',
+  color=alt.Color('attempt:O', title='Attempt'))
+
+chart=chart1
+for bs in DEF_BATCH_SIZES:
+  df2=df[df['batch_size']==bs].drop('attempt',1).groupby('learning_rate',as_index=False).mean()
+  chart2=alt.Chart(df2).mark_line().encode(
+    x=alt.X('learning_rate', title='Learning rate'),
+    y=alt.Y('eval_accuracy', title='Evaluation accuracy, %',
+                              scale=alt.Scale(zero=False)),
+    shape=alt.Shape('batch_size:O', title='Batch size'))
+  chart+=chart2
+
+altair_print(chart, f'figure_eval_accuracy_lr.png')
+```
+
+- We see best accuracy on smaller batch sizes with smaller learning rates.
+- Increasing batch size may require increasing of learning rate as well.
+- Results are qualitatively consistent with the conclusions of [Smith et al.
+  paper](https://arxiv.org/abs/1710.06451)
+- For `batch_size=64`, best accuracy was achieved with `learning_rate=1e-4`
+- For `batch_size=128`, best accuracy was achieved somewhere between
+  `learning_rate=1e-4` and `learning_rate=2e-4`
+
 Batch size in BERT->MRPC fine-tuning
 ------------------------------------
 
@@ -134,12 +213,18 @@ for bs,rrefs in results.items():
     cols['eval_accuracy'].extend([100.0*te2float(e) for e in es])
     cols['batch_size'].extend([bs for _ in es])
     cols['attempt'].extend([attempt for _ in es])
-chart=alt.Chart(pd.DataFrame(cols)).mark_point().encode(
+
+chartP=alt.Chart(pd.DataFrame(cols)).mark_point().encode(
   x=alt.X('batch_size', title='Batch size'),
   y=alt.Y('eval_accuracy', title='Evaluation accuracy, %',
                            scale=alt.Scale(zero=False)),
-  color='attempt:O')
-altair_print(chart, f'figure_eval_accuracy.png')
+  color=alt.Color('attempt:O', title='Attempt'))
+chartM=alt.Chart(pd.DataFrame(cols)).mark_line().encode(
+  x=alt.X('batch_size', title='Batch size'),
+  y=alt.Y('eval_accuracy', title='Evaluation accuracy, %',
+                           aggregate='mean',
+                           scale=alt.Scale(zero=False)))
+altair_print(chartP+chartM, f'figure_eval_accuracy.png')
 ```
 
 ```{.python .cb.nb show=code+stdout:raw+stderr}
@@ -153,15 +238,15 @@ for bs,rrefs in results.items():
     cols['attempt'].extend([attempt for _ in es])
 chart=alt.Chart(pd.DataFrame(cols)).mark_line(point=True).encode(
   x=alt.X('nexamples', title='Training examples seen by the model'),
-  y=alt.Y('valid_accuracy', title='Validation accuracy, %',
-                            scale=alt.Scale(zero=False)),
-  color='batch_size:O',
-  strokeDash='attempt:O')
+  y=alt.Y('mean(valid_accuracy)', title='Mean validation accuracy, %',
+                                  scale=alt.Scale(zero=False)),
+  color=alt.Color('batch_size:O', title='Batch size')
+  )
 altair_print(chart, f'figure_valid_accuracy.png')
 ```
 
-* `tensorboard_tensors` is a helper method which access stages TensorBoard
-  journals stored in realization folder.
+* `tensorboard_tensors` is a helper method to access stages TensorBoard
+  journals stored in realization's folder.
 * `attempt` is the identifier of the training attempt. For any given
   `batch_size`, attempts differ only with the initial values of classification
   head of the model.
@@ -172,41 +257,4 @@ altair_print(chart, f'figure_valid_accuracy.png')
 * TODO: find out why do models with smaller batch sizes train better?
   - Is it the effect of batch-normalization (if any)?
   - Is it the effect of dropout not disabled?
-
-
-Learning rate in BERT->MRPC fine-tuning
----------------------------------------
-
-### Definitions
-
-```{.python .cb.code
-    include_file=bert_finetune_experiment.py
-    include_regex="experiment_lr.*return result_lr"}
-```
-
-### Results
-
-```{.python .cb.nb show=code}
-results=experiment_lr()
-```
-
-```{.python .cb.nb}
-cols={'learning_rate':[], 'eval_accuracy':[], 'attempt':[]}
-for lr_,rrefs in results.items():
-  lr=float(lr_)
-  for iid,rref in enumerate(rrefs):
-    es=tensorboard_tensors(rref,'eval','eval_accuracy')
-    cols['eval_accuracy'].extend([te2float(e) for e in es])
-    cols['learning_rate'].extend([lr for _ in es])
-    cols['attempt'].extend([iid for _ in es])
-```
-
-```{.python .cb.nb show=code+stdout:raw+stderr}
-chart=alt.Chart(pd.DataFrame(cols)).mark_point().encode(
-  x='learning_rate',
-  y=alt.Y('eval_accuracy', title='Evaluation accuracy, %',
-                            scale=alt.Scale(zero=False)),
-  color='attempt:O')
-altair_print(chart, f'figure_eval_accuracy_lr.png')
-```
 

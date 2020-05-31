@@ -38,18 +38,32 @@ def experiment_bs(n:int=4, exclude=[])->Dict[int,List[RRef]]:
       num_instances=n))
   return result_bs
 
-def experiment_lr(n:int=4, exclude=[])->Dict[str,List[RRef]]:
+DEF_TASK_NAME='MNLI-m'
+DEF_BATCH_SIZES=[64,128]
+DEF_LEARNING_RATES=[1e-5, 1e-4, 2e-4, 3e-4]
+
+def experiment_lr(ninst:int=4,
+                  task_name:str=DEF_TASK_NAME,
+                  batch_sizes:List[int]=DEF_BATCH_SIZES,
+                  learning_rates:List[float]=DEF_LEARNING_RATES,
+                  )->Dict[Tuple[int,float],List[RRef]]:
+  exclude:List[str]=[]
   result_lr={}
-  for lr in [3e-4, 1e-4, 5e-5, 3e-5]:
-    def _new_config(c:dict):
-      mklens(c).train_batch_size.val=8
-      mklens(c).lr.val=lr
-      mklens(c).train_epoches.val=5
-      mklens(c).flags.val=[f for f in c['flags'] if f not in exclude]
-    result_lr[str(lr)]=realizeMany(instantiate(
-      redefine(all_minibert_finetune_glue, new_config=_new_config,
-                                           new_matcher=match_some(n)),
-      num_instances=n))
+  for bs in batch_sizes:
+    for lr in learning_rates:
+      def _new_config(c:dict):
+        mklens(c).train_batch_size.val=bs
+        mklens(c).lr.val=lr
+        mklens(c).train_epoches.val=5
+        mklens(c).flags.val=[f for f in c['flags'] if f not in exclude]
+      stage=redefine(
+        stage=partial(all_minibert_finetune_glue,
+                      task_name=task_name, num_instances=ninst),
+        new_config=_new_config,
+        new_matcher=match_some(ninst))
+      rrefs=realizeMany(instantiate(stage))
+      linkrrefs(rrefs,['bert_finetune',f'lr_{task_name}_{bs}_{lr}'])
+      result_lr[(bs,lr)]=rrefs
   return result_lr
 
 
@@ -72,13 +86,17 @@ def experiment_allglue(n:int=1)->Dict[str,List[RRef]]:
     batch_size={'MNLI-M':64,
                 'MNLI-MM':64,
                 'SNLI':64}.get(task_name.upper(),8)
-    def _new_config(c:dict):
+    def _nc(c:dict):
       mklens(c).train_batch_size.val=batch_size
       mklens(c).train_epoches.val=4
-    result_allglue[task_name]=realizeMany(instantiate(
-      redefine(all_minibert_finetune_glue,
-        new_config=_new_config, new_matcher=match_some(n)),
-      task_name=task_name, num_instances=n))
+    stage=redefine(
+      stage=partial(all_minibert_finetune_glue,
+                    task_name=task_name, num_instances=n),
+      new_config=_nc,
+      new_matcher=match_some(n))
+    rrefs=realizeMany(instantiate(stage))
+    linkrrefs(rrefs, ['bert_finetune',f'allglue-{task_name}'])
+    result_allglue[task_name]=rrefs
   return result_allglue
 
 
