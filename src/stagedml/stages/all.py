@@ -104,6 +104,20 @@ def all_fetchminibert(m:Manager)->BertCP:
     ))
 
 
+def all_fetch_largebert(m:Manager)->BertCP:
+  """ FIXME: rename to `all_fetch_minibert` """
+  folder="uncased_L-24_H-1024_A-16"
+  return BertCP(fetchurl(m,
+    name="largebert-uncased",
+    url=f"https://storage.googleapis.com/bert_models/2018_10_18/{folder}.zip",
+    sha256='f1999b33fa1f38ffe2d9b2871bdbb3d1ddf228f9077a70a7b2176b61cd46ddbc',
+    bert_config=[promise,folder,'bert_config.json'],
+    bert_vocab=[promise,folder,'vocab.txt'],
+    bert_ckpt=[claim,folder,'bert_model.ckpt'],
+    cased=False
+    ))
+
+
 def all_fetch_rubert(m:Manager):
   return BertCP(fetchurl(m,
     name='rubert-cased',
@@ -180,6 +194,23 @@ def all_multibert_finetune_glue(m:Manager, task_name:str='MRPC')->BertGlue:
   glueref=glue_tfrecords(m, task_name, bert_vocab=vocab,
     lower_case=mklens(refbert).cased.val==False, refdataset=refglue)
   return bert_finetune_glue(m,refbert,glueref)
+
+def all_largebert_finetune_glue(m:Manager, task_name:str='MRPC')->BertGlue:
+  """ Finetune milti-lingual base-BERT on GLUE dataset
+
+  Ref. https://github.com/google-research/bert/blob/master/multilingual.md
+  """
+  refbert=all_fetch_largebert(m)
+  refglue=all_fetchglue(m)
+  vocab=mklens(refbert).bert_vocab.refpath
+  glueref=glue_tfrecords(m, task_name, bert_vocab=vocab,
+    lower_case=mklens(refbert).cased.val==False, refdataset=refglue)
+  # return bert_finetune_glue(m,refbert,glueref)
+  def _new(d):
+    mklens(d).train_batch_size.val=1
+    mklens(d).test_batch_size.val=1
+  return redefine(bert_finetune_glue,new_config=_new)\
+    (m,refbert, glueref, num_instances=1)
 
 # def all_bert_finetune_glue(m:Manager, task_name:str='MRPC')->BertGlue:
 #   """ Finetune BERT on GLUE dataset """
