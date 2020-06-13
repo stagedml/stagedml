@@ -242,6 +242,7 @@ dependencies. In this shell, change directory to the `~/run/bert_pretrain`
 folder and type
 
 ```sh
+$ cd run/bert_pretrain
 $ make train
 ```
 
@@ -250,8 +251,21 @@ to store the datasets. When training is complete, type:
 
 ```sh
 $ make md
+$ make html # Optional
 ```
 
-to produce markdown report or `make html` to produce HTML version of the report.
+`make html` would additionally produce HTML version of the report.
 Results will be available in `out` and `out_html` folders correspondingly.
+
+
+In order to tweak specific parameters of the experiments, one could import
+everything from `bert_pretrain_experiment.py` in IPython and run whatever
+required:
+
+```sh
+$ cd run/bert_pretrain/
+$ ipython
+>>> from bert_pretrain_experiment import *
+...
+```
 
