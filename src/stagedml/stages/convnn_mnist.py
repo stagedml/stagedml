@@ -13,7 +13,9 @@ from stagedml.imports import ( join, clear_session, set_session_config,
     TensorBoard, ModelCheckpoint, to_categorical, np_load, Conv2D, MaxPool2D,
     Dropout, Sequential, Flatten, Dense, partial )
 
-from stagedml.utils.tf import ( runtb, runtensorboard, thash, dpurge, modelhash )
+from stagedml.utils.tf import ( runtb, runtensorboard, thash, modelhash )
+
+from stagedml.utils.files import ( dpurge )
 
 from stagedml.core import ( protocol_add, protocol_add_hist,
     protocol_add_eval, protocol_match )

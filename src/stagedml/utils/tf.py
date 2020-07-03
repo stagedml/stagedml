@@ -13,7 +13,10 @@ from pylightnix import ( Closure, Path, Build, Hash, DRef, assert_valid_rref,
     build_wrapper_, BuildArgs, repl_realize, repl_continue, repl_build, isrref )
 
 from stagedml.imports.tf import ( TensorBoard, list_variables, History, Dataset,
-    MakeNdarray )
+    MakeNdarray, INFINITE_CARDINALITY, UNKNOWN_CARDINALITY, cardinality,
+    EventAccumulator, STORE_EVERYTHING_SIZE_GUIDANCE, DEFAULT_SIZE_GUIDANCE,
+    ScalarEvent, TensorEvent, argmax )
+
 from stagedml.imports.sys import ( Popen, join, remove, listdir, re_search, md5,
     os_run, Popen, default_timer )
 
@@ -22,8 +25,6 @@ from stagedml.types import ( Union, List, Any, Optional, Tuple, Callable,
 
 FloatTensorLike = Union[tf.Tensor, float, np.float16, np.float32, np.float64]
 AcceptableDTypes = Union[tf.DType, np.dtype, type, int, str, None]
-
-from tensorflow.python.ops import summary_ops_v2
 
 #  _   _ _   _ _
 # | | | | |_(_) |___
@@ -63,13 +64,6 @@ def nparams(x):
           sz*=d if d is not None else 1
       res+=sz
   return res
-
-def dpurge(dir, pattern, debug=True):
-  for f in listdir(dir):
-    if re_search(pattern, f):
-      if debug:
-        print('Removing', f, 'from', dir)
-      remove(join(dir, f))
 
 def runtensorboard(path:str, kill_existing:bool=True)->int:
   if kill_existing:
@@ -270,17 +264,12 @@ class F1Score(FBetaScore):
     super().__init__(num_classes, average, 1.0, threshold,
                      name=name, dtype=dtype)
 
-from tensorflow.python.ops import math_ops
-
 class SparseF1Score(F1Score):
   def __init__(self, **kwargs):
     super().__init__(**kwargs)
   def update_state(self, y_true, y_pred, sample_weight=None):
-    y_pred = tf.cast(math_ops.argmax(y_pred, axis=-1), self.dtype)
+    y_pred = tf.cast(argmax(y_pred, axis=-1), self.dtype)
     return super().update_state(y_true, y_pred, sample_weight=sample_weight)
-
-from stagedml.imports.tf import (INFINITE_CARDINALITY, UNKNOWN_CARDINALITY,
-    cardinality)
 
 def dataset_cardinality_size(d:Dataset)->Optional[int]:
   c=cardinality(d)
@@ -306,10 +295,6 @@ def dataset_iter_size(d_fn:Callable[[],Dataset])->int:
   for _ in d:
     cnt+=1
   return cnt
-
-from tensorboard.backend.event_processing.event_accumulator import (
-    EventAccumulator, STORE_EVERYTHING_SIZE_GUIDANCE, DEFAULT_SIZE_GUIDANCE,
-    ScalarEvent, TensorEvent )
 
 def tensorboard_tags(rref:RRef,subfolder:str='train')->Dict[str,Union[list,bool]]:
   path=join(rref2path(rref),subfolder)

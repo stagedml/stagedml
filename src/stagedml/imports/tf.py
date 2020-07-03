@@ -1,4 +1,3 @@
-
 from tensorflow import ( Tensor, random_normal_initializer )
 
 from tensorflow.keras.backend import ( clear_session, image_data_format )
@@ -24,6 +23,8 @@ from tensorboard.backend.event_processing.event_accumulator import (
     ScalarEvent, TensorEvent )
 from tensorflow import train
 
+from tensorflow.python.ops.math_ops import ( argmax )
+
 Feature=train.Feature
 Features=train.Features
 Example=train.Example
@@ -40,3 +41,12 @@ cardinality=data.experimental.cardinality
 def get_single_element(x):
   import tensorflow as tf
   return tf.data.experimental.get_single_element(x)
+
+from official.utils.misc.keras_utils import set_session_config
+from official.nlp.bert.tokenization import FullTokenizer
+from official.nlp.bert.classifier_data_lib import \
+    file_based_convert_examples_to_features
+
+from tensorboard.backend.event_processing.event_accumulator import (
+    EventAccumulator, STORE_EVERYTHING_SIZE_GUIDANCE, DEFAULT_SIZE_GUIDANCE,
+    ScalarEvent, TensorEvent )

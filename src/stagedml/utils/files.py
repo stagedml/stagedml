@@ -87,3 +87,11 @@ def flines(p:str, newline:str='\n')->int:
     for i, l in enumerate(f):
       pass
   return i+1
+
+def dpurge(dir, pattern, debug=True):
+  for f in listdir(dir):
+    if re_search(pattern, f):
+      if debug:
+        print('Removing', f, 'from', dir)
+      remove(join(dir, f))
+

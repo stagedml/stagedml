@@ -26,7 +26,8 @@ from stagedml.models.bert import ( BertLayer, BertInput, BertOutput,
 from stagedml.imports.tf import ( load_checkpoint, NotFoundError, Tensor, Mean,
     SparseCategoricalAccuracy, Input )
 from stagedml.imports.sys import ( join, partial )
-from stagedml.utils.tf import ( runtb, runtensorboard, thash, dpurge,
+from stagedml.utils.files import ( dpurge )
+from stagedml.utils.tf import ( runtb, runtensorboard, thash,
     modelhash, print_model_checkpoint_diff, SparseF1Score,
     dataset_cardinality_size, dataset_iter_size )
 from stagedml.core import ( protocol_add, protocol_add_hist,
