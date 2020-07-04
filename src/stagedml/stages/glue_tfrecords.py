@@ -6,10 +6,11 @@ from pylightnix import ( RefPath, Manager, Build, Config, Hash, DRef,
     build_cattrs, build_outpath, build_path, mkdrv, match_only, mklens,
     promise, mkconfig, build_wrapper )
 
-from stagedml.utils import ( json_read )
 from stagedml.types import Glue,GlueTFR,BertCP
-from stagedml.imports import ( join, mkdir, FullTokenizer,
-    file_based_convert_examples_to_features, json_dumps, shuffle )
+from stagedml.utils.files import ( json_read )
+from stagedml.imports.sys import ( join, mkdir, json_dumps, shuffle )
+from stagedml.imports.tf import ( FullTokenizer,
+    file_based_convert_examples_to_features )
 from stagedml.datasets.glue.download_glue_data import TASKS as GLUE_TASKS
 
 from stagedml.datasets.glue.processors import ( get_processor, InputExample )

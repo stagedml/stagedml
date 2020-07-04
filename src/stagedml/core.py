@@ -7,13 +7,10 @@ from pylightnix import ( Stage, Manager, Context, Hash, Path, DRef, RRef,
     mklens, Tag, RRefGroup, store_deps, store_initialize,
     assert_store_initialized )
 
-from stagedml.imports import ( join, environ, remove, copytree, copy_tree,
-    partial, AGraph, makedirs, History )
-from stagedml.utils import ( runtensorboard, ndhashl )
+from stagedml.imports.sys import ( join, environ, remove, copytree, copy_tree,
+    partial, AGraph, makedirs )
 from stagedml.types import ( Callable, List, Optional, Any, Tuple, Set,
     NamedTuple, Dict )
-
-import tensorflow as tf
 
 #: A default base for other global directories. Typically it is the root of the
 #: local copy of the StagedML repository.
@@ -167,6 +164,11 @@ def depgraph(stages:List[Stage],
     G.draw(filename)
   return G
 
+def stub_exception(exception:Exception)->Stage:
+  def _stage(m:Manager, *args, **kwargs):
+    """ Mock stage which raises given exception upon instantiation """
+    raise exception
+  return _stage
 
 #  ____            _                  _
 # |  _ \ _ __ ___ | |_ ___   ___ ___ | |
@@ -220,7 +222,7 @@ def protocol_add(fname:Path,
   protocol_dump(p,fname)
   return p
 
-def protocol_add_hist(fname:Path, name:str, whash:Hash, hist:History)->None:
+def protocol_add_hist(fname:Path, name:str, whash:Hash, hist:Any)->None:
   hd=hist.__dict__
   h2={'epoch':hd['epoch'],
       'history':{k:[float(f) for f in v] for k,v in hd['history'].items()}}

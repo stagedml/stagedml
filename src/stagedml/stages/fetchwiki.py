@@ -1,10 +1,10 @@
 from pylightnix import ( Manager, mknode, fetchurl, promise, mklens,
     get_executable, DRef, Build, mkdrv, match_only, build_wrapper,
     build_setoutpaths, promise, build_outpath, mkconfig )
-from stagedml.imports import ( environ, join, basename, dedent, contextmanager,
-    isfile, find_executable, cpu_count, bz2_open, walk, Pool, abspath,
-    json_loads )
-from stagedml.utils import ( system, writestr )
+from stagedml.imports.sys import ( environ, join, basename, dedent,
+    contextmanager, isfile, find_executable, cpu_count, bz2_open, walk, Pool,
+    abspath, json_loads )
+from stagedml.utils.files import ( system, writestr )
 from stagedml.types import ( Wikidump, Wikitext, Path, List, Optional, Tuple )
 
 def fetchwiki(m:Manager, dumpname:str, dumpdate:str, sha1:str)->Wikidump:

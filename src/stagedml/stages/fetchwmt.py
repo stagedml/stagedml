@@ -4,7 +4,7 @@ from pylightnix import ( RefPath, Build, Path, Config, Manager, RRef, DRef,
     catref, store_cattrs, fetchurl, mknode, mklens, promise, rref2dref,
     store_context )
 
-from stagedml.imports import ( join )
+from stagedml.imports.sys import ( join )
 from stagedml.models.transformer.imports import ( Subtokenizer,
     encode_and_save_files, RESERVED_TOKENS )
 from stagedml.utils.files import ( flines, readlines, writelines )

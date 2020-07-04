@@ -32,14 +32,6 @@ class Model(Build):
   y_test:Any
 
 
-def fetchmnist(m:Manager)->Mnist:
-  return Mnist(
-    fetchurl(m, name='mnist',
-                mode='as-is',
-                url='https://storage.googleapis.com/tensorflow/tf-keras-datasets/mnist.npz',
-                sha256='731c5ac602752760c8e48fbffcf8c3b850d9dc2a2aedcf2cc48468fc17b673d1'))
-
-
 
 def mnist_train(b:Model)->None:
   o = build_outpath(b)

@@ -6,7 +6,7 @@ from pylightnix import ( Hash, RefPath, Build, Path, Config, Manager, RRef,
 
 from stagedml.utils.files import ( system, flines, writelines, readlines )
 
-from stagedml.imports import ( environ, join, basename, dedent, contextmanager,
+from stagedml.imports.sys import ( environ, join, basename, dedent, contextmanager,
     isfile )
 
 from stagedml.types import ( Optional,Any,List,Tuple,Union, WmtSubtok, Set )

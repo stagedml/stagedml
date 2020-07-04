@@ -18,16 +18,6 @@ from stagedml.datasets.glue.processors import ( InputExample )
 import pandas as pd
 
 
-def fetchrusent(m:Manager, shuffle:bool=True)->Rusent:
-  return Rusent(fetchlocal(m,
-    name='fetchrusent',
-    envname='STAGEDML_RUSENTIMENT',
-    sha256='cbc02dfbfaee81eda1f192b5280f05fbda41fb1ab9952cb4d8f7b0ff227c968d',
-    output_preselected=[promise, 'rusentiment.tar', 'rusentiment_preselected_posts.csv'],
-    output_random=[promise, 'rusentiment.tar', 'rusentiment_random_posts.csv'],
-    output_tests=[promise, 'rusentiment.tar', 'rusentiment_test.csv']))
-
-
 def create_examples(df:DataFrame, type_hint:str)->List[InputExample]:
   result=[]
   for i,row in df.iterrows():

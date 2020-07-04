@@ -9,39 +9,70 @@ rref=realize(instantiate(all_bert_finetune_glue, 'MRPC'))
 rref2path(rref)
 ```
 """
+from ipdb import set_trace
 
 from pylightnix import ( Stage, Path, RRef, Manager, mknode, fetchurl,
     instantiate, realize, rref2path, store_initialize, shell, lsref, catref,
     repl_realize, repl_continueBuild, repl_build, repl_rref, repl_cancelBuild,
     store_gc, rmref, mklens, promise, claim, path2rref, rref2path,
-    store_dref2path, dirsize, store_config, config_name, redefine, mkconfig )
+    store_dref2path, dirsize, store_config, config_name, redefine, mkconfig,
+    fetchlocal )
 
-from stagedml.stages.fetchglue import fetchglue
-from stagedml.stages.glue_tfrecords import glue_tfrecords, glue_tasks
-from stagedml.stages.bert_finetune_glue import bert_finetune_glue
-from stagedml.stages.fetchsquad import fetchsquad11
-from stagedml.stages.squad_tfrecords import squad11_tfrecords
-from stagedml.stages.bert_finetune_squad import bert_finetune_squad11
-# from stagedml.stages.nl2bash.all import nl2bash
-from stagedml.stages.fetchnl2bash import fetchnl2bash, nl2bashSubtok
-from stagedml.stages.fetchwmt import wmtsubtok, wmtsubtokInv
-from stagedml.stages.transformer_wmt import transformer_wmt
-# from stagedml.stages.transformer2 import transformer2
-from stagedml.stages.convnn_mnist import fetchmnist, convnn_mnist
-from stagedml.stages.fetchwiki import fetchwiki, extractwiki, wikistat
-from stagedml.stages.bert_pretrain_wiki import ( bert_pretrain_tfrecords,
-    basebert_pretrain_wiki, minibert_pretrain_wiki )
-from stagedml.stages.fetchrusent import ( fetchrusent, rusent_tfrecords )
+from stagedml.core import ( lrealize, tryrealize, diskspace_h, linkrref,
+    linkrrefs, realize_recursive, depgraph, initialize, borrow, stub_exception )
 
 from stagedml.types import ( Dict, Set, Tuple, List, Optional, Union, DRef,
     Glue, Squad11, GlueTFR, Squad11TFR, BertCP, BertGlue, BertSquad, NL2Bash,
     TransWmt, WmtSubtok, ConvnnMnist, Wikidump, Wikitext, WikiTFR, BertPretrain,
-    BertFinetuneTFR )
-from stagedml.core import ( lrealize, tryrealize, diskspace_h, linkrref,
-    linkrrefs, realize_recursive, depgraph, initialize, borrow )
-from stagedml.imports import ( walk, join, abspath, islink, partial,
+    BertFinetuneTFR, Any, Mnist, Rusent )
+
+from stagedml.imports.sys import ( walk, join, abspath, islink, partial,
     get_terminal_size, BeautifulTable )
-from stagedml.utils import ( runtb )
+
+from stagedml.stages.fetchglue import fetchglue
+from stagedml.stages.fetchsquad import fetchsquad11
+from stagedml.stages.fetchwiki import fetchwiki, extractwiki, wikistat
+
+# def try_import(module:str, name:str)->Any:
+#   """ Helper function which tries to import `name` from `module`, but set it to
+#   the stub name in case of failure. Unfrotunately, this function can't preserve
+#   types, so we avoid using it. """
+#   try:
+#     exec(f"from {module} import {name} as __x__")
+#     return __x__ # type:ignore
+#   except ModuleNotFoundError as e:
+#     return partial(stub_exception, exception=e)
+
+try:
+  from stagedml.stages.glue_tfrecords import glue_tfrecords, glue_tasks
+  from stagedml.stages.bert_finetune_glue import bert_finetune_glue
+  from stagedml.stages.squad_tfrecords import squad11_tfrecords
+  from stagedml.stages.bert_finetune_squad import bert_finetune_squad11
+  # from stagedml.stages.nl2bash.all import nl2bash
+  from stagedml.stages.fetchnl2bash import fetchnl2bash, nl2bashSubtok
+  from stagedml.stages.fetchwmt import wmtsubtok, wmtsubtokInv
+  from stagedml.stages.transformer_wmt import transformer_wmt
+  # from stagedml.stages.transformer2 import transformer2
+  from stagedml.stages.convnn_mnist import convnn_mnist
+  from stagedml.stages.bert_pretrain_wiki import ( bert_pretrain_tfrecords,
+      basebert_pretrain_wiki, minibert_pretrain_wiki )
+  from stagedml.stages.rusent_tfrecords import ( rusent_tfrecords )
+  from stagedml.utils.tf import ( runtb )
+except ModuleNotFoundError as e:
+  glue_tfrecords =          stub_exception(e) # type:ignore
+  glue_tasks =              stub_exception(e) # type:ignore
+  bert_finetune_glue =      stub_exception(e) # type:ignore
+  bert_finetune_squad11 =   stub_exception(e) # type:ignore
+  fetchnl2bash =            stub_exception(e) # type:ignore
+  nl2bashSubtok =           stub_exception(e) # type:ignore
+  wmtsubtok =               stub_exception(e) # type:ignore
+  wmtsubtokInv =            stub_exception(e) # type:ignore
+  transformer_wmt =         stub_exception(e) # type:ignore
+  convnn_mnist =            stub_exception(e) # type:ignore
+  bert_pretrain_tfrecords = stub_exception(e) # type:ignore
+  basebert_pretrain_wiki =  stub_exception(e) # type:ignore
+  minibert_pretrain_wiki =  stub_exception(e) # type:ignore
+  rusent_tfrecords =        stub_exception(e) # type:ignore
 
 #: Glue dataset
 all_fetchglue = fetchglue
@@ -49,10 +80,27 @@ all_fetchglue = fetchglue
 #: SQuad dataset
 all_fetchsquad11 = fetchsquad11
 
-#: RuSentiment dataset:
-#: - [The Paper](https://www.aclweb.org/anthology/C18-1064.pdf)
-#: - [Annotation guidelines](https://github.com/text-machine-lab/rusentiment)
-all_fetchrusent = fetchrusent
+def all_fetchmnist(m:Manager)->Mnist:
+  return Mnist(
+    fetchurl(m, name='mnist',
+                mode='as-is',
+                url='https://storage.googleapis.com/tensorflow/tf-keras-datasets/mnist.npz',
+                sha256='731c5ac602752760c8e48fbffcf8c3b850d9dc2a2aedcf2cc48468fc17b673d1'))
+
+def all_fetchrusent(m:Manager, shuffle:bool=True)->Rusent:
+  """ RuSentiment dataset:
+  - [The Paper](https://www.aclweb.org/anthology/C18-1064.pdf)
+  - [Annotation guidelines](https://github.com/text-machine-lab/rusentiment)
+  """
+  return Rusent(fetchlocal(m,
+    name='fetchrusent',
+    envname='STAGEDML_RUSENTIMENT',
+    sha256='cbc02dfbfaee81eda1f192b5280f05fbda41fb1ab9952cb4d8f7b0ff227c968d',
+    output_preselected=[promise, 'rusentiment.tar', 'rusentiment_preselected_posts.csv'],
+    output_random=[promise, 'rusentiment.tar', 'rusentiment_random_posts.csv'],
+    output_tests=[promise, 'rusentiment.tar', 'rusentiment_test.csv']))
+
+
 
 def all_fetcholdbert(m:Manager)->BertCP:
   """ Fetch BERT-base pretrained checkpoint from the Google cloud """
@@ -128,7 +176,6 @@ def all_fetch_rubert(m:Manager):
     bert_ckpt=[claim,'rubert_cased_L-12_H-768_A-12_v2','bert_model.ckpt'],
     cased=True
     ))
-
 
 def all_glue_tfrecords(m:Manager, task_name:str, lower_case:bool)->GlueTFR:
   """ Fetch and preprocess GLUE dataset. `task_name` should be one of
@@ -266,12 +313,9 @@ def all_transformer_nl2bash(m:Manager)->TransWmt:
   """ Train a Transformer model on NL2Bash dataset """
   return transformer_wmt(m, all_nl2bashsubtok(m))
 
-all_fetchmnist = fetchmnist
-
 def all_convnn_mnist(m:Manager)->ConvnnMnist:
   """ Train a simple convolutional model on MNIST """
-  return convnn_mnist(m, fetchmnist(m))
-
+  return convnn_mnist(m, all_fetchmnist(m))
 
 def all_fetchenwiki(m:Manager)->Wikidump:
   """ Fetch English wikipedia dump """
