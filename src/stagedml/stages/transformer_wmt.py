@@ -9,11 +9,13 @@ from pylightnix import ( Build, Path, Config, Manager, RRef, DRef, Context,
     claim, repl_build, build_context, match_best, build_outpaths,
     build_setoutpaths )
 
-from stagedml.imports import ( join, clear_session, set_session_config,
-    TensorBoard, ModelCheckpoint, copy_tree, Model, isfile, get_single_element,
-    deepcopy, copyfile, SummaryWriter, create_file_writer )
+from stagedml.imports.sys import ( join, copy_tree, isfile, deepcopy, copyfile )
+from stagedml.imports.tf import ( clear_session, set_session_config,
+    TensorBoard, ModelCheckpoint, Model, get_single_element,
+    SummaryWriter, create_file_writer )
 
-from stagedml.utils import ( runtb, thash, dpurge, tryindex )
+from stagedml.utils.sys import ( dpurge, tryindex )
+from stagedml.utils.tf import ( runtb, thash )
 
 from stagedml.models.transformer import ( create_train_model, create_eval_model,
     create_optimizer, train_ds, eval_ds, LearningRateScheduler, LearningRateFn,

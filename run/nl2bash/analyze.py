@@ -47,7 +47,7 @@ tf.autograph.set_verbosity(3, False)
 
 from pylightnix import ( realize, mklens, match_only, promise, build_wrapper,
     mkconfig, mkdrv, readstr, mkbuildargs )
-from stagedml.utils import flines
+from stagedml.utils.sys import flines
 
 
 def model_size(stage)->int:

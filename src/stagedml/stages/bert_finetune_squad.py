@@ -19,9 +19,10 @@ from stagedml.datasets.squad.tfrecord import tf_record_dataset
 from stagedml.models.bert import ( BertLayer, BertInput, BertOutput, BertModel )
 from stagedml.models.bert_squad import BertSquadLogitsLayer
 from stagedml.types import ( Squad11TFR, BertSquad, Optional, Any, List, Tuple, Union )
-from stagedml.utils import ( dpurge, modelhash )
-from stagedml.core import ( protocol_add, protocol_match )
+from stagedml.utils.sys import ( dpurge )
+from stagedml.utils.tf import ( modelhash )
 from stagedml.imports.tf import ( load_checkpoint )
+from stagedml.core import ( protocol_add, protocol_match )
 
 
 class Model(Build):

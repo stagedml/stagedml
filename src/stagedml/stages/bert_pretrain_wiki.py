@@ -4,12 +4,13 @@ from pylightnix import ( Build, Manager, Lens, DRef, RRef, Build, RefPath,
     repl_buildargs, build_cattrs, match_latest, claim, dircp,
     build_setoutpaths, json_dump, redefine )
 
-from stagedml.imports import ( walk, abspath, join, Random, partial, cpu_count,
-    getpid, makedirs, Pool, bz2_open, json_loads, json_load, copy )
+from stagedml.imports.sys import ( walk, abspath, join, Random, partial,
+    cpu_count, getpid, makedirs, Pool, bz2_open, json_loads, json_load, copy )
 from stagedml.imports.tf import ( Dataset, FixedLenFeature,
     parse_single_example, Input, TruncatedNormal, TensorBoard )
-from stagedml.utils import ( concat, batch, flines, dpurge, modelhash, runtb,
-    TensorBoardFixed, writestr, readstr )
+from stagedml.utils.sys import ( flines, dpurge, writestr, readstr )
+from stagedml.utils.tf import (modelhash, runtb,
+    TensorBoardFixed )
 from stagedml.core import ( protocol_add, protocol_add_hist,
     protocol_add_eval, protocol_match )
 

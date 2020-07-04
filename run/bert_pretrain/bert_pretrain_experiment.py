@@ -1,12 +1,12 @@
 from pylightnix import ( build_setoutpaths, mkdrv, mkconfig, match_latest,
     build_wrapper, rref2dref, promise )
 from stagedml.types import ( Callable )
-from stagedml.imports import ( join, environ, makedirs, defaultdict,
-    Dataset )
-from stagedml.utils import ( EventAccumulator, MakeNdarray, ScalarEvent,
-    dataset_iter_size, readstr, writestr, disable_gpu_prealloc,
-    limit_gpu_memory, tensorboard_scalars, tensorboard_tags,
-    tensorboard_tensors, te2float)
+from stagedml.imports.sys import ( join, environ, makedirs, defaultdict )
+from stagedml.imports.tf  import ( Dataset )
+from stagedml.utils.sys import ( readstr, writestr )
+from stagedml.utils.tf import ( EventAccumulator, MakeNdarray, ScalarEvent,
+    dataset_iter_size, disable_gpu_prealloc, limit_gpu_memory,
+    tensorboard_scalars, tensorboard_tags, tensorboard_tensors, te2float )
 from stagedml.stages.bert_pretrain_wiki import bert_pretraining_dataset
 from stagedml.stages.all import *
 
@@ -177,7 +177,7 @@ def experiment_pretrain(model:ModelStage,
 
   def _pretrain_stage(nepoch:int, resume_rref:Optional[RRef])->Stage:
     def _stage(m):
-      return model(m,
+      return model(m, # type:ignore
         tfrecs=ds(m),
         train_steps_per_epoch=train_steps_per_epoch,
         train_epoches=nepoch,

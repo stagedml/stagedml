@@ -1,4 +1,4 @@
-from stagedml.imports import ( dedent )
+from stagedml.imports.sys import ( dedent )
 
 from pylightnix import ( instantiate, realize, rref2path )
 

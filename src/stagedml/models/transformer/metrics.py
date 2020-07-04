@@ -1,5 +1,6 @@
 import tensorflow as tf
-from stagedml.imports import ( Layer, Tensor, partial )
+from stagedml.imports.tf import ( Layer, Tensor )
+from stagedml.imports.sys import ( partial )
 
 from stagedml.models.transformer.imports import (
     padded_neg_log_perplexity, padded_accuracy, padded_accuracy_top5,

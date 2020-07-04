@@ -4,9 +4,9 @@ from pylightnix import ( RefPath, Build, Path, Config, Manager, RRef, DRef,
     catref, store_cattrs, fetchurl, mknode, mklens,
     promise, match_latest, forcelink, relpath )
 
-from stagedml.utils import ( flines )
 from stagedml.types import ( Optional, Any, List, Tuple, Union, Dict )
 from stagedml.imports.sys import ( join, random )
+from stagedml.utils.sys import ( flines )
 
 
 def catfiles(m:Manager, files:List[RefPath], outname:Optional[str]=None)->DRef:

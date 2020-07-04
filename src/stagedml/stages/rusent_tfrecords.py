@@ -6,9 +6,9 @@ from pylightnix import ( Hash, RefPath, Build, Path, Config, Manager, RRef,
 
 from stagedml.utils.files import ( system, flines, writelines, readlines )
 
-from stagedml.imports import ( environ, join, basename, dedent, contextmanager,
-    isfile, read_csv, DataFrame, FullTokenizer,
-    file_based_convert_examples_to_features, json_dump )
+from stagedml.imports.sys import ( environ, join, basename, dedent, contextmanager,
+    isfile, read_csv, DataFrame, json_dump )
+from stagedml.imports.tf import ( FullTokenizer, file_based_convert_examples_to_features )
 
 from stagedml.types import ( Optional, Any, List, Tuple, Union, Rusent, Set,
     Iterable, BertFinetuneTFR )

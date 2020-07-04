@@ -9,13 +9,13 @@ from pylightnix import ( Stage, Matcher, Build, Path, RefPath, Config, Manager,
     match_best, build_wrapper_, tryread, fetchurl, mklens, promise,
     instantiate, realize, redefine )
 
-from stagedml.imports import ( join, clear_session, set_session_config,
-    TensorBoard, ModelCheckpoint, to_categorical, np_load, Conv2D, MaxPool2D,
-    Dropout, Sequential, Flatten, Dense, partial )
+from stagedml.imports.sys import ( join, np_load, partial )
+from stagedml.imports.tf import ( clear_session, set_session_config,
+    TensorBoard, ModelCheckpoint, to_categorical, Conv2D, MaxPool2D,
+    Dropout, Sequential, Flatten, Dense )
 
+from stagedml.utils.sys import ( dpurge )
 from stagedml.utils.tf import ( runtb, runtensorboard, thash, modelhash )
-
-from stagedml.utils.files import ( dpurge )
 
 from stagedml.core import ( protocol_add, protocol_add_hist,
     protocol_add_eval, protocol_match )

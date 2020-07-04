@@ -1,6 +1,6 @@
 import tensorflow as tf
 
-from stagedml.imports import ( Tensor, Layer, random_normal_initializer )
+from stagedml.imports.tf import ( Tensor, Layer, random_normal_initializer )
 
 
 class EmbeddingSharedWeights(Layer):

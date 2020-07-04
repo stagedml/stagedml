@@ -1,5 +1,5 @@
 import tensorflow as tf
-from stagedml.imports import ( Layer, Tensor, Dense )
+from stagedml.imports.tf import ( Layer, Tensor, Dense )
 
 from typing import List
 

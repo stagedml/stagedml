@@ -7,10 +7,11 @@ from stagedml.stages.bert_finetune_glue import ( Model as BertClsModel,
     build as bert_finetune_build )
 from stagedml.types import ( Dict, Union, Optional, List, Any )
 from stagedml.core import ( protocol_rref_metric )
-from stagedml.imports import ( FullTokenizer, MakeNdarray, ScalarEvent,
-    TensorEvent, Features, Feature, Example, Dataset, OrderedDict, read_csv,
-    DataFrame, makedirs, json_dump, environ, contextmanager )
-from stagedml.utils import ( tensorboard_tags, tensorboard_tensors, te2float )
+from stagedml.imports.sys import ( read_csv, OrderedDict,
+    DataFrame, makedirs, json_dump, environ, contextmanager)
+from stagedml.imports.tf import ( FullTokenizer, MakeNdarray, ScalarEvent,
+    TensorEvent, Features, Feature, Example, Dataset )
+from stagedml.utils.tf import ( tensorboard_tags, tensorboard_tensors, te2float )
 
 from official.nlp.bert.classifier_data_lib import ( InputExample, InputFeatures,
     convert_single_example )

@@ -1,5 +1,5 @@
 import logging
-from stagedml.imports import ( find_executable, Popen, json_load, islink,
+from stagedml.imports.sys import ( find_executable, Popen, json_load, islink,
     chain )
 from typing import ( List, Any, Optional, Dict, Iterable, Iterator )
 

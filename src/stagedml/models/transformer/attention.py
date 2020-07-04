@@ -1,6 +1,6 @@
 import tensorflow as tf
 
-from stagedml.imports import ( Tensor, Layer, Model )
+from stagedml.imports.tf import ( Tensor, Layer, Model )
 from stagedml.models.transformer.imports import Dense3D
 
 

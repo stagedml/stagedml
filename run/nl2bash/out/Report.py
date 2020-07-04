@@ -7,7 +7,7 @@ from itertools import islice
 from pylightnix import (
     RRef, Path, realize, realizeMany, instantiate, redefine, mkconfig, promise,
     rref2dref, mksymlink, rref2path, mklens, match_best, match_some )
-from stagedml.imports import ( environ, join, environ, makedirs )
+from stagedml.imports.sys import ( environ, join, environ, makedirs )
 from stagedml.stages.all import ( transformer_wmt, all_nl2bashsubtok,
     all_fetchnl2bash )
 from analyze import ( read_tensorflow_log, vocab_size, model_size )

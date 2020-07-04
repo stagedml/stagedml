@@ -1,5 +1,5 @@
 import tensorflow as tf
-from stagedml.imports import ( Model, Layer, Tensor, Adam, LayerNormalization )
+from stagedml.imports.tf import ( Model, Layer, Tensor, Adam, LayerNormalization )
 
 from stagedml.models.transformer.imports import (
     transformer_loss, get_padding_bias, get_padding,

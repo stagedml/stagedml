@@ -1,13 +1,14 @@
 from pylightnix import ( RRef, rref2path, match_some, realizeMany, match_latest,
     store_buildtime, store_buildelta )
 
-from stagedml.imports import ( makedirs, MakeNdarray, join, environ, makedirs,
+from stagedml.imports.sys import ( makedirs, join, environ, makedirs,
     defaultdict, getcwd, DataFrame, read_csv )
-from stagedml.stages.all import *
+from stagedml.imports.tf import ( MakeNdarray )
 from stagedml.types import ( Dict, Union, Optional, List )
 from stagedml.core import ( protocol_rref_metric, depgraph )
-from stagedml.utils import ( tensorboard_tensors, tensorboard_scalars,
+from stagedml.utils.tf import ( tensorboard_tensors, tensorboard_scalars,
     tensorboard_tags, te2float )
+from stagedml.stages.all import *
 
 import numpy as np
 
