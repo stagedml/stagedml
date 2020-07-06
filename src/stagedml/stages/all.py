@@ -32,6 +32,10 @@ from stagedml.imports.sys import ( walk, join, abspath, islink, partial,
 from stagedml.stages.fetchglue import fetchglue
 from stagedml.stages.fetchsquad import fetchsquad11
 from stagedml.stages.fetchwiki import fetchwiki, extractwiki, wikistat
+from logging import getLogger
+
+logger=getLogger(__name__)
+error=logger.error
 
 # def try_import(module:str, name:str)->Any:
 #   """ Helper function which tries to import `name` from `module`, but set it to
@@ -59,6 +63,7 @@ try:
   from stagedml.stages.rusent_tfrecords import ( rusent_tfrecords )
   from stagedml.utils.tf import ( runtb )
 except ModuleNotFoundError as e:
+  error("Some stages have failed to load and were replaced with stubs!")
   glue_tfrecords =          stub_exception(e) # type:ignore
   glue_tasks =              stub_exception(e) # type:ignore
   bert_finetune_glue =      stub_exception(e) # type:ignore
