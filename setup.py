@@ -23,6 +23,9 @@ setup(
   test_suite='pytest',
   tests_require=['hypothesis', 'pytest-mypy'],
   setup_requires=['setuptools_scm'],
+  extras_require={
+    "tf": ["tensorflow==2.2.0"],  # FIXME: not totally works, actually
+  }
 )
 
 
