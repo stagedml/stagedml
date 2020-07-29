@@ -12,3 +12,5 @@ if &filetype == 'python'
 endif
 
 set wrap
+set nosmartindent
+set autoindent

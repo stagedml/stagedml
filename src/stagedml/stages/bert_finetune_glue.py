@@ -21,15 +21,20 @@ from pylightnix import ( Build, Path, Config, Manager, RRef, DRef, Context,
 
 from stagedml.datasets.glue.tfdataset import ( dataset_test,
     dataset_train, dataset_valid, bert_finetune_dataset )
-from stagedml.models.bert import ( BertLayer, BertInput, BertOutput,
-    BertModel, classification_logits, create_optimizer as create_optimizer_v2 )
+# from stagedml.models.bert import ( BertLayer, BertInput, BertOutput,
+#     BertModel, classification_logits, create_optimizer as create_optimizer_v2 )
+
+from official.nlp.bert.bert_models import get_transformer_encoder
+from official.nlp.modeling.models import BertClassifier
+
 from stagedml.imports.tf import ( load_checkpoint, NotFoundError, Tensor, Mean,
-    SparseCategoricalAccuracy, Input )
+    SparseCategoricalAccuracy, Input, TruncatedNormal )
 from stagedml.imports.sys import ( join, partial )
-from stagedml.utils.files import ( dpurge )
 from stagedml.utils.tf import ( runtb, runtensorboard, thash,
     modelhash, print_model_checkpoint_diff, SparseF1Score,
     dataset_cardinality_size, dataset_iter_size )
+from stagedml.utils.sys import ( dpurge )
+
 from stagedml.core import ( protocol_add, protocol_add_hist,
     protocol_add_eval, protocol_match )
 from stagedml.types import ( BertCP, GlueTFR, BertGlue,
@@ -77,39 +82,28 @@ def build(b:Model, clear_session:bool=True):
 
   b.strategy=tf.distribute.MirroredStrategy()
   with b.strategy.scope():
-    input_word_ids=Input(shape=(c.max_seq_length,), name='input_word_ids',
-        dtype=tf.int32)
-    input_mask=Input(shape=(c.max_seq_length,), name='input_mask',
-        dtype=tf.int32)
-    input_type_ids=Input(shape=(c.max_seq_length,), name='input_type_ids',
-        dtype=tf.int32)
+    initializer = TruncatedNormal(stddev=bert_config.initializer_range)
+    bert_encoder = get_transformer_encoder(bert_config, c.max_seq_length)
+    bert_classifier = BertClassifier(
+        bert_encoder,
+        num_classes=c.num_classes,
+        dropout_rate=bert_config.hidden_dropout_prob,
+        initializer=initializer)
 
 
-    teacher_ins = BertInput(input_word_ids, input_mask, input_type_ids)
-    teacher = BertLayer(config=bert_config, float_type=tf.float32, name='bert')
-    teacher_model = BertModel(teacher_ins, teacher(teacher_ins))
-    teacher_model.model.summary()
+    # model = tf.keras.Model(inputs=teacher_ins, outputs=[teacher_cls_logits])
+    # teacher_cls_probs = tf.keras.layers.Activation('softmax')(teacher_cls_logits)
+    # model_eval = tf.keras.Model(inputs=teacher_ins, outputs=[teacher_cls_probs])
+    # if 'opt_v2' in l.flags.val:
+    #   b.optimizer = create_optimizer_v2(c.lr,
+    #     c.train_steps_per_epoch*c.train_epoches, c.train_warmup_steps)
+    # else:
+    #   b.optimizer = create_optimizer(c.lr,
+    #     c.train_steps_per_epoch*c.train_epoches, c.train_warmup_steps)
 
-    teacher_outs = teacher_model(teacher_ins)
-    teacher_cls_logits = classification_logits(config=bert_config,
-                                               num_labels=c.num_classes,
-                                               pooled_input=teacher_outs.cls_output)
-
-    teacher_cls_probs = tf.keras.layers.Activation('softmax')(teacher_cls_logits)
-
-    model = tf.keras.Model(inputs=teacher_ins, outputs=[teacher_cls_logits])
-    model_eval = tf.keras.Model(inputs=teacher_ins, outputs=[teacher_cls_probs])
-
-    if 'opt_v2' in l.flags.val:
-      b.optimizer = create_optimizer_v2(c.lr,
-        c.train_steps_per_epoch*c.train_epoches, c.train_warmup_steps)
-    else:
-      b.optimizer = create_optimizer(c.lr,
-        c.train_steps_per_epoch*c.train_epoches, c.train_warmup_steps)
-
-    b.model = model
-    b.core_model = teacher_model.model
-    b.model_eval = model_eval
+    b.model = bert_classifier
+    b.core_model = bert_encoder
+    # b.model_eval = model_eval
   return
 
 

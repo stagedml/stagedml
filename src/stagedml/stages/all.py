@@ -48,8 +48,25 @@ error=logger.error
 #     return partial(stub_exception, exception=e)
 
 try:
+  from stagedml.stages.convnn_mnist import convnn_mnist
+except ModuleNotFoundError as e:
+  error("convnn_mnist stage has failed to load and was replaced with a stub!")
+  convnn_mnist = stub_exception(e) # type:ignore
+
+try:
   from stagedml.stages.glue_tfrecords import glue_tfrecords, glue_tasks
+except ModuleNotFoundError as e:
+  error("glue_tfrecords stage has failed to load and was replaced with a stub!")
+  glue_tfrecords =          stub_exception(e) # type:ignore
+  glue_tasks =              stub_exception(e) # type:ignore
+
+try:
   from stagedml.stages.bert_finetune_glue import bert_finetune_glue
+except ModuleNotFoundError as e:
+  error("bert_finetune_glue stage has failed to load and was replaced with a stub!")
+  bert_finetune_glue =      stub_exception(e) # type:ignore
+
+try:
   from stagedml.stages.squad_tfrecords import squad11_tfrecords
   from stagedml.stages.bert_finetune_squad import bert_finetune_squad11
   # from stagedml.stages.nl2bash.all import nl2bash
@@ -57,23 +74,18 @@ try:
   from stagedml.stages.fetchwmt import wmtsubtok, wmtsubtokInv
   from stagedml.stages.transformer_wmt import transformer_wmt
   # from stagedml.stages.transformer2 import transformer2
-  from stagedml.stages.convnn_mnist import convnn_mnist
   from stagedml.stages.bert_pretrain_wiki import ( bert_pretrain_tfrecords,
       basebert_pretrain_wiki, minibert_pretrain_wiki )
   from stagedml.stages.rusent_tfrecords import ( rusent_tfrecords )
   from stagedml.utils.tf import ( runtb )
 except ModuleNotFoundError as e:
   error("Some stages have failed to load and were replaced with stubs!")
-  glue_tfrecords =          stub_exception(e) # type:ignore
-  glue_tasks =              stub_exception(e) # type:ignore
-  bert_finetune_glue =      stub_exception(e) # type:ignore
   bert_finetune_squad11 =   stub_exception(e) # type:ignore
   fetchnl2bash =            stub_exception(e) # type:ignore
   nl2bashSubtok =           stub_exception(e) # type:ignore
   wmtsubtok =               stub_exception(e) # type:ignore
   wmtsubtokInv =            stub_exception(e) # type:ignore
   transformer_wmt =         stub_exception(e) # type:ignore
-  convnn_mnist =            stub_exception(e) # type:ignore
   bert_pretrain_tfrecords = stub_exception(e) # type:ignore
   basebert_pretrain_wiki =  stub_exception(e) # type:ignore
   minibert_pretrain_wiki =  stub_exception(e) # type:ignore
@@ -423,7 +435,8 @@ def gc(force:bool=False):
     t.column_headers=['Name', 'RRef/DRef', 'Size']
     t.column_alignments['Name']=BeautifulTable.ALIGN_LEFT
     t.column_alignments['RRef/DRef']=BeautifulTable.ALIGN_LEFT
-    d=sorted([(rref, dirsize(rref2path(rref))) for rref in rrefs] , key=lambda x:x[1])
+    d=sorted([(rref, dirsize(rref2path(rref))) for rref in rrefs],
+             key=lambda x:x[1])
     total_freed=0
     for rref,sz in d:
       t.append_row([config_name(store_config(rref)),rref,diskspace_h(sz)])

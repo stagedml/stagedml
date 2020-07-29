@@ -44,7 +44,7 @@ def get_single_element(x):
 
 from official.utils.misc.keras_utils import set_session_config
 from official.nlp.bert.tokenization import FullTokenizer
-from official.nlp.bert.classifier_data_lib import \
+from official.nlp.data.classifier_data_lib import \
     file_based_convert_examples_to_features
 
 from tensorboard.backend.event_processing.event_accumulator import (

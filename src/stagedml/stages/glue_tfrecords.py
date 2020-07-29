@@ -4,7 +4,7 @@ from typing import Optional,Any,List,Tuple,Union
 
 from pylightnix import ( RefPath, Manager, Build, Config, Hash, DRef,
     build_cattrs, build_outpath, build_path, mkdrv, match_only, mklens,
-    promise, mkconfig, build_wrapper )
+    promise, mkconfig, build_wrapper, match_latest )
 
 from stagedml.types import Glue,GlueTFR,BertCP
 from stagedml.utils.files import ( json_read )
@@ -101,7 +101,7 @@ def glue_tfrecords(m:Manager,
   return GlueTFR(
     mkdrv(m,
       config=mkconfig(_config()),
-      matcher=match_only(),
+      matcher=match_latest(), # FIXME: should be match_only
       realizer=build_wrapper(process)))
 
 
