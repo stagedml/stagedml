@@ -9,6 +9,9 @@ VERSION_TFM = $(shell cat ./3rdparty/tensorflow_models/official/pip_package/setu
 WHEEL_TFM_NAME = tf_models_official-$(VERSION_TFM)-py3-none-any.whl
 WHEEL_TFM = ./docker/wheels/$(WHEEL_TFM_NAME)
 
+
+SRC_ZHG = $(shell find 3rdparty/keras-* -name '*\.py')
+
 VERSION_TF = $(shell cat ./3rdparty/tensorflow/tensorflow/tensorflow.bzl | \
                      sed -n 's@.*VERSION = "\(.*\)".*@\1@p')
 WHEEL_TF_NAME = tensorflow-$(VERSION_TF)-cp36-cp36m-linux_x86_64.whl
@@ -89,6 +92,40 @@ install_tfm: check_root # Has to be run by root
 	pip3 install --force $(WHEEL_TFM)
 	pip3 hash $(WHEEL_TFM) > .install_tfm-stamp-$(HOSTNAME)
 
+
+## CyberZHG
+
+.stamp_wheel_zhg: $(SRC_ZHG)
+	inst() {( \
+		cd "$$1" ;\
+		rm -rf build dist ;\
+		python3 setup.py sdist bdist_wheel;\
+	  ); cp $$1/dist/*whl ./docker/wheels;\
+	};\
+	for p in 3rdparty/keras-* ; do \
+		inst $$p || exit 1 ; \
+	done
+	touch "$@"
+
+.PHONY: wheel_zhg
+wheel_zhg: .stamp_wheel_zhg
+
+.PHONY: check_zhg
+check_zhg: .stamp_wheel_zhg check_nonroot
+	( for p in docker/wheels/keras_* ; do \
+	    pip3 hash $$p || exit 1; \
+	  done\
+	)>.check_zhg-stamp-$(HOSTNAME)
+	diff .check_zhg-stamp-$(HOSTNAME) .install_zhg-stamp-$(HOSTNAME)
+
+# FIXME: Figure out how to install only external deps, but ignore keras_ deps
+.PHONY: install_zhg
+install_zhg: check_root # Has to be run by root
+	pip3 install --no-deps --force-reinstall ./docker/wheels/keras_*
+	( for p in docker/wheels/keras_* ; do \
+	    pip3 hash $$p || exit 1; \
+	  done\
+	)>.install_zhg-stamp-$(HOSTNAME)
 
 ## Pylightnix
 
