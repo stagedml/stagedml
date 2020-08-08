@@ -53,8 +53,8 @@ $(WHEEL_TF): ./_tf/$(WHEEL_TF_NAME)
 .PHONY: wheel_tf # We don't bother scanning for the changed sources here
 wheel_tf: check_nonroot $(WHEEL_TF)
 
-.PHONY: check_tf check_nonroot
-check_tf: $(WHEEL_TF)
+.PHONY: check_tf
+check_tf: $(WHEEL_TF) check_nonroot
 	pip3 hash $(WHEEL_TF) > .check_tf-stamp-$(HOSTNAME)
 	diff .check_tf-stamp-$(HOSTNAME) .install_tf-stamp-$(HOSTNAME)
 
@@ -78,8 +78,8 @@ $(WHEEL_TFM): $(SRC_TFM)
 .PHONY: wheel_tfm # We don't bother scanning for the changed sources here
 wheel_tfm: check_nonroot $(WHEEL_TFM)
 
-.PHONY: check_tfm check_nonroot
-check_tfm: $(WHEEL_TFM)
+.PHONY: check_tfm
+check_tfm: $(WHEEL_TFM) check_nonroot
 	pip3 hash $(WHEEL_TFM) > .check_tfm-stamp-$(HOSTNAME)
 	diff .check_tfm-stamp-$(HOSTNAME) .install_tfm-stamp-$(HOSTNAME)
 
