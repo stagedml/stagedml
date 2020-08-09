@@ -12,6 +12,7 @@ export PATH="$STAGEDML_ROOT/.nix_docker_inject.env/bin:$STAGEDML_ROOT/3rdparty/w
 export FZF_DEFAULT_COMMAND='fd --type f --hidden --follow --exclude 3rdparty --exclude .git'
 export PYTHONPATH=""
 export MYPYPATH=""
+export TF_KERAS=1 # For keras-bert and other libraries from CyberZHG
 
 update_pythonpath() {
   p="$1"
@@ -30,6 +31,7 @@ for p in \
   $STAGEDML_ROOT/3rdparty/nl2bash_essence/src \
   $STAGEDML_ROOT/3rdparty/keras-* \
   $STAGEDML_ROOT/src \
+  $STAGEDML_ROOT/tests \
   ; do
   update_pythonpath "$p"
 done
