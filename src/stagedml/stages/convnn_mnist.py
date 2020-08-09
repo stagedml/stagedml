@@ -10,7 +10,7 @@ from pylightnix import ( Stage, Matcher, Build, Path, RefPath, Config, Manager,
     instantiate, realize, redefine )
 
 from stagedml.imports.sys import ( join, np_load, partial )
-from stagedml.imports.tf import ( clear_session, set_session_config,
+from stagedml.imports.tf import ( clear_session,
     TensorBoard, ModelCheckpoint, to_categorical, Conv2D, MaxPool2D,
     Dropout, Sequential, Flatten, Dense )
 

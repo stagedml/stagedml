@@ -1,37 +1,25 @@
-from stagedml.stages.all import *
+from stagedml.imports.sys import (instantiate, realize, repl_realize,
+                                  repl_continueBuild, repl_cancelBuild, isrref,
+                                  repl_buildargs, isrref, build_setoutpaths,
+                                  shell)
 
+from stagedml.stages.all import (all_fetch_glue, all_tfrec_glue,
+                                 all_fetch_bertcp,
+                                 bert_finetune_glue_zhg)
 
+from stagedml.stages.bert_finetune_glue_zhg import State
 
-def dryrun_bert_finetune_glue(m:Manager, task_name:str='MRPC')->BertGlue:
-  """ Train a simple convolutional model on MNIST """
-  def _new_config(d):
-    mklens(d).name.val+='-dryrun'
-    mklens(d).train_epoches.val=1
-    mklens(d).dataset_size.val=100
-  return redefine(stage=partial(all_bert_finetune_glue, task_name=task_name),
-                  new_config=_new_config)(m)
+def all_test_bert(m):
+  ckpt = all_fetch_bertcp(m)
+  glue = all_tfrec_glue(m, task_name='MRPC', lower_case=True)
+  bert = bert_finetune_glue_zhg(m, ckpt, glue)
+  return bert
 
+def debug_bert()->State:
+  s=State(repl_buildargs(repl_realize(instantiate(all_test_bert))))
+  build_setoutpaths(s,1)
+  return s
 
-def dryrun_convnn_mnist(m:Manager)->ConvnnMnist:
-  """ Dry-run a simple convolutional model on MNIST """
-  def _new_config(d):
-    mklens(d).name.val+='-dryrun'
-    mklens(d).num_epoches.val=1
-  return redefine(all_convnn_mnist, new_config=_new_config)(m)
-
-
-def dryrun_minibert_pretrain(m:Manager, train_epoches=3, resume_rref=None
-                            )->BertPretrain:
-  """ Dry-run a simple convolutional model on MNIST """
-  def _nc1(c):
-    mklens(c).dupe_factor.val=2
-  tfrecs=redefine(all_enwiki_tfrecords, new_config=_nc1)(m)
-  def _nc2(d):
-    mklens(d).name.val+='-dryrun'
-    mklens(d).train_steps_per_loop.val=1
-    mklens(d).train_steps_per_epoch.val=30
-  return redefine(partial(minibert_pretrain_wiki,
-                          tfrecs=tfrecs,
-                          train_epoches=train_epoches,
-                          resume_rref=resume_rref), new_config=_nc2)(m)
-
+def test_bert():
+  res = realize(instantiate(all_test_bert))
+  assert isrref(rref)

@@ -28,24 +28,25 @@ from tensorflow.python.ops.math_ops import ( argmax )
 Feature=train.Feature
 Features=train.Features
 Example=train.Example
-
-
+Int64List=train.Int64List
 Dataset=data.Dataset
 FixedLenFeature=io.FixedLenFeature
 parse_single_example=io.parse_single_example
+TFRecordWriter=io.TFRecordWriter
 
 INFINITE_CARDINALITY=data.experimental.INFINITE_CARDINALITY
 UNKNOWN_CARDINALITY=data.experimental.UNKNOWN_CARDINALITY
 cardinality=data.experimental.cardinality
 
+
 def get_single_element(x):
   import tensorflow as tf
   return tf.data.experimental.get_single_element(x)
 
-from official.utils.misc.keras_utils import set_session_config
-from official.nlp.bert.tokenization import FullTokenizer
-from official.nlp.data.classifier_data_lib import \
-    file_based_convert_examples_to_features
+# from official.utils.misc.keras_utils import set_session_config
+# from official.nlp.bert.tokenization import FullTokenizer
+# from official.nlp.data.classifier_data_lib import \
+#     file_based_convert_examples_to_features
 
 from tensorboard.backend.event_processing.event_accumulator import (
     EventAccumulator, STORE_EVERYTHING_SIZE_GUIDANCE, DEFAULT_SIZE_GUIDANCE,
