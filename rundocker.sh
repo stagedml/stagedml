@@ -109,6 +109,9 @@ fi
 if test -d "/dev/bus/usb" ; then
   DOCKER_MOUNT_ARGS="$DOCKER_MOUNT_ARGS --privileged -v /dev/bus/usb:/dev/bus/usb"
 fi
+# if test -f "$HOME/.lastdisplay" ; then
+#   DOCKER_MOUNT_ARGS="$DOCKER_MOUNT_ARGS -v $HOME/.lastdisplay:/workspace/.lastdisplay"
+# fi
 
 ${DOCKER_CMD} --config "$DOCKER_CFG" \
     run -it --rm \

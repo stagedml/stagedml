@@ -20,6 +20,7 @@ pkgs.buildEnv {
     ccls
     fzf
     fd
+    xsel
   ]);
 }
 
