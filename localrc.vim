@@ -9,6 +9,7 @@ endfunction
 
 if &filetype == 'python'
   call Ident(2)
+  set textwidth=80
 endif
 
 set wrap
