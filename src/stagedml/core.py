@@ -222,8 +222,8 @@ def protocol_add(fname:Path,
     else:
       assert whash == old_whash or (old_whash is None), \
           (f"Protocol sanity check: Operation was marked as"
-           f"non-paramerer-changing, but Model parameters were in fact changed by"
-           f"something. Expected {old_whash}, got {whash}.")
+           f"non-paramerer-changing, but Model parameters were in fact changed "
+           f"by something. Expected {old_whash}, got {whash}.")
   p.append(ProtocolItem(name, whash, result))
   protocol_dump(p,fname)
   return p

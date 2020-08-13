@@ -44,3 +44,12 @@ from pylightnix import (Config, Stage, Manager, Context, Hash, Path, DRef, RRef,
                         dirsize, store_dref2path, path2rref, repl_cancelBuild,
                         repl_continueBuild, catref, lsref, shell, mknode,
                         repl_buildargs, repl_build)
+
+def _stub_set_trace():
+  print('set_trace(): ipdb module failed to load')
+
+try:
+  from ipdb import set_trace
+except ModuleNotFoundError:
+  set_trace = _stub_set_trace
+
