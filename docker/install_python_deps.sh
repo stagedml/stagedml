@@ -1,16 +1,18 @@
 #!/bin/sh
-pip3 install --upgrade pip && \
-pip3 install seaborn PyQT5 PySide2 \
-             beautifultable tqdm \
-             hypothesis pytest \
-             seqeval sklearn \
-             jsonpickle overrides \
-             ipdb netron \
-             pyls pyls-mypy mypy \
-             pytest-mypy \
-             git+https://github.com/stagedml/pydoc-markdown.git@develop \
-             codecov coverage \
-             pweave \
-             sentencepiece \
-             pygraphviz
-
+conda install -c conda-forge \
+  tqdm \
+  hypothesis \
+  pytest \
+  ipdb \
+  pyls-mypy \
+  mypy \
+  pytest-mypy \
+  codecov \
+  coverage \
+  pygraphviz \
+  matplotlib \
+  pyqt && \
+pip3 install \
+  git+https://github.com/stagedml/pydoc-markdown.git@develop \
+  netron \
+  beautifultable

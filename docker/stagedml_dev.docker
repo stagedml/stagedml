@@ -1,30 +1,31 @@
-# Development docker sets PYTHONPATH to point to package sources for as much
-# packages as possible.
-
-FROM ufoym/deepo:all-jupyter
-COPY with_the_same_user.sh /install/with_the_same_user.sh
+FROM nvidia/cuda:10.1-devel-ubuntu18.04
 
 COPY install_huawei_certificates.sh /install/install_huawei_certificates.sh
 RUN /bin/sh /install/install_huawei_certificates.sh
 
-COPY install_system_deps.sh /install/install_system_deps.sh
-RUN /bin/sh /install/install_system_deps.sh
-
-RUN apt-get install -y openjdk-8-jdk
-COPY set_java_home.sh /install/set_java_home.sh
-RUN /bin/sh /install/set_java_home.sh
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    wget sudo binutils git libx11-dev libxi-dev qt5-default libgl1-mesa-glx \
+    atool net-tools netcat rsync graphviz-dev ondir less figlet psmisc && \
+    rm -rf /var/lib/apt/lists/*
 
 COPY install_proxy_environment.sh /install/install_proxy_environment.sh
 RUN /bin/sh /install/install_proxy_environment.sh
 
-COPY install_git_openssl.sh /install/install_git_openssl.sh
-RUN /bin/sh /install/install_git_openssl.sh
+RUN wget -c http://developer.download.nvidia.com/compute/redist/cudnn/v7.6.0/cudnn-10.0-linux-x64-v7.6.0.64.tgz && \
+    tar -xzf cudnn-10.0-linux-x64-v7.6.0.64.tgz -C /usr/local && \
+    rm cudnn-10.0-linux-x64-v7.6.0.64.tgz && \
+    ldconfig
 
-COPY install_bazel.sh /install/install_bazel.sh
-RUN /bin/sh /install/install_bazel.sh
+RUN wget -c https://repo.continuum.io/miniconda/Miniconda3-latest-Linux-x86_64.sh && \
+    mv Miniconda3-latest-Linux-x86_64.sh ~/Miniconda3-latest-Linux-x86_64.sh && \
+    chmod +x ~/Miniconda3-latest-Linux-x86_64.sh && \
+    ~/Miniconda3-latest-Linux-x86_64.sh -b -p /opt/conda && \
+    rm ~/Miniconda3-latest-Linux-x86_64.sh && \
+    /opt/conda/bin/conda upgrade --all && \
+    /opt/conda/bin/conda install conda-build conda-verify && \
+    /opt/conda/bin/conda clean -ya
 
-COPY install_python_deps.sh /install/install_python_deps.sh
-RUN /bin/sh /install/install_python_deps.sh
+ENV PATH /opt/conda/bin:$PATH
 
 COPY install_codebraid.sh /install/install_codebraid.sh
 RUN /bin/sh /install/install_codebraid.sh
@@ -32,9 +33,13 @@ RUN /bin/sh /install/install_codebraid.sh
 COPY install_altair.sh /install/install_altair.sh
 RUN /bin/sh /install/install_altair.sh
 
-# FIXME: include in some deps
-RUN pip3 install tensorflow==2.2.0
+COPY install_python_deps.sh /install/install_python_deps.sh
+RUN /bin/sh /install/install_python_deps.sh
 
+RUN conda install tensorflow-gpu==2.2.0
+
+COPY with_the_same_user.sh /install/with_the_same_user.sh
 COPY devenv.sh /install/devenv.sh
 COPY install_devenv.sh /install/install_devenv.sh
 RUN /bin/sh /install/install_devenv.sh
+

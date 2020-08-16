@@ -1,23 +1,31 @@
 # Continuous integration docker installs packages using pip.
 
-FROM ufoym/deepo:all-jupyter
-COPY with_the_same_user.sh /install/with_the_same_user.sh
+FROM nvidia/cuda:10.1-devel-ubuntu18.04
 
 COPY install_huawei_certificates.sh /install/install_huawei_certificates.sh
 RUN /bin/sh /install/install_huawei_certificates.sh
 
-COPY install_system_deps.sh /install/install_system_deps.sh
-RUN /bin/sh /install/install_system_deps.sh
-
-RUN apt-get install -y openjdk-8-jdk
-COPY set_java_home.sh /install/set_java_home.sh
-RUN /bin/sh /install/set_java_home.sh
+RUN apt-get update && apt-get install -y --no-install-recommends wget sudo binutils git && \
+    rm -rf /var/lib/apt/lists/*
 
 COPY install_proxy_environment.sh /install/install_proxy_environment.sh
 RUN /bin/sh /install/install_proxy_environment.sh
 
-COPY install_python_deps.sh /install/install_python_deps.sh
-RUN /bin/sh /install/install_python_deps.sh
+RUN wget -c http://developer.download.nvidia.com/compute/redist/cudnn/v7.6.0/cudnn-10.0-linux-x64-v7.6.0.64.tgz && \
+    tar -xzf cudnn-10.0-linux-x64-v7.6.0.64.tgz -C /usr/local && \
+    rm cudnn-10.0-linux-x64-v7.6.0.64.tgz && \
+    ldconfig
+
+RUN wget -c https://repo.continuum.io/miniconda/Miniconda3-latest-Linux-x86_64.sh && \
+    mv Miniconda3-latest-Linux-x86_64.sh ~/Miniconda3-latest-Linux-x86_64.sh && \
+    chmod +x ~/Miniconda3-latest-Linux-x86_64.sh && \
+    ~/Miniconda3-latest-Linux-x86_64.sh -b -p /opt/conda && \
+    rm ~/Miniconda3-latest-Linux-x86_64.sh && \
+    /opt/conda/bin/conda upgrade --all && \
+    /opt/conda/bin/conda install conda-build conda-verify && \
+    /opt/conda/bin/conda clean -ya
+
+ENV PATH /opt/conda/bin:$PATH
 
 COPY install_codebraid.sh /install/install_codebraid.sh
 RUN /bin/sh /install/install_codebraid.sh
@@ -25,11 +33,11 @@ RUN /bin/sh /install/install_codebraid.sh
 COPY install_altair.sh /install/install_altair.sh
 RUN /bin/sh /install/install_altair.sh
 
+RUN conda install ipython
+RUN conda install tensorflow-gpu==2.2.0
+
+COPY with_the_same_user.sh /install/with_the_same_user.sh
 COPY install_wheels.sh /install/install_wheels.sh
-COPY wheels/tensorflow* /install/wheels/
-RUN /bin/sh /install/install_wheels.sh tensorflow
-COPY wheels/tf_models* /install/wheels/
-RUN /bin/sh /install/install_wheels.sh tf_models
 COPY wheels/pylightnix* /install/wheels/
 RUN /bin/sh /install/install_wheels.sh pylightnix
 COPY wheels/stagedml* /install/wheels/

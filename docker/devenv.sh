@@ -144,6 +144,4 @@ StagedML development environment assumes user to do the following:
 - Clone StagedML repo in "\$STAGEDML_ROOT" ($STAGEDML_ROOT)
 - Checkout git submodules of StagedML repo with
     \`git submodules update --init --recursive\`
-- Build TensorFlow wheel from source with \`buildtf\`
-- Install TensorFlow wheel with \`installtf\`
 EOF

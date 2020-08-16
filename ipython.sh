@@ -19,17 +19,18 @@ c.InteractiveShellApp.exec_lines.append('%load_ext autoreload')
 c.InteractiveShellApp.exec_lines.append('%autoreload 2')
 
 def tweak():
-  print("Enabling tweaks")
 
   try:
     import numpy as np
     np.set_printoptions(edgeitems=30, linewidth=100000)
+    print("Print tweak installed")
   except Exception as e:
     print("Failed to tweak numpy. Is it installed?")
 
   try:
     import ssl;
     ssl._create_default_https_context = ssl._create_unverified_context
+    print("SSL tweak installed")
   except Exception as e:
     print("Failed to tweak ssl. Is it installed?")
 
@@ -38,6 +39,7 @@ def tweak():
     matplotlib.use('Qt5Agg');
     import matplotlib.pyplot;
     matplotlib.pyplot.ioff()
+    print("Qt tweak installed")
   except Exception as e:
     print("Failed to tweak matplotlib. Is it installed?")
 
