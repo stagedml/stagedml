@@ -3,7 +3,7 @@ from stagedml.imports.sys import (environ, join, makedirs, mkdir, json_dumps,
                                   Hash, DRef, build_cattrs, build_outpath,
                                   build_path, mkdrv, match_only, mklens,
                                   promise, mkconfig, build_wrapper,
-                                  match_latest, OrderedDict)
+                                  match_latest, OrderedDict, set_trace)
 
 from stagedml.types import (Glue,GlueTFR,BertCP,Optional,Any,List,Tuple,Union)
 
@@ -20,9 +20,7 @@ from stagedml.imports.tf import (TFRecordWriter, Example, Features, Feature,
 from stagedml.datasets.glue.download_glue_data import TASKS as GLUE_TASKS
 from stagedml.datasets.glue.processors import ( get_processor, InputExample )
 
-from keras_bert import Tokenizer
-
-from ipdb import set_trace
+from keras_bert import Tokenizer, load_vocabulary
 
 def glue_tasks()->List[str]:
   tasks=[]
@@ -102,10 +100,8 @@ def make(b:Build)->None:
   valid_examples=train_valid_examples[train_len:]
   label_ids = {label:i for i,label in enumerate(processor.get_labels())}
 
-  with open(mklens(b).bert_vocab.syspath) as f:
-    vocab = {text:val for val,text in enumerate(f.read().split())}
-
-  tokenizer = Tokenizer(vocab, cased=mklens(b).lower_case.val)
+  vocab = load_vocabulary(mklens(b).bert_vocab.syspath)
+  tokenizer = Tokenizer(vocab, cased=not mklens(b).lower_case.val)
 
   def _tokenize(examples:List[InputExample], outfile):
     def _ints(values):
@@ -138,7 +134,7 @@ def glue_tfrecords(m:Manager,
       f"Unsupported task '{task_name}'. Expected one of {glue_tasks()}"
 
   def _config():
-    version = 7
+    version = 9
     name = 'tfrecord-'+task_name.lower()
     nonlocal bert_vocab
     nonlocal lower_case

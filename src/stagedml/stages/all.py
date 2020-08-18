@@ -148,8 +148,7 @@ def all_fetch_rusent(m:Manager, shuffle:bool=True)->Rusent:
 #     ))
 
 def all_fetch_bertcp(m:Manager)->BertCP:
-  """ Fetch BERT-base pretrained checkpoint from the Google cloud
-  FIXME: rename to `all_fetch_basebert` """
+  """ Fetch BERT-base pretrained checkpoint from the Google cloud """
   return BertCP(fetchurl(m,
     name='basebert-uncased',
     url='https://storage.googleapis.com/bert_models/2020_02_20/uncased_L-12_H-768_A-12.zip',

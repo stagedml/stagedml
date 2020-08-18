@@ -2,10 +2,6 @@ import tensorflow as tf
 assert tf.version.VERSION.startswith('2.1') or \
        tf.version.VERSION.startswith('2.2')
 
-from stagedml.datasets.glue.tfdataset import (dataset_test, dataset_train,
-                                              dataset_valid,
-                                              bert_finetune_dataset )
-
 from stagedml.imports.sys import (join, partial, Build, Path, Config,
                                   Manager, RRef, DRef, Context, store_cattrs,
                                   build_outpaths, build_cattrs, mkdrv,
@@ -21,7 +17,7 @@ from stagedml.types import (BertCP, GlueTFR, BertGlue,
                             Optional,Any,List,Tuple,Union,BertFinetuneTFR)
 
 from stagedml.imports.tf import (Model, clear_session, TFRecordDataset,
-                                 TensorBoard, Dense)
+                                 TensorBoard, Dense, SparseCategoricalAccuracy)
 
 from stagedml.utils.tf import (runtb, runtensorboard, thash, modelhash,
                                print_model_checkpoint_diff, SparseF1Score,
@@ -47,11 +43,13 @@ from keras_radam import RAdam
 class State(Build):
   model_pretrained:Model
   model_cls:Model
+  model_test:Model
+  optimizer:Any
   config:dict
 
 
 
-def build(s:State):
+def build(s:State, iid:int=0):
   """ Build the model """
   clear_session()
 
@@ -71,25 +69,64 @@ def build(s:State):
   )
 
   inputs = model_pretrained.inputs[:2]
-  outputs = Dense(
-    mklens(s).num_classes.val, activation='softmax')(
+  output_logits = Dense(
+    mklens(s).num_classes.val)(
       model_pretrained.get_layer('NSP-Dense').output)
-  model_cls = Model(inputs, outputs)
-  model_cls.summary()
+  model_cls = Model(inputs, output_logits)
+  # model_cls.summary()
+
+  # FIXME: don't set zero dropout rate for test model
+  output_probs = tf.keras.layers.Activation('softmax')(output_logits)
+  model_test = Model(inputs, output_probs)
+  model_test.summary()
+
+  l = mklens(s, build_output_idx=iid)
+  train_data_size = sum(1 for _ in TFRecordDataset(l.datasets.train.syspath))
+  train_steps_per_epoch = int(train_data_size // l.train_batch_size.val)
+  train_epoches = l.train_epoches.val
 
   s.config = readjson(mklens(s).bert_config.syspath)
   s.model_pretrained = model_pretrained
   s.model_cls = model_cls
+  s.model_test = model_test
+  s.optimizer = RAdam(lr=mklens(s).lr.val,
+                      total_steps=train_epoches * train_steps_per_epoch)
 
 
 def cpload(s:State, iid:int=0)->None:
-  """ Load checkpoint into model """
+  """ Load checkpoint into model
+  TODO: Explicitly initialize not-affected classification layers
+  """
   l = mklens(s, build_output_idx=iid)
   ckpt = l.bert_ckpt.syspath
   load_model_weights_from_checkpoint(
     s.model_pretrained, s.config, ckpt, training=True)
 
 
+def get_loss_fn(num_classes):
+  """Gets the classification loss function."""
+
+  def classification_loss_fn(labels, logits):
+    """Classification loss."""
+    labels = tf.squeeze(labels)
+    log_probs = tf.nn.log_softmax(logits, axis=-1)
+    one_hot_labels = tf.one_hot(
+        tf.cast(labels, dtype=tf.int32), depth=num_classes, dtype=tf.float32)
+    per_example_loss = -tf.reduce_sum(
+        tf.cast(one_hot_labels, dtype=tf.float32) * log_probs, axis=-1)
+    return tf.reduce_mean(per_example_loss)
+
+  return classification_loss_fn
+
+
+def _map(record, max_seq_length):
+  example = tf.io.parse_single_example(record, {
+    'input_ids': tf.io.FixedLenFeature([max_seq_length], tf.int64),
+    'segment_ids': tf.io.FixedLenFeature([max_seq_length], tf.int64),
+    'label_ids': tf.io.FixedLenFeature([], tf.int64)})
+  return ({'Input-Token': tf.cast(example['input_ids'],tf.int32),
+           'Input-Segment': tf.cast(example['segment_ids'],tf.int32)},
+          tf.cast(example['label_ids'], tf.int32))
 
 def train(s:State, iid:int=0)->None:
   """ Train the model by using """
@@ -99,20 +136,11 @@ def train(s:State, iid:int=0)->None:
   max_seq_length = l.max_seq_length.val
   train_data_size = sum(1 for _ in TFRecordDataset(l.datasets.train.syspath))
   train_steps_per_epoch = int(train_data_size // l.train_batch_size.val)
-
-
-  def _map(record):
-    example = tf.io.parse_single_example(record, {
-      'input_ids': tf.io.FixedLenFeature([max_seq_length], tf.int64),
-      'segment_ids': tf.io.FixedLenFeature([max_seq_length], tf.int64),
-      'label_ids': tf.io.FixedLenFeature([], tf.int64)})
-    return ({'Input-Token': tf.cast(example['input_ids'],tf.int32),
-             'Input-Segment': tf.cast(example['segment_ids'],tf.int32)},
-            tf.cast(example['label_ids'], tf.int32))
+  train_epoches = l.train_epoches.val
 
   dataset_train = \
     TFRecordDataset(l.datasets.train.syspath) \
-      .map(_map) \
+      .map(partial(_map, max_seq_length=max_seq_length)) \
       .shuffle(100) \
       .repeat() \
       .batch(l.train_batch_size.val, drop_remainder=True) \
@@ -120,14 +148,16 @@ def train(s:State, iid:int=0)->None:
 
   dataset_valid = \
     TFRecordDataset(l.datasets.valid.syspath) \
-      .map(_map) \
+      .map(partial(_map, max_seq_length=max_seq_length)) \
       .shuffle(100) \
-      .batch(l.train_batch_size.val, drop_remainder=False)
+      .batch(l.valid_batch_size.val, drop_remainder=False)
 
+  loss_fn = get_loss_fn(num_classes=mklens(s).num_classes.val)
 
-  s.model_cls.compile(RAdam(lr=mklens(s).lr.val),
-                      loss='sparse_categorical_crossentropy',
-                      metrics=['sparse_categorical_accuracy'])
+  metric_fn = SparseCategoricalAccuracy('accuracy', dtype=tf.float32)
+  s.model_cls.compile(s.optimizer,
+                      loss=loss_fn,
+                      metrics=metric_fn)
 
   tensorboard_callback = TensorBoard(log_dir=o, profile_batch=0,
                                      write_graph=False, update_freq='batch')
@@ -137,16 +167,41 @@ def train(s:State, iid:int=0)->None:
     dataset_train,
     steps_per_epoch=train_steps_per_epoch,
     validation_data=dataset_valid,
-    epochs=l.train_epoches.val,
+    epochs=train_epoches,
     callbacks=[tensorboard_callback],
     verbose=1)
 
-  protocol_add_hist(l.protocol.syspath, 'train', modelhash(s.model_cls), h)
+  protocol_add_hist(l.out_protocol.syspath, 'train', modelhash(s.model_cls), h)
 
 
-def evaluate(s:State, iid:int=0)->None:
+def test(s:State, iid:int=0)->None:
   """ Evaluate the model """
-  pass
+  c=build_cattrs(s)
+  o=build_outpaths(s)[iid]
+  l=mklens(s,build_output_idx=iid)
+
+  metrics = [ SparseCategoricalAccuracy('test_accuracy', dtype=tf.float32),
+              SparseF1Score(num_classes=c.num_classes, average='micro') ]
+  loss_fn = get_loss_fn(num_classes=int(c.num_classes))
+
+  s.model_test.compile(s.optimizer, loss=loss_fn, metrics=metrics)
+
+  dataset_test = \
+    TFRecordDataset(l.datasets.test.syspath) \
+      .map(partial(_map, max_seq_length=c.max_seq_length)) \
+      .shuffle(100) \
+      .batch(l.test_batch_size.val, drop_remainder=False)
+
+  print('Testing')
+  h = s.model_test.evaluate(dataset_test)
+
+  filewriter = tf.summary.create_file_writer(join(o,'test'))
+  with filewriter.as_default():
+    for mname,v in zip(s.model_test.metrics_names, h):
+      tf.summary.scalar(mname, v, step=0)
+
+  protocol_add_eval(l.out_protocol.syspath, 'evaluate',
+                    modelhash(s.model_cls), s.model_test.metrics_names, h)
 
 
 def bert_finetune_glue_zhg(m:Manager, refbert:BertCP, tfrecs:BertFinetuneTFR,
@@ -166,22 +221,23 @@ def bert_finetune_glue_zhg(m:Manager, refbert:BertCP, tfrecs:BertFinetuneTFR,
     num_classes=mklens(tfrecs).num_classes.val
     max_seq_length=mklens(tfrecs).max_seq_length.val
     lr = 2e-5
-    train_batch_size = 32
+    train_batch_size = 8
+    valid_batch_size = train_batch_size
     test_batch_size = 32
     train_epoches = 3
 
     out_ckpt = [claim, f'{name}.ckpt']
     out_protocol = [promise, 'protocol.json']
+    changes = ['+logit-fix']
     return locals()
 
   def _make(b:Model)->None:
     build_setoutpaths(b,num_instances)
     for i in range(num_instances):
-      build(b);
-      if mklens(b).bert_ckpt_in.optval is not None:
-        cpload(b,i)
+      build(b,i)
+      cpload(b,i)
       train(b,i)
-      evaluate(b,i)
+      test(b,i)
 
   return BertGlue(mkdrv(m,
     config=mkconfig(_config()),

@@ -7,7 +7,7 @@ from stagedml.stages.all import (all_fetch_glue, all_tfrec_glue,
                                  all_fetch_bertcp,
                                  bert_finetune_glue_zhg)
 
-from stagedml.stages.bert_finetune_glue_zhg import State
+from stagedml.stages.bert_finetune_glue_zhg import *
 
 def all_test_bert(m):
   ckpt = all_fetch_bertcp(m)
@@ -21,5 +21,5 @@ def debug_bert()->State:
   return s
 
 def test_bert():
-  res = realize(instantiate(all_test_bert))
+  rref = realize(instantiate(all_test_bert))
   assert isrref(rref)

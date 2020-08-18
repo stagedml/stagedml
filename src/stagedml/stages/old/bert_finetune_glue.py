@@ -95,8 +95,8 @@ def build(b:Model, clear_session:bool=True):
     # teacher_cls_probs = tf.keras.layers.Activation('softmax')(teacher_cls_logits)
     # model_eval = tf.keras.Model(inputs=teacher_ins, outputs=[teacher_cls_probs])
     # if 'opt_v2' in l.flags.val:
-    #   b.optimizer = create_optimizer_v2(c.lr,
-    #     c.train_steps_per_epoch*c.train_epoches, c.train_warmup_steps)
+      b.optimizer = create_optimizer_v2(c.lr,
+        c.train_steps_per_epoch*c.train_epoches, c.train_warmup_steps)
     # else:
     #   b.optimizer = create_optimizer(c.lr,
     #     c.train_steps_per_epoch*c.train_epoches, c.train_warmup_steps)

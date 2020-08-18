@@ -4,7 +4,14 @@ import sys
 
 import tensorflow as tf
 
-from official.nlp.bert import tokenization
+def convert_to_unicode(text):
+  """Converts `text` to Unicode (if it's not already), assuming utf-8 input."""
+  if isinstance(text, str):
+    return text
+  elif isinstance(text, bytes):
+    return text.decode("utf-8", "ignore")
+  else:
+    raise ValueError("Unsupported string type: %s" % (type(text)))
 
 max_int = sys.maxsize
 csv.field_size_limit(max_int)
@@ -95,12 +102,12 @@ class ColaProcessor(DataProcessor):
   def _create_examples(self, lines, set_type):
     examples = []
     for idx, line in enumerate(lines):
-      guid = "{}-{}".format(set_type, tokenization.convert_to_unicode(line[0]))
-      text_a = tokenization.convert_to_unicode(line[-1])
+      guid = "{}-{}".format(set_type, convert_to_unicode(line[0]))
+      text_a = convert_to_unicode(line[-1])
       if set_type == "test":
         label = "0"
       else:
-        label = tokenization.convert_to_unicode(line[1])
+        label = convert_to_unicode(line[1])
       examples.append(InputExample(guid=guid, text_a=text_a, text_b=None, label=label))
     return examples
 
@@ -127,11 +134,11 @@ class Sst2Processor(DataProcessor):
     for idx, line in enumerate(lines[1:]):
       guid = "{}-{}".format(set_type, idx)
       if set_type == "test":
-        text_a = tokenization.convert_to_unicode(line[1])
+        text_a = convert_to_unicode(line[1])
         label = "0"
       else:
-        text_a = tokenization.convert_to_unicode(line[0])
-        label = tokenization.convert_to_unicode(line[1])
+        text_a = convert_to_unicode(line[0])
+        label = convert_to_unicode(line[1])
       examples.append(InputExample(guid=guid, text_a=text_a, text_b=None, label=label))
     return examples
 
@@ -157,12 +164,12 @@ class MrpcProcessor(DataProcessor):
     header = lines[0]
     for idx, line in enumerate(lines[1:]):
       guid = "{}-{}".format(set_type, idx)
-      text_a = tokenization.convert_to_unicode(line[-2])
-      text_b = tokenization.convert_to_unicode(line[-1])
+      text_a = convert_to_unicode(line[-2])
+      text_b = convert_to_unicode(line[-1])
       if set_type == "test":
         label = "0"
       else:
-        label = tokenization.convert_to_unicode(line[0])
+        label = convert_to_unicode(line[0])
       examples.append(InputExample(guid=guid, text_a=text_a, text_b=text_b, label=label))
     return examples
 
@@ -191,13 +198,13 @@ class QqpProcessor(DataProcessor):
         continue
       guid = "{}-{}".format(set_type, idx)
       if set_type == "test":
-        text_a = tokenization.convert_to_unicode(line[-2])
-        text_b = tokenization.convert_to_unicode(line[-1])
+        text_a = convert_to_unicode(line[-2])
+        text_b = convert_to_unicode(line[-1])
         label = "0"
       else:
-        text_a = tokenization.convert_to_unicode(line[-3])
-        text_b = tokenization.convert_to_unicode(line[-2])
-        label = tokenization.convert_to_unicode(line[-1])
+        text_a = convert_to_unicode(line[-3])
+        text_b = convert_to_unicode(line[-2])
+        label = convert_to_unicode(line[-1])
       examples.append(InputExample(guid=guid, text_a=text_a, text_b=text_b, label=label))
     return examples
 
@@ -223,12 +230,12 @@ class MnliMatchedProcessor(DataProcessor):
     header = lines[0]
     for idx, line in enumerate(lines[1:]):
       guid = "{}-{}".format(set_type, idx)
-      text_a = tokenization.convert_to_unicode(line[8])
-      text_b = tokenization.convert_to_unicode(line[9])
+      text_a = convert_to_unicode(line[8])
+      text_b = convert_to_unicode(line[9])
       if set_type == "test":
         label = "contradiction"
       else:
-        label = tokenization.convert_to_unicode(line[-1])
+        label = convert_to_unicode(line[-1])
       examples.append(InputExample(guid=guid, text_a=text_a, text_b=text_b, label=label))
     return examples
 
@@ -254,12 +261,12 @@ class MnliMismatchedProcessor(DataProcessor):
     header = lines[0]
     for idx, line in enumerate(lines[1:]):
       guid = "{}-{}".format(set_type, idx)
-      text_a = tokenization.convert_to_unicode(line[8])
-      text_b = tokenization.convert_to_unicode(line[9])
+      text_a = convert_to_unicode(line[8])
+      text_b = convert_to_unicode(line[9])
       if set_type == "test":
         label = "contradiction"
       else:
-        label = tokenization.convert_to_unicode(line[-1])
+        label = convert_to_unicode(line[-1])
       examples.append(InputExample(guid=guid, text_a=text_a, text_b=text_b, label=label))
     return examples
 
@@ -289,12 +296,12 @@ class SnliProcessor(DataProcessor):
         b_idx -= 1
       a_idx = b_idx - 1
       guid = "{}-{}".format(set_type, idx)
-      text_a = tokenization.convert_to_unicode(line[a_idx])
-      text_b = tokenization.convert_to_unicode(line[b_idx])
+      text_a = convert_to_unicode(line[a_idx])
+      text_b = convert_to_unicode(line[b_idx])
       if set_type == "test":
         label = "contradiction"
       else:
-        label = tokenization.convert_to_unicode(line[-1])
+        label = convert_to_unicode(line[-1])
       examples.append(InputExample(guid=guid, text_a=text_a, text_b=text_b, label=label))
     return examples
 
@@ -320,12 +327,12 @@ class QnliProcessor(DataProcessor):
     header = lines[0]
     for idx, line in enumerate(lines[1:]):
       guid = "{}-{}".format(set_type, idx)
-      text_a = tokenization.convert_to_unicode(line[1])
-      text_b = tokenization.convert_to_unicode(line[2])
+      text_a = convert_to_unicode(line[1])
+      text_b = convert_to_unicode(line[2])
       if set_type == "test":
         label = "entailment"
       else:
-        label = tokenization.convert_to_unicode(line[-1])
+        label = convert_to_unicode(line[-1])
       examples.append(InputExample(guid=guid, text_a=text_a, text_b=text_b, label=label))
     return examples
 
@@ -351,12 +358,12 @@ class RteProcessor(DataProcessor):
     header = lines[0]
     for idx, line in enumerate(lines[1:]):
       guid = "{}-{}".format(set_type, idx)
-      text_a = tokenization.convert_to_unicode(line[1])
-      text_b = tokenization.convert_to_unicode(line[2])
+      text_a = convert_to_unicode(line[1])
+      text_b = convert_to_unicode(line[2])
       if set_type == "test":
         label = "entailment"
       else:
-        label = tokenization.convert_to_unicode(line[-1])
+        label = convert_to_unicode(line[-1])
       examples.append(InputExample(guid=guid, text_a=text_a, text_b=text_b, label=label))
     return examples
 
@@ -382,12 +389,12 @@ class WnliProcessor(DataProcessor):
     header = lines[0]
     for idx, line in enumerate(lines[1:]):
       guid = "{}-{}".format(set_type, idx)
-      text_a = tokenization.convert_to_unicode(line[1])
-      text_b = tokenization.convert_to_unicode(line[2])
+      text_a = convert_to_unicode(line[1])
+      text_b = convert_to_unicode(line[2])
       if set_type == "test":
         label = "0"
       else:
-        label = tokenization.convert_to_unicode(line[-1])
+        label = convert_to_unicode(line[-1])
       examples.append(InputExample(guid=guid, text_a=text_a, text_b=text_b, label=label))
     return examples
 
