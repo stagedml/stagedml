@@ -11,7 +11,8 @@ conda install -c conda-forge \
   coverage \
   pygraphviz \
   matplotlib \
-  pyqt && \
+  pyqt \
+  pweave && \
 pip3 install \
   git+https://github.com/stagedml/pydoc-markdown.git@develop \
   netron \
