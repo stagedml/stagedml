@@ -283,7 +283,9 @@ def protocol_metric(p:Protocol, op_name:str, metric_name:str)->Optional[float]:
 
 def best_(op_name:str, metric_name:str, rrefgs:List[RRefGroup])->RRefGroup:
   """ Return best model in terms of a metric, received by the given operation.
-  Example: `best('evaluate','eval_accuracy', search(...)) ` """
+  Example: `best('evaluate','eval_accuracy', search(...)) `.  Model `rrefs` are
+  expected to contain `out_protocol` attribute.
+  """
   assert len(rrefgs)>0, "Empty input list of refs"
   metric_val=None
   best_rrefg=None
@@ -291,7 +293,7 @@ def best_(op_name:str, metric_name:str, rrefgs:List[RRefGroup])->RRefGroup:
     rref=g[Tag('out')]
     found_ops=0
     mv=None
-    p=protocol_load(mklens(rref).protocol.syspath)
+    p=protocol_load(mklens(rref).out_protocol.syspath)
     if p is not None:
       mv=protocol_metric(p, op_name, metric_name)
     if mv is not None:
@@ -318,6 +320,6 @@ def protocol_match(op_name:str, metric_name:str)->Matcher:
 def protocol_rref_metric(rref:RRef,
                          op_name:str,
                          metric_name:str)->Optional[float]:
-  p=protocol_load_def(mklens(rref).protocol.syspath, [])
+  p=protocol_load_def(mklens(rref).out_protocol.syspath, [])
   return protocol_metric(p, op_name, metric_name)
 

@@ -23,3 +23,4 @@ def debug_bert()->State:
 def test_bert():
   rref = realize(instantiate(all_test_bert))
   assert isrref(rref)
+  return rref

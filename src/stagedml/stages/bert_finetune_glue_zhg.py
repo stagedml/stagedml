@@ -94,7 +94,7 @@ def build(s:State, iid:int=0):
 
 
 def cpload(s:State, iid:int=0)->None:
-  """ Load checkpoint into model
+  """ Load GoogleResearch checkpoint into model
   TODO: Explicitly initialize not-affected classification layers
   """
   l = mklens(s, build_output_idx=iid)
@@ -103,11 +103,19 @@ def cpload(s:State, iid:int=0)->None:
     s.model_pretrained, s.config, ckpt, training=True)
 
 
-def get_loss_fn(num_classes):
-  """Gets the classification loss function."""
+def restore(s:State, rref:RRef)->None:
+  """ Load StagedML checkpoint into model """
+  s.model_cls.load_weights(mklens(rref).out_ckpt.syspath)
 
+
+def save(s:State)->None:
+  s.model_cls.save(mklens(s).out_savedmodel.syspath,
+                   overwrite=True,
+                   include_optimizer=False,
+                   save_format='tf')
+
+def get_loss_fn(num_classes):
   def classification_loss_fn(labels, logits):
-    """Classification loss."""
     labels = tf.squeeze(labels)
     log_probs = tf.nn.log_softmax(logits, axis=-1)
     one_hot_labels = tf.one_hot(
@@ -115,7 +123,6 @@ def get_loss_fn(num_classes):
     per_example_loss = -tf.reduce_sum(
         tf.cast(one_hot_labels, dtype=tf.float32) * log_probs, axis=-1)
     return tf.reduce_mean(per_example_loss)
-
   return classification_loss_fn
 
 
@@ -171,14 +178,16 @@ def train(s:State, iid:int=0)->None:
     callbacks=[tensorboard_callback],
     verbose=1)
 
+  s.model_cls.save_weights(l.out_ckpt.syspath)
+
   protocol_add_hist(l.out_protocol.syspath, 'train', modelhash(s.model_cls), h)
 
 
 def test(s:State, iid:int=0)->None:
   """ Evaluate the model """
-  c=build_cattrs(s)
-  o=build_outpaths(s)[iid]
-  l=mklens(s,build_output_idx=iid)
+  c = build_cattrs(s)
+  o = build_outpaths(s)[iid]
+  l = mklens(s,build_output_idx=iid)
 
   metrics = [ SparseCategoricalAccuracy('test_accuracy', dtype=tf.float32),
               SparseF1Score(num_classes=c.num_classes, average='micro') ]
@@ -200,7 +209,7 @@ def test(s:State, iid:int=0)->None:
     for mname,v in zip(s.model_test.metrics_names, h):
       tf.summary.scalar(mname, v, step=0)
 
-  protocol_add_eval(l.out_protocol.syspath, 'evaluate',
+  protocol_add_eval(l.out_protocol.syspath, 'test',
                     modelhash(s.model_cls), s.model_test.metrics_names, h)
 
 
@@ -218,17 +227,18 @@ def bert_finetune_glue_zhg(m:Manager, refbert:BertCP, tfrecs:BertFinetuneTFR,
     assert mklens(refbert).bert_vocab.refpath==\
            mklens(tfrecs).bert_vocab.refpath, \
       "Model dictionary path doesn't match the dataset dictionary path"
-    num_classes=mklens(tfrecs).num_classes.val
-    max_seq_length=mklens(tfrecs).max_seq_length.val
+    num_classes = mklens(tfrecs).num_classes.val
+    max_seq_length = mklens(tfrecs).max_seq_length.val
     lr = 2e-5
     train_batch_size = 8
     valid_batch_size = train_batch_size
     test_batch_size = 32
-    train_epoches = 3
+    train_epoches = 1 # FIXME: was 3
 
     out_ckpt = [claim, f'{name}.ckpt']
+    out_savedmodel =  [claim, f'{name}_savedmodel']
     out_protocol = [promise, 'protocol.json']
-    changes = ['+logit-fix']
+    changes = ['+logit-fix', '+save-weights', 'fix-protocol']
     return locals()
 
   def _make(b:Model)->None:
@@ -241,6 +251,6 @@ def bert_finetune_glue_zhg(m:Manager, refbert:BertCP, tfrecs:BertFinetuneTFR,
 
   return BertGlue(mkdrv(m,
     config=mkconfig(_config()),
-    matcher=protocol_match('evaluate', 'eval_accuracy'),
+    matcher=protocol_match('test', 'test_accuracy'),
     realizer=build_wrapper_(_make, State)))
 
