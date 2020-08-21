@@ -10,3 +10,30 @@
 [submodule "3rdparty/nl2bash_essence"]
 	path = 3rdparty/nl2bash_essence
 	url = https://github.com/stagedml/nl2bash_essence
+[submodule "3rdparty/keras-bert"]
+	path = 3rdparty/keras-bert
+	url = https://github.com/CyberZHG/keras-bert
+[submodule "3rdparty/keras-embed-sim"]
+	path = 3rdparty/keras-embed-sim
+	url = https://github.com/CyberZHG/keras-embed-sim
+[submodule "3rdparty/keras-layer-normalization"]
+	path = 3rdparty/keras-layer-normalization
+	url = https://github.com/CyberZHG/keras-layer-normalization
+[submodule "3rdparty/keras-multi-head"]
+	path = 3rdparty/keras-multi-head
+	url = https://github.com/CyberZHG/keras-multi-head
+[submodule "3rdparty/keras-pos-embd"]
+	path = 3rdparty/keras-pos-embd
+	url = https://github.com/CyberZHG/keras-pos-embd
+[submodule "3rdparty/keras-position-wise-feed-forward"]
+	path = 3rdparty/keras-position-wise-feed-forward
+	url = https://github.com/CyberZHG/keras-position-wise-feed-forward
+[submodule "3rdparty/keras-radam"]
+	path = 3rdparty/keras-radam
+	url = https://github.com/CyberZHG/keras-radam
+[submodule "3rdparty/keras-self-attention"]
+	path = 3rdparty/keras-self-attention
+	url = https://github.com/CyberZHG/keras-self-attention
+[submodule "3rdparty/keras-transformer"]
+	path = 3rdparty/keras-transformer
+	url = https://github.com/CyberZHG/keras-transformer
