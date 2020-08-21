@@ -12,13 +12,8 @@ from stagedml.core import (json_read)
 from stagedml.imports.tf import (TFRecordWriter, Example, Features, Feature,
                                  Int64List)
 
-# from official.utils.misc.keras_utils import set_session_config
-# from official.nlp.bert.tokenization import FullTokenizer
-# from official.nlp.data.classifier_data_lib import \
-#     file_based_convert_examples_to_features, convert_single_example
-
 from stagedml.datasets.glue.download_glue_data import TASKS as GLUE_TASKS
-from stagedml.datasets.glue.processors import ( get_processor, InputExample )
+from stagedml.datasets.glue.processors import (get_processor, InputExample)
 
 from keras_bert import Tokenizer, load_vocabulary
 
@@ -38,47 +33,6 @@ def glue_tasks()->List[str]:
 def _glue_task_src(tn:str)->str:
   return 'MNLI' if 'MNLI' in tn else tn  # 'MNLI-m' and 'MNLI-mm' are special
 
-
-# from official.nlp.bert.tokenization import FullTokenizer
-# from official.nlp.data.classifier_data_lib import \
-#     file_based_convert_examples_to_features, convert_single_example
-
-# def file_based_convert_examples_to_features(examples, label_list,
-#                                             max_seq_length, tokenizer,
-#                                             output_file):
-#   """Convert a set of `InputExample`s to a TFRecord file."""
-
-#   writer = tf.io.TFRecordWriter(output_file)
-
-#   for (ex_index, example) in enumerate(examples):
-#     if ex_index % 10000 == 0:
-#       logging.info("Writing example %d of %d", ex_index, len(examples))
-
-#   tokenizer.tokenize(first='unaffable', second='钢')
-
-#     feature = convert_single_example(ex_index, example, label_list,
-#                                      max_seq_length, tokenizer)
-
-#     def create_int_feature(values):
-#       f = tf.train.Feature(int64_list=tf.train.Int64List(value=list(values)))
-#       return f
-
-#     features = collections.OrderedDict()
-#     features["input_ids"] = create_int_feature(feature.input_ids)
-#     features["input_mask"] = create_int_feature(feature.input_mask)
-#     features["segment_ids"] = create_int_feature(feature.segment_ids)
-#     features["label_ids"] = create_int_feature([feature.label_id])
-#     features["is_real_example"] = create_int_feature(
-#         [int(feature.is_real_example)])
-
-#     tf_example = tf.train.Example(features=tf.train.Features(feature=features))
-#     writer.write(tf_example.SerializeToString())
-
-#   writer.close()
-
-
-
-
 def make(b:Build)->None:
   c=build_cattrs(b)
   o=build_outpath(b)
@@ -89,7 +43,6 @@ def make(b:Build)->None:
   vocab_path=mklens(b).bert_vocab.syspath
   max_seq_length=mklens(b).max_seq_length.val
 
-  # tokenizer = FullTokenizer(vocab_file=vocab_path, do_lower_case=c.lower_case)
   processor = get_processor(task_name)
 
   train_valid_examples=processor.get_train_examples(data_dir)
@@ -151,7 +104,6 @@ def glue_tfrecords(m:Manager,
   return GlueTFR(
     mkdrv(m,
       config=mkconfig(_config()),
-      matcher=match_latest(), # FIXME: should be match_only
+      matcher=match_only(),
       realizer=build_wrapper(make)))
-
 

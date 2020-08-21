@@ -233,7 +233,7 @@ def bert_finetune_glue_zhg(m:Manager, refbert:BertCP, tfrecs:BertFinetuneTFR,
     train_batch_size = 8
     valid_batch_size = train_batch_size
     test_batch_size = 32
-    train_epoches = 1 # FIXME: was 3
+    train_epoches = 3
 
     out_ckpt = [claim, f'{name}.ckpt']
     out_savedmodel =  [claim, f'{name}_savedmodel']
