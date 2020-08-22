@@ -16,7 +16,8 @@ from stagedml.imports.sys import (join, environ, remove, copytree, copy_tree,
                                   store_deps, store_initialize,
                                   assert_store_initialized )
 
-from stagedml.utils.sys import (dpurge, json_read)
+from stagedml.utils.sys import (dpurge, json_read, readlines, writelines,
+                                flines)
 
 #: A default base for other global directories. Typically it is the root of the
 #: local copy of the StagedML repository.

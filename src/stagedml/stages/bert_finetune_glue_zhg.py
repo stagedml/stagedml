@@ -47,8 +47,6 @@ class State(Build):
   optimizer:Any
   config:dict
 
-
-
 def build(s:State, iid:int=0):
   """ Build the model """
   clear_session()

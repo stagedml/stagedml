@@ -1,3 +1,8 @@
+from stagedml.types import ( Glue, GlueTFR, BertCP, Optional, Any, List, Tuple,
+                            Union )
+
+from stagedml.core import ( json_read, readlines )
+
 from stagedml.imports.sys import (environ, join, makedirs, mkdir, json_dumps,
                                   shuffle, RefPath, Manager, Build, Config,
                                   Hash, DRef, build_cattrs, build_outpath,
@@ -5,15 +10,12 @@ from stagedml.imports.sys import (environ, join, makedirs, mkdir, json_dumps,
                                   promise, mkconfig, build_wrapper,
                                   match_latest, OrderedDict, set_trace)
 
-from stagedml.types import (Glue,GlueTFR,BertCP,Optional,Any,List,Tuple,Union)
-
-from stagedml.core import (json_read)
-
-from stagedml.imports.tf import (TFRecordWriter, Example, Features, Feature,
-                                 Int64List)
+from stagedml.imports.tf import ( TFRecordWriter, Example, Features, Feature,
+                                 Int64List )
 
 from stagedml.datasets.glue.download_glue_data import TASKS as GLUE_TASKS
-from stagedml.datasets.glue.processors import (get_processor, InputExample)
+
+from stagedml.datasets.glue.processors import ( get_processor, InputExample )
 
 from keras_bert import Tokenizer, load_vocabulary
 

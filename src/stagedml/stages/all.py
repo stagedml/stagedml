@@ -69,8 +69,13 @@ try:
   from stagedml.stages.glue_tfrecords import glue_tfrecords, glue_tasks
 except ModuleNotFoundError as e:
   error("Failed to load glue_tfrecords stage!")
-  glue_tfrecords =          stub_exception(e) # type:ignore
-  glue_tasks =              stub_exception(e) # type:ignore
+  glue_tfrecords = stub_exception(e) # type:ignore
+  glue_tasks = stub_exception(e) # type:ignore
+
+try:
+  from stagedml.stages.rusent_tfrecords import tfrec_rusent
+except ModuleNotFoundError as e:
+  tfrec_rusent = stub_exception(e) # type:ignore
 
 try:
   from stagedml.stages.bert_finetune_glue import bert_finetune_glue
@@ -88,7 +93,6 @@ try:
   # from stagedml.stages.transformer2 import transformer2
   from stagedml.stages.bert_pretrain_wiki import ( bert_pretrain_tfrecords,
       basebert_pretrain_wiki, minibert_pretrain_wiki )
-  from stagedml.stages.rusent_tfrecords import ( rusent_tfrecords )
   from stagedml.utils.tf import ( runtb )
 except ModuleNotFoundError as e:
   error("Failed to load dataset-related stages!")
@@ -208,12 +212,12 @@ def all_fetch_rubertcp(m:Manager)->BertCP:
     cased=True
     ))
 
-def all_tfrec_glue(m:Manager, task_name:str, lower_case:bool)->GlueTFR:
+def all_tfrec_glue(m:Manager, task_name:str, lower_case:bool, bertcp=None)->GlueTFR:
   """ Fetch and preprocess GLUE dataset. `task_name` should be one of
   `glue_tasks()` """
-  refbert=all_fetch_bertcp(m)
+  bertcp=all_fetch_bertcp(m) if bertcp is None else bertcp
   refglue=all_fetch_glue(m)
-  vocab=bert_vocab=mklens(refbert).bert_vocab.refpath
+  vocab=bert_vocab=mklens(bertcp).bert_vocab.refpath
   return glue_tfrecords(m, task_name, bert_vocab=vocab,
     lower_case=lower_case, refdataset=refglue)
 
@@ -223,13 +227,13 @@ def all_tfrec_squad11(m:Manager)->Squad11TFR:
   squadref=all_fetch_squad11(m)
   return squad11_tfrecords(m, bertref, squadref)
 
-def all_tfrec_rusentiment(m:Manager)->BertFinetuneTFR:
+def all_tfrec_rusent(m:Manager, bertcp=None)->BertFinetuneTFR:
   """ Fetch and preprocess RuSentiment dataset """
-  bertref=all_fetch_bertcp(m)
+  bertcp=all_fetch_bertcp(m) if bertcp is None else bertcp
   rusentref=all_fetch_rusent(m)
-  return rusent_tfrecords(m, bert_vocab=mklens(bertref).bert_vocab.refpath,
-                             lower_case=mklens(bertref).cased.val==False,
-                             refdataset=rusentref)
+  return tfrec_rusent(m, bert_vocab=mklens(bertcp).bert_vocab.refpath,
+                      lower_case=mklens(bertcp).cased.val is False,
+                      refdataset=rusentref)
 
 # def all_nl2bash(m:Manager)->NL2Bash:
 #   return nl2bash(m)
