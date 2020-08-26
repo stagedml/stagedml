@@ -33,16 +33,16 @@ def extractwiki_realize(b:Build)->None:
   build_setoutpaths(b,1)
   system(
     cmd=([WIKIEXTRACTOR,
-        mklens(b).wikiref.syspath,
-        '--json',
-        '--processes', str(max(1,((cpu_count() or 1)*3)//4)),
-        '--output', mklens(b).output.syspath,
-        '--compress',
-        '--bytes', f'{mklens(b).filesize_mb.val}M',
-        # '--log_file', join(build_outpath(b),'wikiextractor.log'),
-        ]) + \
-        (['--templates', mklens(b).templates.syspath]
-             if mklens(b).templates.optval else ['--no_templates']) + \
+          mklens(b).wikiref.syspath,
+          '--json',
+          '--processes', str(max(1,((cpu_count() or 1)*3)//4)),
+          '--output', mklens(b).output.syspath,
+          '--compress',
+          '--bytes', f'{mklens(b).filesize_mb.val}M',
+          # '--log_file', join(build_outpath(b),'wikiextractor.log'),
+          ]) + \
+        (['--templates', mklens(b).templates.syspath] \
+          if mklens(b).templates.optval else ['--no_templates']) + \
         (mklens(b).wikiextractor_args.val))
 
 def extractwiki(m:Manager,
@@ -109,3 +109,4 @@ def wikistat(m:Manager,
 
   return mkdrv(m, mkconfig(_config()), match_only(),
                   build_wrapper(wikistat_realize))
+

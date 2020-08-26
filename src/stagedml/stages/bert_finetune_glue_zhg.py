@@ -234,7 +234,7 @@ def bert_finetune_glue_zhg(m:Manager, refbert:BertCP, tfrecs:BertFinetuneTFR,
     train_epoches = 3
 
     out_ckpt = [claim, f'{name}.ckpt']
-    out_savedmodel =  [claim, f'{name}_savedmodel']
+    out_savedmodel = [claim, f'{name}_savedmodel']
     out_protocol = [promise, 'protocol.json']
     changes = ['+logit-fix', '+save-weights', 'fix-protocol']
     return locals()

@@ -19,3 +19,4 @@ def fetchsquad11(m:Manager)->Squad11:
     'train': mklens(trainref).output.refpath,
     'dev': mklens(devref).output.refpath
     }))
+

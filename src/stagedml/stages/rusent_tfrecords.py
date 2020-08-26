@@ -1,25 +1,16 @@
-from stagedml.imports.sys import ( environ, join, basename, dedent,
-                                  contextmanager, isfile, read_csv, DataFrame,
-                                  OrderedDict, Hash, RefPath, Build, Path,
-                                  Config, Manager, RRef, DRef, Context,
-                                  build_wrapper, build_path, build_outpath,
-                                  build_cattrs, mkdrv, rref2path, mkconfig,
-                                  match_only, instantiate, realize, lsref,
-                                  catref, store_cattrs, dirhash, fetchlocal,
-                                  mknode, mklens, instantiate, realize,
-                                  repl_realize, repl_build, promise )
+from stagedml.imports.sys import (read_csv, DataFrame, OrderedDict, RefPath,
+                                  Build, Manager, build_wrapper, build_cattrs,
+                                  mkdrv, mkconfig, match_only, mklens, promise,
+                                  build_setoutpaths)
 
 from stagedml.imports.tf import ( TFRecordWriter, Example, Features, Feature,
                                  Int64List )
 
-from stagedml.types import ( Optional, Any, List, Tuple, Union, Rusent, Set,
-                            Iterable, BertFinetuneTFR )
+from stagedml.types import (List, Rusent, BertFinetuneTFR)
 
 from stagedml.datasets.glue.processors import (InputExample)
 
 from keras_bert import Tokenizer, load_vocabulary
-
-from stagedml.core import ( flines, readlines )
 
 import pandas as pd
 
@@ -33,7 +24,7 @@ def create_examples(df:DataFrame, type_hint:str)->List[InputExample]:
 
 def make(b:Build)->None:
   c=build_cattrs(b)
-  o=build_outpath(b)
+  build_setoutpaths(b, 1)
 
   df_presel=read_csv(mklens(b).refdataset.output_preselected.syspath)
   df_random=read_csv(mklens(b).refdataset.output_random.syspath)
@@ -47,7 +38,8 @@ def make(b:Build)->None:
   vocab = load_vocabulary(mklens(b).bert_vocab.syspath)
   tokenizer = Tokenizer(vocab, cased=not mklens(b).lower_case.val)
 
-  llabels = lambda df: set(df['label'].value_counts().keys())
+  def llabels(df):
+    return set(df['label'].value_counts().keys())
   labels=sorted(list(llabels(df_presel) | llabels(df_random) | llabels(df_test)))
   assert c.num_classes==len(labels)
   label_ids = {label:i for i,label in enumerate(labels)}
