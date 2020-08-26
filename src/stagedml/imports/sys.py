@@ -43,7 +43,7 @@ from pylightnix import (Config, Stage, Manager, Context, Hash, Path, DRef, RRef,
                         build_config, claim, fetchurl, fetchlocal, redefine,
                         dirsize, store_dref2path, path2rref, repl_cancelBuild,
                         repl_continueBuild, catref, lsref, shell, mknode,
-                        repl_buildargs, repl_build, store_context)
+                        repl_buildargs, repl_build, store_context, rref2dref)
 
 def _stub_set_trace():
   print('set_trace(): ipdb module failed to load')
