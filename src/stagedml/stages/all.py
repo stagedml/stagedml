@@ -81,7 +81,7 @@ try:
   from stagedml.stages.bert_finetune_glue import bert_finetune_glue
 except ModuleNotFoundError as e:
   error("Failed to load bert_finetune_glue stage!")
-  bert_finetune_glue =      stub_exception(e) # type:ignore
+  bert_finetune_glue = stub_exception(e) # type:ignore
 
 try:
   from stagedml.stages.squad_tfrecords import squad11_tfrecords
@@ -111,7 +111,7 @@ try:
   from stagedml.stages.bert_finetune_glue_zhg import bert_finetune_glue_zhg
 except ModuleNotFoundError as e:
   error("Failed to load CyberZHG-dependent stages!")
-  bert_finetune_glue_zhg =  stub_exception(e) # type:ignore
+  bert_finetune_glue_zhg = stub_exception(e) # type:ignore
 
 #: Glue dataset
 all_fetch_glue = fetchglue
@@ -217,7 +217,7 @@ def all_tfrec_glue(m:Manager, task_name:str, lower_case:bool, bertcp=None)->Glue
   `glue_tasks()` """
   bertcp=all_fetch_bertcp(m) if bertcp is None else bertcp
   refglue=all_fetch_glue(m)
-  vocab=bert_vocab=mklens(bertcp).bert_vocab.refpath
+  vocab=mklens(bertcp).bert_vocab.refpath
   return glue_tfrecords(m, task_name, bert_vocab=vocab,
     lower_case=lower_case, refdataset=refglue)
 
@@ -234,6 +234,13 @@ def all_tfrec_rusent(m:Manager, bertcp=None)->BertFinetuneTFR:
   return tfrec_rusent(m, bert_vocab=mklens(bertcp).bert_vocab.refpath,
                       lower_case=mklens(bertcp).cased.val is False,
                       refdataset=rusentref)
+
+def all_finetune_multibert_rusent(m:Manager):
+  bertcp = all_fetch_multibertcp(m)
+  rusent = all_tfrec_rusent(m, bertcp=bertcp)
+  bert = bert_finetune_glue_zhg(m, bertcp, rusent)
+  return bert
+
 
 # def all_nl2bash(m:Manager)->NL2Bash:
 #   return nl2bash(m)
