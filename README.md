@@ -30,6 +30,7 @@ Contents
    - [Build sample report](#build-sample-report)
    - [Work with models](#work-with-models)
 4. [Documentation](#documentation)
+   - [Presentation slides](#presentation-slides)
    - [About Pylightnix](#about-pylightnix)
    - [Repository structure](#repository-structure)
 5. [Models and experiments](#models-and-experiments)
@@ -348,11 +349,14 @@ With the realization reference in hands, we could:
 Documentation
 -------------
 
-FIXME: Not so much of actual documentation at the moment.
+### Presentation slides
+
+The ideas behind StagedML are described in the following
+[presentation](https://github.com/stagedml/stagedml-docs/blob/master/StagedML%20details.pdf)
 
 ### About Pylightnix
 
-The core library of StagedML is called _Pylightnix_. StagedML is basically a
+The core library of StagedML is called _Pylightnix_. In fact, StagedML is nothing more than a
 collection of Pylightnix _stages_. The following
 [Pylightnix documentation and manuals](https://github.com/stagedml/pylightnix/blob/master/README.md#Documentation)
 do apply:
