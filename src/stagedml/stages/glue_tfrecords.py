@@ -37,12 +37,12 @@ def _glue_task_src(tn:str)->str:
 
 def make(b:Build)->None:
   c=build_cattrs(b)
-  o=build_outpath(b)
+  _=build_outpath(b)
   print(f"Processing {c.task_name}..")
 
   task_name=c.task_name
   data_dir=mklens(b).inputdir.syspath
-  vocab_path=mklens(b).bert_vocab.syspath
+  _=mklens(b).bert_vocab.syspath
   max_seq_length=mklens(b).max_seq_length.val
 
   processor = get_processor(task_name)

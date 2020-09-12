@@ -48,7 +48,9 @@ class State(Build):
   config:dict
 
 def build(s:State, iid:int=0):
-  """ Build the model """
+  """ Build the model.
+
+  FIXME: zero dropout rate if inference """
   clear_session()
 
   with open(mklens(s).refbert.bert_vocab.syspath) as f:
@@ -223,7 +225,7 @@ def bert_finetune_glue_zhg(m:Manager, refbert:BertCP, tfrecs:BertFinetuneTFR,
     bert_config = mklens(refbert).bert_config.refpath
     bert_ckpt = mklens(refbert).bert_ckpt.refpath
     assert mklens(refbert).bert_vocab.refpath==\
-           mklens(tfrecs).bert_vocab.refpath, \
+           mklens(tfrecs).bert_vocab.refpath,\
       "Model dictionary path doesn't match the dataset dictionary path"
     num_classes = mklens(tfrecs).num_classes.val
     max_seq_length = mklens(tfrecs).max_seq_length.val
@@ -251,4 +253,3 @@ def bert_finetune_glue_zhg(m:Manager, refbert:BertCP, tfrecs:BertFinetuneTFR,
     config=mkconfig(_config()),
     matcher=protocol_match('test', 'test_accuracy'),
     realizer=build_wrapper_(_make, State)))
-

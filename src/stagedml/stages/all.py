@@ -39,7 +39,7 @@ from stagedml.imports.sys import (walk, join, abspath, islink, partial,
                                   store_dref2path, dirsize, store_config,
                                   config_name, redefine, mkconfig, fetchlocal)
 
-from stagedml.stages.fetchglue import fetchglue
+from stagedml.stages.glue_fetch import fetchglue
 from stagedml.stages.fetchsquad import fetchsquad11
 from stagedml.stages.fetchwiki import fetchwiki, extractwiki, wikistat
 from logging import getLogger
