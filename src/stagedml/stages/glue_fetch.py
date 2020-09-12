@@ -1,11 +1,4 @@
-from os import environ,rename,remove
-from os.path import join,isfile,basename
-from typing import Optional,Any,List,Tuple,Union
-from subprocess import Popen
-from urllib.parse import urlparse
-from hashlib import sha256
-
-from pylightnix import ( Config, Hash, DRef, build_cattrs, build_outpath,
+from pylightnix import ( Config, build_outpath,
     Manager, match_only, mkdrv, build_wrapper, Build )
 
 from stagedml.types import Glue
@@ -22,6 +15,6 @@ def download(b:Build)->None:
   glue_main(['--data_dir', build_outpath(b), '--tasks','all'])
 
 
-def fetchglue(m:Manager)->Glue:
+def fetch_glue(m:Manager)->Glue:
   return Glue(mkdrv(m, config(), match_only(), build_wrapper(download)))
 

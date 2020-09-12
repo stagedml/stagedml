@@ -8,7 +8,7 @@ from numpy import load as np_load
 from distutils.dir_util import copy_tree
 from copy import copy, deepcopy
 from shutil import copyfile, copytree
-from random import shuffle, random, Random
+from random import shuffle, random, Random, randint
 from distutils.spawn import find_executable
 from subprocess import ( Popen, run as os_run, PIPE, STDOUT )
 from json import (loads as json_loads, load as json_load, dump as json_dump,

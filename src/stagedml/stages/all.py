@@ -39,7 +39,7 @@ from stagedml.imports.sys import (walk, join, abspath, islink, partial,
                                   store_dref2path, dirsize, store_config,
                                   config_name, redefine, mkconfig, fetchlocal)
 
-from stagedml.stages.glue_fetch import fetchglue
+from stagedml.stages.glue_fetch import fetch_glue
 from stagedml.stages.fetchsquad import fetchsquad11
 from stagedml.stages.fetchwiki import fetchwiki, extractwiki, wikistat
 from logging import getLogger
@@ -114,7 +114,7 @@ except ModuleNotFoundError as e:
   bert_finetune_glue_zhg = stub_exception(e) # type:ignore
 
 #: Glue dataset
-all_fetch_glue = fetchglue
+all_fetch_glue = fetch_glue
 
 #: SQuad dataset
 all_fetch_squad11 = fetchsquad11

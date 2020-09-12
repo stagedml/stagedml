@@ -26,7 +26,7 @@ def debug_bert_glue()->State:
   build_setoutpaths(s,1)
   return s
 
-def test_bert_glue():
+def check_bert_glue():
   rref = realize(instantiate(all_test_bert_glue))
   assert isrref(rref)
   return rref

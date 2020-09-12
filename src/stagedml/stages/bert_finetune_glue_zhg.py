@@ -2,13 +2,14 @@ import tensorflow as tf
 assert tf.version.VERSION.startswith('2.1') or \
        tf.version.VERSION.startswith('2.2')
 
-from stagedml.imports.sys import (join, partial, Build, Path, Config,
-                                  Manager, RRef, DRef, Context, store_cattrs,
+from stagedml.imports.sys import (join, partial, Build, Path, Config, Manager,
+                                  RRef, DRef, Context, store_cattrs,
                                   build_outpaths, build_cattrs, mkdrv,
                                   rref2path, readjson, build_config, mklens,
                                   build_wrapper_, mkconfig, promise, claim,
                                   build_setoutpaths, realize, instantiate,
-                                  repl_realize, set_trace)
+                                  repl_realize, set_trace, match_only,
+                                  build_wrapper, json_dump)
 
 from stagedml.core import (protocol_add, protocol_add_hist, protocol_add_eval,
                            protocol_match, dpurge )
@@ -30,14 +31,6 @@ from keras_bert import (Tokenizer, get_base_dict, get_model, compile_model,
                         load_model_weights_from_checkpoint)
 
 from keras_radam import RAdam
-
-
-
-
-
-
-
-
 
 
 class State(Build):
@@ -253,3 +246,33 @@ def bert_finetune_glue_zhg(m:Manager, refbert:BertCP, tfrecs:BertFinetuneTFR,
     config=mkconfig(_config()),
     matcher=protocol_match('test', 'test_accuracy'),
     realizer=build_wrapper_(_make, State)))
+
+
+def bert_gencp(m:Manager, cased:bool)->BertGlue:
+  def _config():
+    bert_config=[promise,'bert_config.json'],
+    bert_vocab=[promise,'vocab.txt'],
+    bert_ckpt=[claim,'bert_model.ckpt'],
+    nonlocal cased
+    return locals()
+
+  def _make(b:Build):
+    build_setoutpaths(b, 1)
+    with open(mklens(b).bert_config.syspath,'w') as f:
+      json_dump({
+        'num_attention_heads': 24,
+        'num_hidden_layers': 6,
+        'hidden_size': 100,
+        'intermediate_size': 200,
+        'max_position_embeddings': 200
+        }, f, indent=4)
+    with open(mklens(b).bert_vocab.syspath,'w') as f:
+      pass
+    pass
+
+  return BertGlue(mkdrv(m,
+    config=mkconfig(_config()),
+    matcher=match_only(),
+    realizer=build_wrapper(_make)))
+
+
